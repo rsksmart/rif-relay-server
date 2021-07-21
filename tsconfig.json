@@ -1,0 +1,42 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "target": "es2017",
+    "module": "commonjs",
+    "strict": true,
+    "strictNullChecks": false,
+    "strictPropertyInitialization": false,
+    "moduleResolution": "node",
+    "alwaysStrict": true,
+    "declaration": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "forceConsistentCasingInFileNames": true,
+    "outDir": "dist",
+    "typeRoots": [
+      "./node_modules/@rsksmart/rif-relay-contracts/types",
+      "./node_modules/@types",
+      "./types"
+    ],
+    "types": [
+      "node",
+      "truffle-contracts"
+    ],
+    "lib": [
+      "es2018",
+      "esnext"
+    ],
+    "sourceMap": true
+  },
+  "include": [
+    "**/*.ts",
+    "src/**/*"
+  ],
+  "exclude": [
+    "dist",
+    "node_modules",
+    "build"
+  ]
+}
