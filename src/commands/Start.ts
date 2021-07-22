@@ -1,10 +1,10 @@
 // TODO: convert to 'commander' format
 import fs from 'fs';
 import Web3 from 'web3';
-import { HttpServer } from './HttpServer';
-import { RelayServer } from './RelayServer';
-import { KeyManager } from './KeyManager';
-import { TxStoreManager, TXSTORE_FILENAME } from './TxStoreManager';
+import { HttpServer } from '../HttpServer';
+import { RelayServer } from '../RelayServer';
+import { KeyManager } from '../KeyManager';
+import { TxStoreManager, TXSTORE_FILENAME } from '../TxStoreManager';
 import {
     ContractInteractor,
     ServerConfigParams
@@ -14,7 +14,7 @@ import {
     parseServerConfig,
     resolveServerConfig,
     ServerDependencies
-} from './ServerConfigParams';
+} from '../ServerConfigParams';
 import log from 'loglevel';
 
 function error(err: string): void {
@@ -94,5 +94,8 @@ async function run(): Promise<void> {
     log.debug('runServer() - Relay Server started');
 }
 
-// eslint-disable-next-line @typescript-eslint/no-floating-promises
-run();
+run().then(() => {
+    log.debug('runServer() - Relay Server running');
+}).catch(error => {
+    log.error('runServer() - Error running server', error);
+});

@@ -32,7 +32,7 @@ export declare class RelayServer extends EventEmitter {
     chainId: number;
     networkId: number;
     relayHubContract: IRelayHubInstance;
-    trustedVerifiers: Set<String | undefined>;
+    trustedVerifiers: Set<string | undefined>;
     workerBalanceRequired: AmountRequired;
     private readonly customReplenish;
     constructor(config: Partial<ServerConfigParams>, dependencies: ServerDependencies);

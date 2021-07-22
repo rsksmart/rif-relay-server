@@ -1,0 +1,7 @@
+#!/bin/bash
+
+if [ ! -f "dist/commands/Register.js" ]; then
+  npm run dist
+fi
+
+node dist/commands/Register.js --config server-config.json
