@@ -94,8 +94,10 @@ async function run(): Promise<void> {
     log.debug('runServer() - Relay Server started');
 }
 
-run().then(() => {
-    log.debug('runServer() - Relay Server running');
-}).catch(error => {
-    log.error('runServer() - Error running server', error);
-});
+run()
+    .then(() => {
+        log.debug('runServer() - Relay Server running');
+    })
+    .catch((error) => {
+        log.error('runServer() - Error running server', error);
+    });

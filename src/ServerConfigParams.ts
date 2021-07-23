@@ -3,8 +3,7 @@ import * as fs from 'fs';
 import {
     VersionRegistry,
     ContractInteractor,
-    constants,
-    ServerConfigParams
+    constants
 } from '@rsksmart/rif-relay-common';
 import { configure } from '@rsksmart/rif-relay-client';
 import { KeyManager } from './KeyManager';
@@ -14,8 +13,46 @@ import { TxStoreManager } from './TxStoreManager';
 import sourceMapSupport from 'source-map-support';
 //@ts-ignore
 sourceMapSupport.install({ errorFormatterForce: true });
+import { LogLevelNumbers } from 'loglevel';
 
 // TODO: is there a way to merge the typescript definition ServerConfigParams with the runtime checking ConfigParamTypes ?
+export interface ServerConfigParams {
+    url: string;
+    port: number;
+    versionRegistryAddress: string;
+    versionRegistryDelayPeriod?: number;
+    relayHubId?: string;
+    relayHubAddress: string;
+    rskNodeUrl: string;
+    workdir: string;
+    checkInterval: number;
+    readyTimeout: number;
+    devMode: boolean;
+    customReplenish: boolean;
+    registrationBlockRate: number;
+    alertedBlockDelay: number;
+    minAlertedDelayMS: number;
+    maxAlertedDelayMS: number;
+    trustedVerifiers: string[];
+    gasPriceFactor: number;
+    logLevel: LogLevelNumbers;
+    deployVerifierAddress: string;
+    relayVerifierAddress: string;
+    workerMinBalance: number;
+    workerTargetBalance: number;
+    managerMinBalance: number;
+    managerMinStake: string;
+    managerTargetBalance: number;
+    minHubWithdrawalBalance: number;
+    refreshStateTimeoutBlocks: number;
+    pendingTransactionTimeoutBlocks: number;
+    successfulRoundsForReady: number;
+    confirmationsNeeded: number;
+    retryGasPriceFactor: number;
+    maxGasPrice: string;
+    defaultGasLimit: number;
+    estimateGasFactor: number;
+}
 
 export interface ServerDependencies {
     // TODO: rename as this name is terrible
@@ -119,7 +156,7 @@ export function filterMembers(env: any, config: any): any {
 
 // map value from string into its explicit type (number, boolean)
 // TODO; maybe we can use it for more specific types, such as "address"..
-function explicitType([key, val]: [string, any]): any {
+export function explicitType([key, val]: [string, any]): any {
     const type = ConfigParamsTypes[key] as string;
     if (type === undefined) {
         error(`unexpected param ${key}=${val as string}`);

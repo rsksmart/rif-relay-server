@@ -6,6 +6,8 @@ This project works as a dependency or a standalone project.
 ### Pre-Requisites
 
 * Node version 12.18
+* RSKj Running Node
+* Rif Relay Contracts Deployed
 
 #### How to use it
 
@@ -16,7 +18,7 @@ ways to installing this dependency:
 
 * **Use a release version:** just install this using the install command for node `npm i --save @rsksmart/rif-relay-server`.
 * **Use the distributable directly from the repository:** modify your `package.json` file
-  to add this line `"@rsksmart/rif-relay-server": "https://github.com/JONAF2103/rif-relay-server",`
+  to add this line `"@rsksmart/rif-relay-server": "https://github.com/infuy/rif-relay-server",`
 * **Use the development version directly from your changes:** clone this repository next to your project and modify your `package.json` file
   to add this line `"@rsksmart/rif-relay-server": "../rif-relay-server",`
   
@@ -31,7 +33,11 @@ to start your relay server.
 #### How to register your running server
 
 To work with the Rif Relay contracts the server has to be registered and to do that you need to run in another terminal
-the next command `npm run registerRelay --funds <FUNDS> --stake <STAKE>` where `<FUNDS>` and  `<STAKE>` it's the amount of funds and stake to setup
+the next command `npm run register -- --funds="<FUNDS>" --stake="<STAKE>" --account="<ACCOUNT>" --mnemonic="<MNEMONIC>"` where:
+* **FUNDS**: an optional amount of funds to setup (by default 10)
+* **STAKE**: an optional the amount of stake to setup (by default 20)
+* **ACCOUNT**: an optional account to use for funding and staking. (it requires mnemonic parameter)
+* **MNEMONIC**: an optional mnemonic to use for unlock the account parameter. (it requires account parameter)
 your workers.
 
 #### How to generate a new distributable version

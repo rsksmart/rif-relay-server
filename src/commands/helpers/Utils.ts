@@ -1,11 +1,15 @@
+import yargs from 'yargs';
+import { hideBin } from 'yargs/helpers';
+import { ServerConfigParams } from '@rsksmart/rif-relay-common';
+import * as fs from 'fs';
+
 export function getParams(): any {
-  const args = process.argv.slice(2);
-  let params = Object.create({});
+    return yargs(hideBin(process.argv)).argv;
+}
 
-  args.forEach(a => {
-    const nameValue = a.split(" ");
-    params[nameValue[0]] = nameValue[1];
-  });
-
-  return params;
+export function parseServerConfig(configFile: string): ServerConfigParams {
+    const configJson = JSON.parse(
+        fs.readFileSync(configFile, { encoding: 'utf8' })
+    );
+    return configJson as ServerConfigParams;
 }
