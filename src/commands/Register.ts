@@ -133,7 +133,7 @@ export class Register extends CommandClient {
     }
 }
 
-async function executeRegister(registerOptions?: RegisterOptions) {
+export async function executeRegister(registerOptions?: RegisterOptions) {
     const parameters: any = getParams();
     const serverConfiguration: ServerConfigParams = parseServerConfig(
         parameters.config

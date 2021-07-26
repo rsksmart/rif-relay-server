@@ -14,4 +14,5 @@ export declare class Register extends CommandClient {
     constructor(host: string, config: EnvelopingConfig, mnemonic?: string);
     execute(options: RegisterOptions): Promise<void>;
 }
+export declare function executeRegister(registerOptions?: RegisterOptions): Promise<void>;
 export {};
