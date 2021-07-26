@@ -1,6 +1,6 @@
-import { CommandClient } from "./helpers/CommandClient";
-import { EnvelopingConfig } from "@rsksmart/rif-relay-common";
-import BN from "bn.js";
+import { CommandClient } from './helpers/CommandClient';
+import { EnvelopingConfig } from '@rsksmart/rif-relay-common';
+import BN from 'bn.js';
 interface RegisterOptions {
     hub: string;
     from: string;
