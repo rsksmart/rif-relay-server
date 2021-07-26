@@ -13,7 +13,7 @@ import { configure } from '@rsksmart/rif-relay-client';
 import { ether } from '@openzeppelin/test-helpers';
 import { ServerConfigParams } from '../ServerConfigParams';
 
-interface RegisterOptions {
+export interface RegisterOptions {
     hub: string;
     from: string;
     gasPrice: string | BN;

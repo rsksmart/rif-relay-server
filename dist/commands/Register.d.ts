@@ -1,7 +1,7 @@
 import { CommandClient } from './helpers/CommandClient';
 import { EnvelopingConfig } from '@rsksmart/rif-relay-common';
 import BN from 'bn.js';
-interface RegisterOptions {
+export interface RegisterOptions {
     hub: string;
     from: string;
     gasPrice: string | BN;
@@ -15,4 +15,3 @@ export declare class Register extends CommandClient {
     execute(options: RegisterOptions): Promise<void>;
 }
 export declare function executeRegister(registerOptions?: RegisterOptions): Promise<void>;
-export {};
