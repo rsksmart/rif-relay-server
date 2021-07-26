@@ -133,7 +133,7 @@ export class Register extends CommandClient {
     }
 }
 
-async function executeRegister() {
+async function executeRegister(registerOptions?: RegisterOptions) {
     const parameters: any = getParams();
     const serverConfiguration: ServerConfigParams = parseServerConfig(
         parameters.config
@@ -149,7 +149,7 @@ async function executeRegister() {
         (!portIncluded && serverConfiguration.port > 0
             ? ':' + serverConfiguration.port.toString()
             : '');
-    const registerOptions: RegisterOptions = {
+    await register.execute(registerOptions ? registerOptions : {
         hub: serverConfiguration.relayHubAddress,
         from: parameters.account ?? (await register.findWealthyAccount()),
         stake: ether(parameters.stake ? parameters.stake.toString() : '0.01'),
@@ -157,8 +157,7 @@ async function executeRegister() {
         relayUrl,
         unstakeDelay: '1000',
         gasPrice: '60000000'
-    };
-    await register.execute(registerOptions);
+    });
 }
 
 executeRegister()
