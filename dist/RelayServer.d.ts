@@ -3,11 +3,11 @@
 import { EventData } from 'web3-eth-contract';
 import { PrefixedHexString } from 'ethereumjs-tx';
 import { IRelayHubInstance } from '@rsksmart/rif-relay-contracts/types/truffle-contracts';
-import { ContractInteractor, PingResponse, AmountRequired, ServerConfigParams, TokenResponse, VerifierResponse, DeployTransactionRequest, RelayTransactionRequest } from '@rsksmart/rif-relay-common';
+import { ContractInteractor, PingResponse, AmountRequired, TokenResponse, VerifierResponse, DeployTransactionRequest, RelayTransactionRequest } from '@rsksmart/rif-relay-common';
 import { RegistrationManager } from './RegistrationManager';
 import { SignedTransactionDetails, TransactionManager } from './TransactionManager';
 import { TxStoreManager } from './TxStoreManager';
-import { ServerDependencies } from './ServerConfigParams';
+import { ServerDependencies, ServerConfigParams } from './ServerConfigParams';
 import EventEmitter from 'events';
 export declare class RelayServer extends EventEmitter {
     lastScannedBlock: number;

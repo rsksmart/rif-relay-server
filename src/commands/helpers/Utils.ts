@@ -1,6 +1,6 @@
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
-import { ServerConfigParams } from '@rsksmart/rif-relay-common';
+import { ServerConfigParams } from '../../ServerConfigParams';
 import * as fs from 'fs';
 
 export function getParams(): any {

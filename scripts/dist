@@ -2,4 +2,4 @@
 
 rm -rf dist
 
-npx webpack
+npm run build

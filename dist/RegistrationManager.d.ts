@@ -2,7 +2,8 @@
 import { EventData, PastEventOptions } from 'web3-eth-contract';
 import { EventEmitter } from 'events';
 import { PrefixedHexString } from 'ethereumjs-tx';
-import { AmountRequired, ServerConfigParams, ContractInteractor } from '@rsksmart/rif-relay-common';
+import { AmountRequired, ContractInteractor } from '@rsksmart/rif-relay-common';
+import { ServerConfigParams } from './ServerConfigParams';
 import { TransactionManager } from './TransactionManager';
 import { TxStoreManager } from './TxStoreManager';
 export interface RelayServerRegistryInfo {

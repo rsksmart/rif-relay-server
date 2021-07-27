@@ -1,9 +1,9 @@
 import { Mutex } from 'async-mutex';
 import { PrefixedHexString, Transaction, TransactionOptions } from 'ethereumjs-tx';
-import { ContractInteractor, ServerConfigParams } from '@rsksmart/rif-relay-common';
+import { ContractInteractor } from '@rsksmart/rif-relay-common';
 import { TxStoreManager } from './TxStoreManager';
 import { KeyManager } from './KeyManager';
-import { ServerDependencies } from './ServerConfigParams';
+import { ServerDependencies, ServerConfigParams } from './ServerConfigParams';
 import { ServerAction, StoredTransaction } from './StoredTransaction';
 export interface SignedTransactionDetails {
     transactionHash: PrefixedHexString;

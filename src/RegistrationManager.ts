@@ -16,9 +16,9 @@ import {
     StakeAdded,
     StakeUnlocked,
     StakeWithdrawn,
-    ServerConfigParams,
     ContractInteractor
 } from '@rsksmart/rif-relay-common';
+import { ServerConfigParams } from './ServerConfigParams';
 import {
     SendTransactionDetails,
     TransactionManager

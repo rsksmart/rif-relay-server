@@ -5,15 +5,13 @@ import { HttpServer } from '../HttpServer';
 import { RelayServer } from '../RelayServer';
 import { KeyManager } from '../KeyManager';
 import { TxStoreManager, TXSTORE_FILENAME } from '../TxStoreManager';
-import {
-    ContractInteractor,
-    ServerConfigParams
-} from '@rsksmart/rif-relay-common';
+import { ContractInteractor } from '@rsksmart/rif-relay-common';
 import { configure } from '@rsksmart/rif-relay-client';
 import {
     parseServerConfig,
     resolveServerConfig,
-    ServerDependencies
+    ServerDependencies,
+    ServerConfigParams
 } from '../ServerConfigParams';
 import log from 'loglevel';
 
