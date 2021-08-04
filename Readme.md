@@ -74,7 +74,8 @@ library on node registry. If you want to enable postinstall scripts again for de
 
 #### How to develop
 
-If you need to modify resources inside this repository you can just make your modifications
+If you need to modify resources inside this repository first you need to run `npm run switchPostInstall enable` to enable husky and other checks,
+then run `npm install` to execute the post install hooks. After that you can just make your modifications
 and then run `npm run build` to validate them. After you are done with your changes you
 can publish them by creating a distributable version for the consumers.
 
