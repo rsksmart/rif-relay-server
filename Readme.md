@@ -6,8 +6,14 @@ This project works as a dependency or a standalone project.
 ### Pre-Requisites
 
 * Node version 12.18
-* RSKj Running Node
+* RSKj Running Node. 
+  * **Note: RSKj should run with `miner.minGasPrice=1` or higher than 0 in regtest to work properly with this server.**
 * Rif Relay Contracts Deployed
+
+#### How to start
+
+To start working with this project you need to run `npm install` to install
+all the dependencies.
 
 #### How to use it
 
