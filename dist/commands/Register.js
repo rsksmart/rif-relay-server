@@ -93,15 +93,17 @@ async function executeRegister(registerOptions) {
         (!portIncluded && serverConfiguration.port > 0
             ? ':' + serverConfiguration.port.toString()
             : '');
-    await register.execute(registerOptions ? registerOptions : {
-        hub: serverConfiguration.relayHubAddress,
-        from: (_a = parameters.account) !== null && _a !== void 0 ? _a : (await register.findWealthyAccount()),
-        stake: test_helpers_1.ether(parameters.stake ? parameters.stake.toString() : '0.01'),
-        funds: test_helpers_1.ether(parameters.funds ? parameters.funds.toString() : '0.02'),
-        relayUrl,
-        unstakeDelay: '1000',
-        gasPrice: '60000000'
-    });
+    await register.execute(registerOptions
+        ? registerOptions
+        : {
+            hub: serverConfiguration.relayHubAddress,
+            from: (_a = parameters.account) !== null && _a !== void 0 ? _a : (await register.findWealthyAccount()),
+            stake: test_helpers_1.ether(parameters.stake ? parameters.stake.toString() : '0.01'),
+            funds: test_helpers_1.ether(parameters.funds ? parameters.funds.toString() : '0.02'),
+            relayUrl,
+            unstakeDelay: '1000',
+            gasPrice: '60000000'
+        });
 }
 exports.executeRegister = executeRegister;
 executeRegister()
