@@ -1,8 +1,8 @@
 import log from 'loglevel';
-import {EventData, PastEventOptions} from 'web3-eth-contract';
-import {EventEmitter} from 'events';
-import {PrefixedHexString} from 'ethereumjs-tx';
-import {toBN, toHex} from 'web3-utils';
+import { EventData, PastEventOptions } from 'web3-eth-contract';
+import { EventEmitter } from 'events';
+import { PrefixedHexString } from 'ethereumjs-tx';
+import { toBN, toHex } from 'web3-utils';
 import {
     address2topic,
     AmountRequired,
@@ -18,10 +18,13 @@ import {
     StakeUnlocked,
     StakeWithdrawn
 } from '@rsksmart/rif-relay-common';
-import {ServerConfigParams} from './ServerConfigParams';
-import {SendTransactionDetails, TransactionManager} from './TransactionManager';
-import {TxStoreManager} from './TxStoreManager';
-import {ServerAction} from './StoredTransaction';
+import { ServerConfigParams } from './ServerConfigParams';
+import {
+    SendTransactionDetails,
+    TransactionManager
+} from './TransactionManager';
+import { TxStoreManager } from './TxStoreManager';
+import { ServerAction } from './StoredTransaction';
 import chalk from 'chalk';
 
 export interface RelayServerRegistryInfo {
@@ -103,7 +106,8 @@ export class RegistrationManager {
 
     async init(): Promise<void> {
         if (this.lastWorkerAddedTransaction == null) {
-            this.lastWorkerAddedTransaction = await this._queryLatestWorkerAddedEvent();
+            this.lastWorkerAddedTransaction =
+                await this._queryLatestWorkerAddedEvent();
         }
 
         this.isInitialized = true;
@@ -204,8 +208,9 @@ export class RegistrationManager {
         return transactionHashes;
     }
 
-    async getRelayData (): Promise<RelayData> {
-        const relayData: RelayData[] = await this.contractInteractor.getRelayData([this.managerAddress]);
+    async getRelayData(): Promise<RelayData> {
+        const relayData: RelayData[] =
+            await this.contractInteractor.getRelayData([this.managerAddress]);
         if (relayData.length > 0) {
             return relayData[0];
         }
@@ -222,11 +227,17 @@ export class RegistrationManager {
         return ret;
     }
 
-    _isRegistrationCorrect (): boolean {
-        return isRegistrationValid(this.relayData, this.config, this.managerAddress);
+    _isRegistrationCorrect(): boolean {
+        return isRegistrationValid(
+            this.relayData,
+            this.config,
+            this.managerAddress
+        );
     }
 
-    _parseEvent (event: { events: any[], name: string, address: string } | null): any {
+    _parseEvent(
+        event: { events: any[]; name: string; address: string } | null
+    ): any {
         if (event?.events === undefined) {
             // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
             return `not event: ${event?.toString()}`;
@@ -487,11 +498,13 @@ export class RegistrationManager {
         );
     }
 
-    async isRegistered (): Promise<boolean> {
+    async isRegistered(): Promise<boolean> {
         const isRegistrationCorrect = this._isRegistrationCorrect();
-        return this.stakeRequired.isSatisfied &&
+        return (
+            this.stakeRequired.isSatisfied &&
             this.isStakeLocked &&
-            isRegistrationCorrect;
+            isRegistrationCorrect
+        );
     }
 
     printNotRegisteredMessage(): void {
