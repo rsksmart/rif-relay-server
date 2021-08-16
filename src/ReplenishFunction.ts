@@ -56,6 +56,7 @@ async function defaultReplenishFunction(
     if (mustReplenishWorker && !isReplenishPendingForWorker) {
         const refill = toBN(
             relayServer.config.workerTargetBalance.toString()
+            // @ts-ignore
         ).sub(relayServer.workerBalanceRequired.currentValue);
         console.log(
             `== replenishServer: mgr balance=${managerEthBalance.toString()}
@@ -66,6 +67,7 @@ async function defaultReplenishFunction(
 
         if (
             refill.lt(
+                // @ts-ignore
                 managerEthBalance.sub(
                     toBN(relayServer.config.managerMinBalance)
                 )

@@ -1,30 +1,27 @@
 import log from 'loglevel';
-import { EventData, PastEventOptions } from 'web3-eth-contract';
-import { EventEmitter } from 'events';
-import { PrefixedHexString } from 'ethereumjs-tx';
-import { toBN, toHex } from 'web3-utils';
+import {EventData, PastEventOptions} from 'web3-eth-contract';
+import {EventEmitter} from 'events';
+import {PrefixedHexString} from 'ethereumjs-tx';
+import {toBN, toHex} from 'web3-utils';
 import {
-    AmountRequired,
     address2topic,
+    AmountRequired,
+    boolString,
+    ContractInteractor,
+    defaultEnvironment,
     getLatestEventData,
     isRegistrationValid,
     isSecondEventLater,
-    boolString,
-    defaultEnvironment,
-    RelayServerRegistered,
+    RelayData,
     RelayWorkersAdded,
     StakeAdded,
     StakeUnlocked,
-    StakeWithdrawn,
-    ContractInteractor
+    StakeWithdrawn
 } from '@rsksmart/rif-relay-common';
-import { ServerConfigParams } from './ServerConfigParams';
-import {
-    SendTransactionDetails,
-    TransactionManager
-} from './TransactionManager';
-import { TxStoreManager } from './TxStoreManager';
-import { ServerAction } from './StoredTransaction';
+import {ServerConfigParams} from './ServerConfigParams';
+import {SendTransactionDetails, TransactionManager} from './TransactionManager';
+import {TxStoreManager} from './TxStoreManager';
+import {ServerAction} from './StoredTransaction';
 import chalk from 'chalk';
 
 export interface RelayServerRegistryInfo {
@@ -51,8 +48,7 @@ export class RegistrationManager {
     transactionManager: TransactionManager;
     config: ServerConfigParams;
     txStoreManager: TxStoreManager;
-
-    lastMinedRegisterTransaction?: EventData;
+    relayData: RelayData;
     lastWorkerAddedTransaction?: EventData;
     private delayedEvents: Array<{ block: number; eventData: EventData }> = [];
 
@@ -107,14 +103,9 @@ export class RegistrationManager {
 
     async init(): Promise<void> {
         if (this.lastWorkerAddedTransaction == null) {
-            this.lastWorkerAddedTransaction =
-                await this._queryLatestWorkerAddedEvent();
+            this.lastWorkerAddedTransaction = await this._queryLatestWorkerAddedEvent();
         }
 
-        if (this.lastMinedRegisterTransaction == null) {
-            this.lastMinedRegisterTransaction =
-                await this._queryLatestRegistrationEvent();
-        }
         this.isInitialized = true;
     }
 
@@ -166,19 +157,10 @@ export class RegistrationManager {
             }
         }
 
+        this.relayData = await this.getRelayData();
+
         for (const eventData of hubEventsSinceLastScan) {
             switch (eventData.event) {
-                case RelayServerRegistered:
-                    if (
-                        this.lastMinedRegisterTransaction == null ||
-                        isSecondEventLater(
-                            this.lastMinedRegisterTransaction,
-                            eventData
-                        )
-                    ) {
-                        this.lastMinedRegisterTransaction = eventData;
-                    }
-                    break;
                 case RelayWorkersAdded:
                     if (
                         this.lastWorkerAddedTransaction == null ||
@@ -222,6 +204,14 @@ export class RegistrationManager {
         return transactionHashes;
     }
 
+    async getRelayData (): Promise<RelayData> {
+        const relayData: RelayData[] = await this.contractInteractor.getRelayData([this.managerAddress]);
+        if (relayData.length > 0) {
+            return relayData[0];
+        }
+        throw new Error('No relay found for manager ' + this.managerAddress);
+    }
+
     _extractDuePendingEvents(currentBlock: number): EventData[] {
         const ret = this.delayedEvents
             .filter((event) => event.block <= currentBlock)
@@ -232,30 +222,11 @@ export class RegistrationManager {
         return ret;
     }
 
-    _isRegistrationCorrect(): boolean {
-        return isRegistrationValid(
-            this.lastMinedRegisterTransaction,
-            this.config,
-            this.managerAddress
-        );
+    _isRegistrationCorrect (): boolean {
+        return isRegistrationValid(this.relayData, this.config, this.managerAddress);
     }
 
-    async _queryLatestRegistrationEvent(): Promise<EventData | undefined> {
-        const topics = address2topic(this.managerAddress);
-        const registerEvents =
-            await this.contractInteractor.getPastEventsForHub(
-                [topics],
-                {
-                    fromBlock: 1
-                },
-                [RelayServerRegistered]
-            );
-        return getLatestEventData(registerEvents);
-    }
-
-    _parseEvent(
-        event: { events: any[]; name: string; address: string } | null
-    ): any {
+    _parseEvent (event: { events: any[], name: string, address: string } | null): any {
         if (event?.events === undefined) {
             // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
             return `not event: ${event?.toString()}`;
@@ -516,13 +487,11 @@ export class RegistrationManager {
         );
     }
 
-    async isRegistered(): Promise<boolean> {
+    async isRegistered (): Promise<boolean> {
         const isRegistrationCorrect = this._isRegistrationCorrect();
-        return (
-            this.stakeRequired.isSatisfied &&
+        return this.stakeRequired.isSatisfied &&
             this.isStakeLocked &&
-            isRegistrationCorrect
-        );
+            isRegistrationCorrect;
     }
 
     printNotRegisteredMessage(): void {
