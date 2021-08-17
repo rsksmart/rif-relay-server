@@ -1,4 +1,3 @@
-/// <reference types="@openeth/truffle-typings" />
 /// <reference types="node" />
 import { EventData } from 'web3-eth-contract';
 import { PrefixedHexString } from 'ethereumjs-tx';
