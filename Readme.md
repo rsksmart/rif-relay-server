@@ -12,7 +12,8 @@ This project works as a dependency or a standalone project.
 
 #### How to start
 
-To start working with this project you need to run `npm install` to install
+To start working with this project you need to enable `postinstall` scripts, refer
+to section [Enable postinstall scripts](#enable-postinstall-scripts) to know how to do it. Then just run `npm install` to install
 all the dependencies.
 
 #### How to use it
@@ -66,18 +67,22 @@ your workers.
 1. Run `npm run dist` to generate the distributable version.
 2. Commit and push the dist folder with the updated version to the repository on master.
 
-**IMPORTANT: when you publish a version postinstall scripts must be disabled, if you
-are publishing a new version on the repository directly you need to run `npm run switchPostInstall disable`
-command to disable postinstall scripts since is not automatically disabled.
-That is only automatically disabled when you run `npm publish` to publish your
-library on node registry. If you want to enable postinstall scripts again for development you can run `npm run switchPostInstall enable`**
+**IMPORTANT: when you publish a version postinstall scripts must be disabled. This is disabled by default, don't push
+any change on postinstall scripts section in the `package.json` file.**
 
 #### How to develop
 
-If you need to modify resources inside this repository first you need to run `npm run switchPostInstall enable` to enable husky and other checks,
+If you need to modify resources inside this repository the first thing you need to do always is to make sure you have `postinstall` scripts enabled on the `package.json`. These
+are disabled by default due to distribution issues. (This will be solve in the future). This will enable husky and other checks,
 then run `npm install` to execute the post install hooks. After that you can just make your modifications
 and then run `npm run build` to validate them. After you are done with your changes you
 can publish them by creating a distributable version for the consumers.
+
+#### Enable postinstall scripts
+
+To enable `postinstall` scripts you need to modify the `package.json` file
+in the section `scripts` and change the line `"_postinstall": "scripts/postinstall",`
+to `"postinstall": "scripts/postinstall",`.
 
 #### Husky and linters
 
