@@ -13,7 +13,6 @@ This project works as a dependency or a standalone project.
 #### How to start
 
 To start working with this project you need to enable `postinstall` scripts, refer to section [Enable postinstall scripts](#enable-postinstall-scripts) to know how to do it. Then just run `npm install` to install all dependencies.
-all the dependencies.
 
 #### How to use it
 
