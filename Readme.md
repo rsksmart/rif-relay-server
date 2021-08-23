@@ -76,9 +76,7 @@ Then, run `npm install` to execute the post install hooks. After that, you can j
 
 #### Enable postinstall scripts
 
-To enable `postinstall` scripts you need to modify the `package.json` file
-in the section `scripts` and change the line `"_postinstall": "scripts/postinstall",`
-to `"postinstall": "scripts/postinstall",`.
+To enable `postinstall` scripts you need to modify the `package.json` file, specifically the section `scripts` and change the line `"_postinstall": "scripts/postinstall",` to `"postinstall": "scripts/postinstall",`.
 
 #### Husky and linters
 
