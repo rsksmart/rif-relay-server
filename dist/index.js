@@ -19,4 +19,9 @@ __exportStar(require("./ServerConfigParams"), exports);
 __exportStar(require("./StoredTransaction"), exports);
 __exportStar(require("./TransactionManager"), exports);
 __exportStar(require("./TxStoreManager"), exports);
+__exportStar(require("./ServerConfig"), exports);
+const ServerConfig_1 = require("./ServerConfig");
+const serverConfig = new ServerConfig_1.ServerConfig();
+const configFile = serverConfig.loadConfigPath();
+console.log(configFile);
 //# sourceMappingURL=index.js.map
