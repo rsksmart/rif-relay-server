@@ -78,6 +78,21 @@ Where:
 
 Afterwards, run `npm start` to start the server.
 
+You can browse the `getAddr` endpoint (e.g. by doing `curl` to `http://localhost:8090/getaddr`) to verify the server is running correctly as well as visualize some useful information:
+
+```json
+{
+    "relayWorkerAddress": "0xe722143177fe9c7c58057dc3d98d87f6c414dc95",
+    "relayManagerAddress": "0xe0820002dfaa69cbf8add6a738171e8eb0a5ee54",
+    "relayHubAddress": "0x38bebd507aBC3D76B10d61f5C95668e1240D087F",
+    "minGasPrice": "6000000000",
+    "chainId": "31",
+    "networkId": "31",
+    "ready": false,
+    "version": "2.0.1"
+}
+```
+
 If it's the first time the server is run, some logs will state that the server isn't ready and that some values are wrong. This is expected, you just need to register the server on the relay hub in order for it to be usable by the clients.
 
 ### Server registration
