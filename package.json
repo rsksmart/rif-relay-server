@@ -12,7 +12,6 @@
     "prepublishOnly": "scripts/prepublishOnly",
     "postpublish": "scripts/postpublish",
     "publishManually": "scripts/publishManually",
-    "switchPostInstall": "scripts/switchPostInstall",
     "prettier:fix": "npx prettier --write --ignore-unknown .",
     "prettier": "npx prettier --check .",
     "start": "./scripts/start",
