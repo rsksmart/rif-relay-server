@@ -4,7 +4,7 @@ export class ServerConfig {
     constructor(){
     }
 
-    loadConfigPath(){
+    static loadConfigPath(){
         return path.resolve(__dirname, '../server-config.json');
     }
 
