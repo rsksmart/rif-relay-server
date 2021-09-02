@@ -8,7 +8,7 @@ const path_1 = __importDefault(require("path"));
 class ServerConfig {
     constructor() {
     }
-    loadConfigPath() {
+    static loadConfigPath() {
         return path_1.default.resolve(__dirname, '../server-config.json');
     }
 }

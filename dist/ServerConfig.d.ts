@@ -1,4 +1,4 @@
 export declare class ServerConfig {
     constructor();
-    loadConfigPath(): string;
+    static loadConfigPath(): string;
 }
