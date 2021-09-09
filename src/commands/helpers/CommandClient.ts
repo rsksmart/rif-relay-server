@@ -70,7 +70,11 @@ export abstract class CommandClient {
             try {
                 isReady = await this.isRelayReady(relayUrl);
             } catch (e) {
-                console.log(e.message);
+                if (e instanceof Error) {
+                    console.log(e.message);
+                } else {
+                    console.error(e);
+                }
             }
             if (isReady) {
                 return;

@@ -22,7 +22,7 @@ async function defaultReplenishFunction(relayServer, workerIndex, currentBlock) 
     let managerEthBalance = await relayServer.getManagerBalance();
     relayServer.workerBalanceRequired.currentValue =
         await relayServer.getWorkerBalance(workerIndex);
-    if (managerEthBalance.gte(web3_utils_1.toBN(relayServer.config.managerTargetBalance.toString())) &&
+    if (managerEthBalance.gte((0, web3_utils_1.toBN)(relayServer.config.managerTargetBalance.toString())) &&
         relayServer.workerBalanceRequired.isSatisfied) {
         // all filled, nothing to do
         return transactionHashes;
@@ -31,16 +31,16 @@ async function defaultReplenishFunction(relayServer, workerIndex, currentBlock) 
     const mustReplenishWorker = !relayServer.workerBalanceRequired.isSatisfied;
     const isReplenishPendingForWorker = await relayServer.txStoreManager.isActionPending(StoredTransaction_1.ServerAction.VALUE_TRANSFER, relayServer.workerAddress);
     if (mustReplenishWorker && !isReplenishPendingForWorker) {
-        const refill = web3_utils_1.toBN(relayServer.config.workerTargetBalance.toString()).sub(relayServer.workerBalanceRequired.currentValue);
+        const refill = (0, web3_utils_1.toBN)(relayServer.config.workerTargetBalance.toString()).sub(relayServer.workerBalanceRequired.currentValue);
         console.log(`== replenishServer: mgr balance=${managerEthBalance.toString()}
         \n${relayServer.workerBalanceRequired.description}\n refill=${refill.toString()}`);
-        if (refill.lt(managerEthBalance.sub(web3_utils_1.toBN(relayServer.config.managerMinBalance)))) {
+        if (refill.lt(managerEthBalance.sub((0, web3_utils_1.toBN)(relayServer.config.managerMinBalance)))) {
             console.log('Replenishing worker balance by manager rbtc balance');
             const details = {
                 signer: relayServer.managerAddress,
                 serverAction: StoredTransaction_1.ServerAction.VALUE_TRANSFER,
                 destination: relayServer.workerAddress,
-                value: web3_utils_1.toHex(refill),
+                value: (0, web3_utils_1.toHex)(refill),
                 creationBlockNumber: currentBlock,
                 gasLimit: rif_relay_common_1.defaultEnvironment.mintxgascost
             };

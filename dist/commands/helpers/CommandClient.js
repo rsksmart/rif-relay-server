@@ -25,7 +25,7 @@ class CommandClient {
         this.config = config;
         this.web3 = new web3_1.default(provider);
     }
-    async findWealthyAccount(requiredBalance = test_helpers_1.ether('2')) {
+    async findWealthyAccount(requiredBalance = (0, test_helpers_1.ether)('2')) {
         let accounts = [];
         try {
             accounts = await this.web3.eth.getAccounts();
@@ -55,12 +55,17 @@ class CommandClient {
                 isReady = await this.isRelayReady(relayUrl);
             }
             catch (e) {
-                console.log(e.message);
+                if (e instanceof Error) {
+                    console.log(e.message);
+                }
+                else {
+                    console.error(e);
+                }
             }
             if (isReady) {
                 return;
             }
-            await rif_relay_common_1.sleep(3000);
+            await (0, rif_relay_common_1.sleep)(3000);
         }
         throw Error(`Relay not ready after ${timeout}s`);
     }

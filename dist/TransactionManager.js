@@ -74,7 +74,12 @@ data         | 0x${transaction.data.toString('hex')}
             return Math.round(parseInt(estimateGas) * this.config.estimateGasFactor);
         }
         catch (e) {
-            loglevel_1.default.error(`Failed to estimate gas for method ${methodName}\n. Using default ${this.config.defaultGasLimit}`, e.message);
+            if (e instanceof Error) {
+                loglevel_1.default.error(`Failed to estimate gas for method ${methodName}\n. Using default ${this.config.defaultGasLimit}`, e.message);
+            }
+            else {
+                console.error(e);
+            }
         }
         return this.config.defaultGasLimit;
     }
@@ -106,7 +111,7 @@ data         | 0x${transaction.data.toString('hex')}
                 serverAction,
                 creationBlockNumber
             };
-            storedTx = StoredTransaction_1.createStoredTransaction(txToSign, metadata);
+            storedTx = (0, StoredTransaction_1.createStoredTransaction)(txToSign, metadata);
             this.nonces[signer]++;
             await this.txStoreManager.putTx(storedTx, false);
             this.printSendTransactionLog(txToSign, signer);
@@ -138,7 +143,7 @@ data         | 0x${transaction.data.toString('hex')}
             creationBlockNumber: tx.creationBlockNumber,
             minedBlockNumber: tx.minedBlockNumber
         };
-        const storedTx = StoredTransaction_1.createStoredTransaction(txToSign, metadata);
+        const storedTx = (0, StoredTransaction_1.createStoredTransaction)(txToSign, metadata);
         await this.txStoreManager.putTx(storedTx, true);
         return storedTx;
     }
