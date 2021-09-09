@@ -60,7 +60,8 @@ class KeyManager {
                 this.hdkey = ethereumjs_wallet_1.hdkey.fromMasterSeed(genseed);
             }
             catch (e) {
-                if ((e instanceof Error) && (!e.message.includes('file already exists'))) {
+                if (e instanceof Error &&
+                    !e.message.includes('file already exists')) {
                     throw e;
                 }
                 else {
