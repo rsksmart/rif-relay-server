@@ -77,10 +77,15 @@ class HttpServer {
             status = jsonrpc_lite_1.default.success(req.body.id, res);
         }
         catch (e) {
-            let stack = e.stack.toString();
-            // remove anything after 'rootHandler'
-            stack = stack.replace(/(rootHandler.*)[\s\S]*/, '$1');
-            status = jsonrpc_lite_1.default.error(req.body.id, new jsonrpc_lite_1.default.JsonRpcError(stack, -125));
+            if (e instanceof Error) {
+                let stack = e.stack.toString();
+                // remove anything after 'rootHandler'
+                stack = stack.replace(/(rootHandler.*)[\s\S]*/, '$1');
+                status = jsonrpc_lite_1.default.error(req.body.id, new jsonrpc_lite_1.default.JsonRpcError(stack, -125));
+            }
+            else {
+                console.error(e);
+            }
         }
         res.send(status);
     }
@@ -91,9 +96,14 @@ class HttpServer {
             console.log(`address ${pingResponse.relayWorkerAddress} sent. ready: ${pingResponse.ready}`);
         }
         catch (e) {
-            const message = e.message;
-            res.send({ message });
-            loglevel_1.default.error(`ping handler rejected: ${message}`);
+            if (e instanceof Error) {
+                const message = e.message;
+                res.send({ message });
+                loglevel_1.default.error(`ping handler rejected: ${message}`);
+            }
+            else {
+                console.error(e);
+            }
         }
     }
     statusHandler(req, res) {
@@ -106,8 +116,13 @@ class HttpServer {
             res.send({ signedTx });
         }
         catch (e) {
-            res.send({ error: e.message });
-            console.log('tx failed:', e);
+            if (e instanceof Error) {
+                res.send({ error: e.message });
+                console.log('tx failed:', e);
+            }
+            else {
+                console.error(e);
+            }
         }
     }
     async tokenHandler(req, res) {
@@ -117,9 +132,14 @@ class HttpServer {
             res.send(tokenResponse);
         }
         catch (e) {
-            const message = e.message;
-            res.send({ message });
-            loglevel_1.default.error(`token handler rejected: ${message}`);
+            if (e instanceof Error) {
+                const message = e.message;
+                res.send({ message });
+                loglevel_1.default.error(`token handler rejected: ${message}`);
+            }
+            else {
+                console.error(e);
+            }
         }
     }
     async verifierHandler(req, res) {
@@ -128,9 +148,14 @@ class HttpServer {
             res.send(verifierResponse);
         }
         catch (e) {
-            const message = e.message;
-            res.send({ message });
-            loglevel_1.default.error(`verified handler rejected: ${message}`);
+            if (e instanceof Error) {
+                const message = e.message;
+                res.send({ message });
+                loglevel_1.default.error(`verified handler rejected: ${message}`);
+            }
+            else {
+                console.error(e);
+            }
         }
     }
 }

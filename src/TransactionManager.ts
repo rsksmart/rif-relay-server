@@ -130,10 +130,14 @@ data         | 0x${transaction.data.toString('hex')}
                 parseInt(estimateGas) * this.config.estimateGasFactor
             );
         } catch (e) {
-            log.error(
-                `Failed to estimate gas for method ${methodName}\n. Using default ${this.config.defaultGasLimit}`,
-                e.message
-            );
+            if (e instanceof Error) {
+                log.error(
+                    `Failed to estimate gas for method ${methodName}\n. Using default ${this.config.defaultGasLimit}`,
+                    e.message
+                );
+            } else {
+                console.error(e);
+            }
         }
         return this.config.defaultGasLimit;
     }

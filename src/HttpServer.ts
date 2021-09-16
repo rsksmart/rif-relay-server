@@ -78,13 +78,17 @@ export class HttpServer {
             }
             status = jsonrpc.success(req.body.id, res);
         } catch (e) {
-            let stack = e.stack.toString();
-            // remove anything after 'rootHandler'
-            stack = stack.replace(/(rootHandler.*)[\s\S]*/, '$1');
-            status = jsonrpc.error(
-                req.body.id,
-                new jsonrpc.JsonRpcError(stack, -125)
-            );
+            if (e instanceof Error) {
+                let stack = e.stack.toString();
+                // remove anything after 'rootHandler'
+                stack = stack.replace(/(rootHandler.*)[\s\S]*/, '$1');
+                status = jsonrpc.error(
+                    req.body.id,
+                    new jsonrpc.JsonRpcError(stack, -125)
+                );
+            } else {
+                console.error(e);
+            }
         }
         res.send(status);
     }
@@ -99,9 +103,13 @@ export class HttpServer {
                 `address ${pingResponse.relayWorkerAddress} sent. ready: ${pingResponse.ready}`
             );
         } catch (e) {
-            const message: string = e.message;
-            res.send({ message });
-            log.error(`ping handler rejected: ${message}`);
+            if (e instanceof Error) {
+                const message: string = e.message;
+                res.send({ message });
+                log.error(`ping handler rejected: ${message}`);
+            } else {
+                console.error(e);
+            }
         }
     }
 
@@ -117,8 +125,12 @@ export class HttpServer {
             ).signedTx;
             res.send({ signedTx });
         } catch (e) {
-            res.send({ error: e.message });
-            console.log('tx failed:', e);
+            if (e instanceof Error) {
+                res.send({ error: e.message });
+                console.log('tx failed:', e);
+            } else {
+                console.error(e);
+            }
         }
     }
 
@@ -128,9 +140,13 @@ export class HttpServer {
             const tokenResponse = await this.backend.tokenHandler(verifier);
             res.send(tokenResponse);
         } catch (e) {
-            const message: string = e.message;
-            res.send({ message });
-            log.error(`token handler rejected: ${message}`);
+            if (e instanceof Error) {
+                const message: string = e.message;
+                res.send({ message });
+                log.error(`token handler rejected: ${message}`);
+            } else {
+                console.error(e);
+            }
         }
     }
 
@@ -139,9 +155,13 @@ export class HttpServer {
             const verifierResponse = await this.backend.verifierHandler();
             res.send(verifierResponse);
         } catch (e) {
-            const message: string = e.message;
-            res.send({ message });
-            log.error(`verified handler rejected: ${message}`);
+            if (e instanceof Error) {
+                const message: string = e.message;
+                res.send({ message });
+                log.error(`verified handler rejected: ${message}`);
+            } else {
+                console.error(e);
+            }
         }
     }
 }
