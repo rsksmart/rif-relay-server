@@ -20,8 +20,8 @@ class RegistrationManager {
         const listener = () => {
             this.printNotRegisteredMessage();
         };
-        this.balanceRequired = new rif_relay_common_1.AmountRequired('Balance', web3_utils_1.toBN(config.managerMinBalance), listener);
-        this.stakeRequired = new rif_relay_common_1.AmountRequired('Stake', web3_utils_1.toBN(config.managerMinStake), listener);
+        this.balanceRequired = new rif_relay_common_1.AmountRequired('Balance', (0, web3_utils_1.toBN)(config.managerMinBalance), listener);
+        this.stakeRequired = new rif_relay_common_1.AmountRequired('Stake', (0, web3_utils_1.toBN)(config.managerMinStake), listener);
         this.contractInteractor = contractInteractor;
         this.hubAddress = config.relayHubAddress;
         this.managerAddress = managerAddress;
@@ -57,7 +57,7 @@ class RegistrationManager {
         if (!this.isInitialized) {
             throw new Error('RegistrationManager not initialized');
         }
-        const topics = [rif_relay_common_1.address2topic(this.managerAddress)];
+        const topics = [(0, rif_relay_common_1.address2topic)(this.managerAddress)];
         const options = {
             fromBlock: lastScannedBlock + 1,
             toBlock: 'latest'
@@ -89,13 +89,13 @@ class RegistrationManager {
             switch (eventData.event) {
                 case rif_relay_common_1.RelayServerRegistered:
                     if (this.lastMinedRegisterTransaction == null ||
-                        rif_relay_common_1.isSecondEventLater(this.lastMinedRegisterTransaction, eventData)) {
+                        (0, rif_relay_common_1.isSecondEventLater)(this.lastMinedRegisterTransaction, eventData)) {
                         this.lastMinedRegisterTransaction = eventData;
                     }
                     break;
                 case rif_relay_common_1.RelayWorkersAdded:
                     if (this.lastWorkerAddedTransaction == null ||
-                        rif_relay_common_1.isSecondEventLater(this.lastWorkerAddedTransaction, eventData)) {
+                        (0, rif_relay_common_1.isSecondEventLater)(this.lastWorkerAddedTransaction, eventData)) {
                         this.lastWorkerAddedTransaction = eventData;
                     }
                     break;
@@ -127,14 +127,14 @@ class RegistrationManager {
         return ret;
     }
     _isRegistrationCorrect() {
-        return rif_relay_common_1.isRegistrationValid(this.lastMinedRegisterTransaction, this.config, this.managerAddress);
+        return (0, rif_relay_common_1.isRegistrationValid)(this.lastMinedRegisterTransaction, this.config, this.managerAddress);
     }
     async _queryLatestRegistrationEvent() {
-        const topics = rif_relay_common_1.address2topic(this.managerAddress);
+        const topics = (0, rif_relay_common_1.address2topic)(this.managerAddress);
         const registerEvents = await this.contractInteractor.getPastEventsForHub([topics], {
             fromBlock: 1
         }, [rif_relay_common_1.RelayServerRegistered]);
-        return rif_relay_common_1.getLatestEventData(registerEvents);
+        return (0, rif_relay_common_1.getLatestEventData)(registerEvents);
     }
     _parseEvent(event) {
         if ((event === null || event === void 0 ? void 0 : event.events) === undefined) {
@@ -176,12 +176,12 @@ class RegistrationManager {
     }
     async refreshBalance() {
         const currentBalance = await this.contractInteractor.getBalance(this.managerAddress);
-        this.balanceRequired.currentValue = web3_utils_1.toBN(currentBalance);
+        this.balanceRequired.currentValue = (0, web3_utils_1.toBN)(currentBalance);
     }
     async refreshStake() {
         const stakeInfo = await this.contractInteractor.getStakeInfo(this.managerAddress);
-        const stake = web3_utils_1.toBN(stakeInfo.stake);
-        if (stake.eq(web3_utils_1.toBN(0))) {
+        const stake = (0, web3_utils_1.toBN)(stakeInfo.stake);
+        if (stake.eq((0, web3_utils_1.toBN)(0))) {
             return;
         }
         // a locked stake does not have the 'withdrawBlock' field set
@@ -252,8 +252,8 @@ class RegistrationManager {
         const gasPrice = await this.contractInteractor.getGasPrice();
         const transactionHashes = [];
         const gasLimit = mintxgascost;
-        const txCost = web3_utils_1.toBN(gasLimit).mul(web3_utils_1.toBN(gasPrice));
-        const managerBalance = web3_utils_1.toBN(await this.contractInteractor.getBalance(this.managerAddress));
+        const txCost = (0, web3_utils_1.toBN)(gasLimit).mul((0, web3_utils_1.toBN)(gasPrice));
+        const managerBalance = (0, web3_utils_1.toBN)(await this.contractInteractor.getBalance(this.managerAddress));
         // sending manager RBTC balance to owner
         if (managerBalance.gte(txCost)) {
             loglevel_1.default.info(`Sending manager RBTC balance ${managerBalance.toString()} to owner`);
@@ -263,7 +263,7 @@ class RegistrationManager {
                 destination: this.ownerAddress,
                 gasLimit,
                 gasPrice,
-                value: web3_utils_1.toHex(managerBalance.sub(txCost)),
+                value: (0, web3_utils_1.toHex)(managerBalance.sub(txCost)),
                 creationBlockNumber: currentBlock
             };
             const { transactionHash } = await this.transactionManager.sendTransaction(details);
@@ -279,8 +279,8 @@ class RegistrationManager {
         const transactionHashes = [];
         const gasPrice = await this.contractInteractor.getGasPrice();
         const gasLimit = mintxgascost;
-        const txCost = web3_utils_1.toBN(gasLimit * parseInt(gasPrice));
-        const workerBalance = web3_utils_1.toBN(await this.contractInteractor.getBalance(this.workerAddress));
+        const txCost = (0, web3_utils_1.toBN)(gasLimit * parseInt(gasPrice));
+        const workerBalance = (0, web3_utils_1.toBN)(await this.contractInteractor.getBalance(this.workerAddress));
         if (workerBalance.gte(txCost)) {
             loglevel_1.default.info(`Sending workers' RBTC balance ${workerBalance.toString()} to owner`);
             const details = {
@@ -289,7 +289,7 @@ class RegistrationManager {
                 destination: this.ownerAddress,
                 gasLimit,
                 gasPrice,
-                value: web3_utils_1.toHex(workerBalance.sub(txCost)),
+                value: (0, web3_utils_1.toHex)(workerBalance.sub(txCost)),
                 creationBlockNumber: currentBlock
             };
             const { transactionHash } = await this.transactionManager.sendTransaction(details);
@@ -301,10 +301,10 @@ class RegistrationManager {
         return transactionHashes;
     }
     async _queryLatestWorkerAddedEvent() {
-        const workersAddedEvents = await this.contractInteractor.getPastEventsForHub([rif_relay_common_1.address2topic(this.managerAddress)], {
+        const workersAddedEvents = await this.contractInteractor.getPastEventsForHub([(0, rif_relay_common_1.address2topic)(this.managerAddress)], {
             fromBlock: 1
         }, [rif_relay_common_1.RelayWorkersAdded]);
-        return rif_relay_common_1.getLatestEventData(workersAddedEvents);
+        return (0, rif_relay_common_1.getLatestEventData)(workersAddedEvents);
     }
     _isWorkerValid() {
         // eslint-disable-next-line @typescript-eslint/prefer-optional-chain
@@ -327,7 +327,7 @@ class RegistrationManager {
         const message = `\nNot registered yet. Prerequisites:
 ${this.balanceRequired.description}
 ${this.stakeRequired.description}
-Stake locked   | ${rif_relay_common_1.boolString(this.isStakeLocked)}
+Stake locked   | ${(0, rif_relay_common_1.boolString)(this.isStakeLocked)}
 Manager        | ${this.managerAddress}
 Worker         | ${this.workerAddress}
 Owner          | ${(_a = this.ownerAddress) !== null && _a !== void 0 ? _a : chalk_1.default.red('k256')}

@@ -48,8 +48,8 @@ class TxStoreManager {
      * Only for testing
      */
     async getTxByNonce(signer, nonce) {
-        ow_1.default(nonce, ow_1.default.any(ow_1.default.number, ow_1.default.string));
-        ow_1.default(signer, ow_1.default.string);
+        (0, ow_1.default)(nonce, ow_1.default.any(ow_1.default.number, ow_1.default.string));
+        (0, ow_1.default)(signer, ow_1.default.string);
         return await this.txstore.asyncFindOne({
             nonceSigner: {
                 signer: signer.toLowerCase(),
@@ -61,7 +61,7 @@ class TxStoreManager {
      * Only for testing
      */
     async getTxById(txId) {
-        ow_1.default(txId, ow_1.default.string);
+        (0, ow_1.default)(txId, ow_1.default.string);
         return await this.txstore.asyncFindOne({ txId: txId.toLowerCase() });
     }
     async getTxsUntilNonce(signer, nonce) {
@@ -73,8 +73,8 @@ class TxStoreManager {
         });
     }
     async removeTxsUntilNonce(signer, nonce) {
-        ow_1.default(nonce, ow_1.default.number);
-        ow_1.default(signer, ow_1.default.string);
+        (0, ow_1.default)(nonce, ow_1.default.number);
+        (0, ow_1.default)(signer, ow_1.default.string);
         return await this.txstore.asyncRemove({
             $and: [
                 { 'nonceSigner.nonce': { $lte: nonce } },
@@ -101,7 +101,7 @@ class TxStoreManager {
         const allTransactions = await this.getAll();
         return (allTransactions.find((it) => it.minedBlockNumber == null &&
             it.serverAction === serverAction &&
-            (destination == null || rif_relay_common_1.isSameAddress(it.to, destination))) != null);
+            (destination == null || (0, rif_relay_common_1.isSameAddress)(it.to, destination))) != null);
     }
 }
 exports.TxStoreManager = TxStoreManager;

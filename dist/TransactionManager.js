@@ -106,7 +106,7 @@ data         | 0x${transaction.data.toString('hex')}
                 serverAction,
                 creationBlockNumber
             };
-            storedTx = StoredTransaction_1.createStoredTransaction(txToSign, metadata);
+            storedTx = (0, StoredTransaction_1.createStoredTransaction)(txToSign, metadata);
             this.nonces[signer]++;
             await this.txStoreManager.putTx(storedTx, false);
             this.printSendTransactionLog(txToSign, signer);
@@ -138,7 +138,7 @@ data         | 0x${transaction.data.toString('hex')}
             creationBlockNumber: tx.creationBlockNumber,
             minedBlockNumber: tx.minedBlockNumber
         };
-        const storedTx = StoredTransaction_1.createStoredTransaction(txToSign, metadata);
+        const storedTx = (0, StoredTransaction_1.createStoredTransaction)(txToSign, metadata);
         await this.txStoreManager.putTx(storedTx, true);
         return storedTx;
     }

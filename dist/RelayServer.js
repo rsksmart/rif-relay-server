@@ -31,7 +31,7 @@ class RelayServer extends events_1.default {
         this.initialized = false;
         this.trustedVerifiers = new Set();
         this.versionManager = new rif_relay_common_1.VersionsManager(VERSION);
-        this.config = ServerConfigParams_1.configureServer(config);
+        this.config = (0, ServerConfigParams_1.configureServer)(config);
         this.contractInteractor = dependencies.contractInteractor;
         this.txStoreManager = dependencies.txStoreManager;
         this.transactionManager = new TransactionManager_1.TransactionManager(dependencies, this.config);
@@ -40,7 +40,7 @@ class RelayServer extends events_1.default {
         this.workerAddress =
             this.transactionManager.workersKeyManager.getAddress(0);
         this.customReplenish = this.config.customReplenish;
-        this.workerBalanceRequired = new rif_relay_common_1.AmountRequired('Worker Balance', web3_utils_1.toBN(this.config.workerMinBalance));
+        this.workerBalanceRequired = new rif_relay_common_1.AmountRequired('Worker Balance', (0, web3_utils_1.toBN)(this.config.workerMinBalance));
         this.printServerAddresses();
         loglevel_1.default.setLevel(this.config.logLevel);
         loglevel_1.default.warn('RelayServer version', VERSION);
@@ -87,7 +87,7 @@ class RelayServer extends events_1.default {
         for (const verifier of verifiersToQuery) {
             const tokenHandlerInstance = await this.contractInteractor.createTokenHandler(verifier);
             const acceptedTokens = await tokenHandlerInstance.getAcceptedTokens();
-            res[ethereumjs_util_1.toChecksumAddress(verifier)] = acceptedTokens;
+            res[(0, ethereumjs_util_1.toChecksumAddress)(verifier)] = acceptedTokens;
         }
         return res;
     }
@@ -105,10 +105,10 @@ class RelayServer extends events_1.default {
     }
     validateInputTypes(req) {
         if (this.isDeployRequest(req)) {
-            ow_1.default(req, ow_1.default.object.exactShape(rif_relay_common_1.DeployTransactionRequestShape));
+            (0, ow_1.default)(req, ow_1.default.object.exactShape(rif_relay_common_1.DeployTransactionRequestShape));
         }
         else {
-            ow_1.default(req, ow_1.default.object.exactShape(rif_relay_common_1.RelayTransactionRequestShape));
+            (0, ow_1.default)(req, ow_1.default.object.exactShape(rif_relay_common_1.RelayTransactionRequestShape));
         }
     }
     validateInput(req) {
@@ -171,7 +171,7 @@ class RelayServer extends events_1.default {
         if (isDeployRequest) {
             const deployReq = req;
             // Actual Maximum gas needed to send to the deploy request tx
-            maxPossibleGas = web3_utils_1.toBN(await this.contractInteractor.walletFactoryEstimateGasOfDeployCall(deployReq));
+            maxPossibleGas = (0, web3_utils_1.toBN)(await this.contractInteractor.walletFactoryEstimateGasOfDeployCall(deployReq));
             // TODO: For RIF team
             // Here the server has the last chance to compare the maxPossibleGas the deploy transaction needs with
             // the aggreement signed between the client and the relayer. Take this into account during the Arbiter integration.
@@ -192,13 +192,13 @@ class RelayServer extends events_1.default {
                 gasPrice: relayReq.relayRequest.relayData.gasPrice,
                 data: relayReq.relayRequest.request.data
             });
-            const gasFromRequest = web3_utils_1.toBN(relayReq.relayRequest.request.gas).toNumber();
+            const gasFromRequest = (0, web3_utils_1.toBN)(relayReq.relayRequest.request.gas).toNumber();
             const gasFromRequestMaxAgreed = Math.ceil(gasFromRequest * (1 + rif_relay_common_1.constants.MAX_ESTIMATED_GAS_DEVIATION));
             if (estimatedDesinationGasCost > gasFromRequestMaxAgreed) {
                 throw new Error("Request payload's gas parameters deviate too much fom the estimated gas for this transaction");
             }
             // Actual maximum gas needed to  send the relay transaction
-            maxPossibleGas = web3_utils_1.toBN(await this.contractInteractor.estimateRelayTransactionMaxPossibleGasWithTransactionRequest(relayReq));
+            maxPossibleGas = (0, web3_utils_1.toBN)(await this.contractInteractor.estimateRelayTransactionMaxPossibleGasWithTransactionRequest(relayReq));
         }
         try {
             if (this.isDeployRequest(req)) {
@@ -240,7 +240,7 @@ class RelayServer extends events_1.default {
         this.validateInputTypes(req);
         if (this.alerted) {
             loglevel_1.default.error('Alerted state: slowing down traffic');
-            await rif_relay_common_1.sleep(rif_relay_common_1.randomInRange(this.config.minAlertedDelayMS, this.config.maxAlertedDelayMS));
+            await (0, rif_relay_common_1.sleep)((0, rif_relay_common_1.randomInRange)(this.config.minAlertedDelayMS, this.config.maxAlertedDelayMS));
         }
         this.validateInput(req);
         await this.validateMaxNonce(req.metadata.relayMaxNonce);
@@ -399,7 +399,7 @@ latestBlock timestamp   | ${latestBlock.timestamp}
      * @param currentBlock Where to place the replenish action
      */
     async replenishServer(workerIndex, currentBlock) {
-        return await ReplenishFunction_1.replenishStrategy(this, workerIndex, currentBlock);
+        return await (0, ReplenishFunction_1.replenishStrategy)(this, workerIndex, currentBlock);
     }
     async _worker(blockNumber) {
         if (!this.initialized) {
@@ -445,7 +445,7 @@ latestBlock timestamp   | ${latestBlock.timestamp}
         const workerIndex = 0;
         transactionHashes = transactionHashes.concat(await this.replenishServer(workerIndex, currentBlockNumber));
         const workerBalance = await this.getWorkerBalance(workerIndex);
-        if (workerBalance.lt(web3_utils_1.toBN(this.config.workerMinBalance))) {
+        if (workerBalance.lt((0, web3_utils_1.toBN)(this.config.workerMinBalance))) {
             this.setReadyState(false);
             return transactionHashes;
         }
@@ -459,11 +459,11 @@ latestBlock timestamp   | ${latestBlock.timestamp}
         return transactionHashes;
     }
     async getManagerBalance() {
-        return web3_utils_1.toBN(await this.contractInteractor.getBalance(this.managerAddress, 'pending'));
+        return (0, web3_utils_1.toBN)(await this.contractInteractor.getBalance(this.managerAddress, 'pending'));
     }
     async getWorkerBalance(workerIndex) {
         console.debug('getWorkerBalance: workerIndex', workerIndex);
-        return web3_utils_1.toBN(await this.contractInteractor.getBalance(this.workerAddress, 'pending'));
+        return (0, web3_utils_1.toBN)(await this.contractInteractor.getBalance(this.workerAddress, 'pending'));
     }
     async _shouldRegisterAgain(currentBlock, hubEventsSinceLastScan) {
         console.debug('_shouldRegisterAgain: hubEventsSinceLastScan', hubEventsSinceLastScan);
@@ -501,7 +501,7 @@ latestBlock timestamp   | ${latestBlock.timestamp}
         }
     }
     async getAllHubEventsSinceLastScan() {
-        const topics = [rif_relay_common_1.address2topic(this.managerAddress)];
+        const topics = [(0, rif_relay_common_1.address2topic)(this.managerAddress)];
         const options = {
             fromBlock: this.lastScannedBlock + 1,
             toBlock: 'latest'
@@ -527,7 +527,7 @@ latestBlock timestamp   | ${latestBlock.timestamp}
     }
     async _updateLatestTxBlockNumber(eventsSinceLastScan) {
         var _a, _b;
-        const latestTransactionSinceLastScan = rif_relay_common_1.getLatestEventData(eventsSinceLastScan);
+        const latestTransactionSinceLastScan = (0, rif_relay_common_1.getLatestEventData)(eventsSinceLastScan);
         if (latestTransactionSinceLastScan != null) {
             this.lastMinedActiveTransaction = latestTransactionSinceLastScan;
             loglevel_1.default.debug(`found newer block ${(_a = this.lastMinedActiveTransaction) === null || _a === void 0 ? void 0 : _a.blockNumber}`);
@@ -539,10 +539,10 @@ latestBlock timestamp   | ${latestBlock.timestamp}
         }
     }
     async _queryLatestActiveEvent() {
-        const events = await this.contractInteractor.getPastEventsForHub([rif_relay_common_1.address2topic(this.managerAddress)], {
+        const events = await this.contractInteractor.getPastEventsForHub([(0, rif_relay_common_1.address2topic)(this.managerAddress)], {
             fromBlock: 1
         });
-        return rif_relay_common_1.getLatestEventData(events);
+        return (0, rif_relay_common_1.getLatestEventData)(events);
     }
     /**
      * Resend all outgoing pending transactions with insufficient gas price by all signers (manager, workers)

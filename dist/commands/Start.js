@@ -24,7 +24,7 @@ async function run() {
     let trustedVerifiers = [];
     console.log('Starting Enveloping Relay Server process...\n');
     try {
-        const conf = await ServerConfigParams_1.parseServerConfig(process.argv.slice(2), process.env);
+        const conf = await (0, ServerConfigParams_1.parseServerConfig)(process.argv.slice(2), process.env);
         console.log(conf);
         if (conf.rskNodeUrl == null) {
             error('missing rskNodeUrl');
@@ -36,7 +36,7 @@ async function run() {
         }
         web3provider = new web3_1.default.providers.HttpProvider(conf.rskNodeUrl);
         loglevel_1.default.debug('runServer() - web3Provider done');
-        config = (await ServerConfigParams_1.resolveServerConfig(conf, web3provider));
+        config = (await (0, ServerConfigParams_1.resolveServerConfig)(conf, web3provider));
         loglevel_1.default.debug('runServer() - config done');
         if (trustedVerifiers.length > 0) {
             config.trustedVerifiers = trustedVerifiers;
@@ -55,7 +55,7 @@ async function run() {
     const workersKeyManager = new KeyManager_1.KeyManager(1, workdir + '/workers');
     loglevel_1.default.debug('runServer() - manager and workers configured');
     const txStoreManager = new TxStoreManager_1.TxStoreManager({ workdir });
-    const contractInteractor = new rif_relay_common_1.ContractInteractor(web3provider, rif_relay_client_1.configure({
+    const contractInteractor = new rif_relay_common_1.ContractInteractor(web3provider, (0, rif_relay_client_1.configure)({
         relayHubAddress: config.relayHubAddress,
         deployVerifierAddress: config.deployVerifierAddress,
         relayVerifierAddress: config.relayVerifierAddress
