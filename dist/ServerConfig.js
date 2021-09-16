@@ -6,8 +6,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ServerConfig = void 0;
 const path_1 = __importDefault(require("path"));
 class ServerConfig {
-    constructor() {
-    }
     static loadConfigPath() {
         return path_1.default.resolve(__dirname, '../server-config.json');
     }

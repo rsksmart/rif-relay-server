@@ -26,7 +26,7 @@ async function run(): Promise<void> {
     let trustedVerifiers: string[] = [];
     console.log('Starting Enveloping Relay Server process...\n');
     try {
-        const configFileName:string = ServerConfig.loadConfigPath();
+        const configFileName: string = ServerConfig.loadConfigPath();
         if (!fs.existsSync(configFileName)) {
             error(`unable to read config file "${configFileName}"`);
         }
