@@ -7,4 +7,3 @@ export * from './ServerConfigParams';
 export * from './StoredTransaction';
 export * from './TransactionManager';
 export * from './TxStoreManager';
-export * from './ServerConfig';

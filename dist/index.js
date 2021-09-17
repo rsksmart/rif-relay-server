@@ -19,5 +19,4 @@ __exportStar(require("./ServerConfigParams"), exports);
 __exportStar(require("./StoredTransaction"), exports);
 __exportStar(require("./TransactionManager"), exports);
 __exportStar(require("./TxStoreManager"), exports);
-__exportStar(require("./ServerConfig"), exports);
 //# sourceMappingURL=index.js.map

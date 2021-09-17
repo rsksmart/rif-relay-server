@@ -14,7 +14,7 @@ import {
     ServerConfigParams
 } from '../ServerConfigParams';
 import log from 'loglevel';
-import { ServerConfig } from '..';
+import { ServerConfig } from '../ServerConfig';
 
 function error(err: string): void {
     console.error(err);
@@ -43,7 +43,7 @@ async function run(): Promise<void> {
         ) {
             trustedVerifiers = JSON.parse(conf.trustedVerifiers);
         }
-        const argumentsList = parseArgs(process.argv, { });
+        const argumentsList = parseArgs(process.argv, {});
         conf.port = argumentsList.port ?? conf.port;
 
         web3provider = new Web3.providers.HttpProvider(conf.rskNodeUrl);
