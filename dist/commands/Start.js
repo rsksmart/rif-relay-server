@@ -12,6 +12,7 @@ const KeyManager_1 = require("../KeyManager");
 const TxStoreManager_1 = require("../TxStoreManager");
 const rif_relay_common_1 = require("@rsksmart/rif-relay-common");
 const rif_relay_client_1 = require("@rsksmart/rif-relay-client");
+const minimist_1 = __importDefault(require("minimist"));
 const ServerConfigParams_1 = require("../ServerConfigParams");
 const loglevel_1 = __importDefault(require("loglevel"));
 const __1 = require("..");
@@ -20,6 +21,7 @@ function error(err) {
     process.exit(1);
 }
 async function run() {
+    var _a;
     let config;
     let web3provider;
     let trustedVerifiers = [];
@@ -39,6 +41,8 @@ async function run() {
             conf.trustedVerifiers !== '') {
             trustedVerifiers = JSON.parse(conf.trustedVerifiers);
         }
+        const argumentsList = (0, minimist_1.default)(process.argv, {});
+        conf.port = (_a = argumentsList.port) !== null && _a !== void 0 ? _a : conf.port;
         web3provider = new web3_1.default.providers.HttpProvider(conf.rskNodeUrl);
         loglevel_1.default.debug('runServer() - web3Provider done');
         config = (await (0, ServerConfigParams_1.resolveServerConfig)(conf, web3provider));

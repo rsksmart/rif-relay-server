@@ -7,6 +7,7 @@ import { KeyManager } from '../KeyManager';
 import { TxStoreManager, TXSTORE_FILENAME } from '../TxStoreManager';
 import { ContractInteractor } from '@rsksmart/rif-relay-common';
 import { configure } from '@rsksmart/rif-relay-client';
+import parseArgs from 'minimist';
 import {
     resolveServerConfig,
     ServerDependencies,
@@ -42,6 +43,8 @@ async function run(): Promise<void> {
         ) {
             trustedVerifiers = JSON.parse(conf.trustedVerifiers);
         }
+        const argumentsList = parseArgs(process.argv, { });
+        conf.port = argumentsList.port ?? conf.port;
 
         web3provider = new Web3.providers.HttpProvider(conf.rskNodeUrl);
         log.debug('runServer() - web3Provider done');
