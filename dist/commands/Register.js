@@ -1,4 +1,23 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.executeRegister = exports.Register = void 0;
 const CommandClient_1 = require("./helpers/CommandClient");
@@ -8,6 +27,8 @@ const Utils_1 = require("./helpers/Utils");
 const rif_relay_client_1 = require("@rsksmart/rif-relay-client");
 // @ts-ignore
 const test_helpers_1 = require("@openzeppelin/test-helpers");
+const ServerConfig_1 = require("../ServerConfig");
+const fs = __importStar(require("fs"));
 class Register extends CommandClient_1.CommandClient {
     constructor(host, config, mnemonic) {
         super(host, config, mnemonic);
@@ -84,9 +105,16 @@ class Register extends CommandClient_1.CommandClient {
 }
 exports.Register = Register;
 async function executeRegister(registerOptions) {
-    var _a;
+    var _a, _b;
     const parameters = (0, Utils_1.getParams)();
-    const serverConfiguration = (0, Utils_1.parseServerConfig)(parameters.config);
+    const configFileName = ServerConfig_1.ServerConfig.loadConfigPath();
+    if (!fs.existsSync(configFileName)) {
+        console.error(`unable to read config file "${configFileName}"`);
+        process.exit(1);
+    }
+    const config = JSON.parse(fs.readFileSync(configFileName, 'utf8'));
+    config.port = (_a = parameters.port) !== null && _a !== void 0 ? _a : config.port;
+    const serverConfiguration = (0, Utils_1.parseServerConfig)(config);
     const register = new Register(serverConfiguration.rskNodeUrl, (0, rif_relay_client_1.configure)({ relayHubAddress: serverConfiguration.relayHubAddress }), parameters.mnemonic);
     const portIncluded = serverConfiguration.url.indexOf(':') > 0;
     const relayUrl = serverConfiguration.url +
@@ -97,7 +125,7 @@ async function executeRegister(registerOptions) {
         ? registerOptions
         : {
             hub: serverConfiguration.relayHubAddress,
-            from: (_a = parameters.account) !== null && _a !== void 0 ? _a : (await register.findWealthyAccount()),
+            from: (_b = parameters.account) !== null && _b !== void 0 ? _b : (await register.findWealthyAccount()),
             stake: (0, test_helpers_1.ether)(parameters.stake ? parameters.stake.toString() : '0.01'),
             funds: (0, test_helpers_1.ether)(parameters.funds ? parameters.funds.toString() : '0.02'),
             relayUrl,

@@ -12,6 +12,8 @@ import { configure } from '@rsksmart/rif-relay-client';
 // @ts-ignore
 import { ether } from '@openzeppelin/test-helpers';
 import { ServerConfigParams } from '../ServerConfigParams';
+import { ServerConfig } from '../ServerConfig';
+import * as fs from 'fs';
 
 export interface RegisterOptions {
     hub: string;
@@ -135,9 +137,15 @@ export class Register extends CommandClient {
 
 export async function executeRegister(registerOptions?: RegisterOptions) {
     const parameters: any = getParams();
-    const serverConfiguration: ServerConfigParams = parseServerConfig(
-        parameters.config
-    );
+
+    const configFileName: string = ServerConfig.loadConfigPath();
+    if (!fs.existsSync(configFileName)) {
+        console.error(`unable to read config file "${configFileName}"`);
+        process.exit(1);
+    }
+    const config = JSON.parse(fs.readFileSync(configFileName, 'utf8'));
+    config.port = parameters.port ?? config.port;
+    const serverConfiguration: ServerConfigParams = parseServerConfig(config);
     const register = new Register(
         serverConfiguration.rskNodeUrl,
         configure({ relayHubAddress: serverConfiguration.relayHubAddress }),
