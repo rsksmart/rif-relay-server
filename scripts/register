@@ -80,7 +80,7 @@ if [ "${ACCOUNT}" == "" ] && [ "${MNEMONIC}" != "" ] || [ "${ACCOUNT}" != "" ] &
 fi
 
 if [ "${ACCOUNT}" != "" ] && [ "${MNEMONIC}" != "" ]; then
-  node dist/commands/Register.js --config server-config.json --funds="${FUNDS}" --stake="${STAKE}" --account="${ACCOUNT}" --mnemonic="${MNEMONIC}"
+  node dist/commands/Register.js --funds="${FUNDS}" --stake="${STAKE}" --account="${ACCOUNT}" --mnemonic="${MNEMONIC}"
 else
-  node dist/commands/Register.js --config server-config.json --funds="${FUNDS}" --stake="${STAKE}"
+  node dist/commands/Register.js --funds="${FUNDS}" --stake="${STAKE}"
 fi
