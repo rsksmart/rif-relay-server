@@ -28,8 +28,9 @@ async function run(): Promise<void> {
     console.log('Starting Enveloping Relay Server process...\n');
     try {
         const parameters: any = getParams();
-        const configFileName =
-            parameters.config ?? path.resolve('./server-config.json');
+        const configFileName = parameters.config
+            ? parameters.config
+            : path.resolve('./server-config.json');
 
         if (!fs.existsSync(configFileName)) {
             error(`unable to read config file "${configFileName}"`);
