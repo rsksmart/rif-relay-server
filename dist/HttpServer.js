@@ -13,8 +13,8 @@ class HttpServer {
     constructor(port, backend) {
         this.port = port;
         this.backend = backend;
-        this.app = (0, express_1.default)();
-        this.app.use((0, cors_1.default)());
+        this.app = express_1.default();
+        this.app.use(cors_1.default());
         this.app.use(body_parser_1.default.urlencoded({ extended: false }));
         this.app.use(body_parser_1.default.json());
         /* eslint-disable @typescript-eslint/no-misused-promises */

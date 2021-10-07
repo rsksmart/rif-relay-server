@@ -149,7 +149,7 @@ exports.explicitType = explicitType;
  */
 function parseServerConfig(args, env) {
     const envDefaults = filterMembers(env, ConfigParamsTypes);
-    const argv = (0, minimist_1.default)(args, {
+    const argv = minimist_1.default(args, {
         string: filterType(ConfigParamsTypes, 'string'),
         // boolean: filterType(ConfigParamsTypes, 'boolean'),
         default: envDefaults
@@ -174,7 +174,7 @@ exports.parseServerConfig = parseServerConfig;
 // resolve params, and validate the resulting struct
 async function resolveServerConfig(config, web3provider) {
     var _a, _b;
-    const contractInteractor = new rif_relay_common_1.ContractInteractor(web3provider, (0, rif_relay_client_1.configure)({ relayHubAddress: config.relayHubAddress }));
+    const contractInteractor = new rif_relay_common_1.ContractInteractor(web3provider, rif_relay_client_1.configure({ relayHubAddress: config.relayHubAddress }));
     if (config.versionRegistryAddress != null) {
         if (config.relayHubAddress != null) {
             error('missing param: must have either relayHubAddress or versionRegistryAddress');

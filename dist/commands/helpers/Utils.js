@@ -27,7 +27,7 @@ const yargs_1 = __importDefault(require("yargs"));
 const helpers_1 = require("yargs/helpers");
 const fs = __importStar(require("fs"));
 function getParams() {
-    return (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv)).argv;
+    return yargs_1.default(helpers_1.hideBin(process.argv)).argv;
 }
 exports.getParams = getParams;
 function parseServerConfig(configFile) {
