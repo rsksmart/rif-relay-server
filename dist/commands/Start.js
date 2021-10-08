@@ -14,8 +14,6 @@ const rif_relay_common_1 = require("@rsksmart/rif-relay-common");
 const rif_relay_client_1 = require("@rsksmart/rif-relay-client");
 const ServerConfigParams_1 = require("../ServerConfigParams");
 const loglevel_1 = __importDefault(require("loglevel"));
-const path_1 = __importDefault(require("path"));
-const Utils_1 = require("./helpers/Utils");
 function error(err) {
     console.error(err);
     process.exit(1);
@@ -26,14 +24,7 @@ async function run() {
     let trustedVerifiers = [];
     console.log('Starting Enveloping Relay Server process...\n');
     try {
-        const parameters = (0, Utils_1.getParams)();
-        const configFileName = parameters.config
-            ? parameters.config
-            : path_1.default.resolve('./server-config.json');
-        if (!fs_1.default.existsSync(configFileName)) {
-            error(`unable to read config file "${configFileName}"`);
-        }
-        const conf = JSON.parse(fs_1.default.readFileSync(configFileName, 'utf8'));
+        const conf = await (0, ServerConfigParams_1.parseServerConfig)(process.argv.slice(2), process.env);
         console.log(conf);
         if (conf.rskNodeUrl == null) {
             error('missing rskNodeUrl');

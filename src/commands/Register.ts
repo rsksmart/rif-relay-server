@@ -136,11 +136,16 @@ export class Register extends CommandClient {
 
 export async function executeRegister(registerOptions?: RegisterOptions) {
     const parameters: any = getParams();
-    const configFileName = parameters.config
-        ? parameters.config
-        : path.resolve('./server-config.json');
-    const serverConfiguration: ServerConfigParams =
-        parseServerConfig(configFileName);
+    if (process.argv.length <= 0) {
+        parameters.config = path.resolve(
+            __dirname,
+            '../',
+            'server-config.json'
+        );
+    }
+    const serverConfiguration: ServerConfigParams = parseServerConfig(
+        parameters.config
+    );
     const register = new Register(
         serverConfiguration.rskNodeUrl,
         configure({ relayHubAddress: serverConfiguration.relayHubAddress }),

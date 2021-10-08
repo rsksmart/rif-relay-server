@@ -90,10 +90,10 @@ exports.Register = Register;
 async function executeRegister(registerOptions) {
     var _a;
     const parameters = (0, Utils_1.getParams)();
-    const configFileName = parameters.config
-        ? parameters.config
-        : path_1.default.resolve('./server-config.json');
-    const serverConfiguration = (0, Utils_1.parseServerConfig)(configFileName);
+    if (process.argv.length <= 0) {
+        parameters.config = path_1.default.resolve(__dirname, '../', 'server-config.json');
+    }
+    const serverConfiguration = (0, Utils_1.parseServerConfig)(parameters.config);
     const register = new Register(serverConfiguration.rskNodeUrl, (0, rif_relay_client_1.configure)({ relayHubAddress: serverConfiguration.relayHubAddress }), parameters.mnemonic);
     const portIncluded = serverConfiguration.url.indexOf(':') > 0;
     const relayUrl = serverConfiguration.url +

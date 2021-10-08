@@ -8,13 +8,12 @@ import { TxStoreManager, TXSTORE_FILENAME } from '../TxStoreManager';
 import { ContractInteractor } from '@rsksmart/rif-relay-common';
 import { configure } from '@rsksmart/rif-relay-client';
 import {
+    parseServerConfig,
     resolveServerConfig,
     ServerDependencies,
     ServerConfigParams
 } from '../ServerConfigParams';
 import log from 'loglevel';
-import path from 'path';
-import { getParams } from './helpers/Utils';
 
 function error(err: string): void {
     console.error(err);
@@ -27,16 +26,10 @@ async function run(): Promise<void> {
     let trustedVerifiers: string[] = [];
     console.log('Starting Enveloping Relay Server process...\n');
     try {
-        const parameters: any = getParams();
-        const configFileName = parameters.config
-            ? parameters.config
-            : path.resolve('./server-config.json');
-
-        if (!fs.existsSync(configFileName)) {
-            error(`unable to read config file "${configFileName}"`);
-        }
-        const conf = JSON.parse(fs.readFileSync(configFileName, 'utf8'));
-
+        const conf = await parseServerConfig(
+            process.argv.slice(2),
+            process.env
+        );
         console.log(conf);
         if (conf.rskNodeUrl == null) {
             error('missing rskNodeUrl');
