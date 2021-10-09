@@ -202,7 +202,7 @@ export function parseServerConfig(args: string[], env: any): any {
     console.log(argv);
     let configFile = {};
     let configFileName = argv.config as string;
-    if (args.length <= 0) {
+    if (argv.rootProject) {
         configFileName = path.resolve(__dirname, '../', 'server-config.json');
     }
     if (configFileName != null) {

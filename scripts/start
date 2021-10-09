@@ -4,4 +4,4 @@ if [ ! -f "dist/commands/Start.js" ]; then
   npm run build
 fi
 
-node dist/commands/Start.js
+node dist/commands/Start.js --rootProject=true

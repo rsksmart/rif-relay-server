@@ -90,7 +90,7 @@ exports.Register = Register;
 async function executeRegister(registerOptions) {
     var _a;
     const parameters = (0, Utils_1.getParams)();
-    if (process.argv.length <= 0) {
+    if (parameters.rootProject) {
         parameters.config = path_1.default.resolve(__dirname, '../', 'server-config.json');
     }
     const serverConfiguration = (0, Utils_1.parseServerConfig)(parameters.config);

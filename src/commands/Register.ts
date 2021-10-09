@@ -136,11 +136,13 @@ export class Register extends CommandClient {
 
 export async function executeRegister(registerOptions?: RegisterOptions) {
     const parameters: any = getParams();
-    parameters.config = path.resolve(
-        __dirname,
-        '../',
-        'server-config.json'
-    );
+    if (parameters.rootProject) {
+        parameters.config = path.resolve(
+            __dirname,
+            '../',
+            'server-config.json'
+        );
+    }
     const serverConfiguration: ServerConfigParams = parseServerConfig(
         parameters.config
     );
