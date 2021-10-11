@@ -21,13 +21,14 @@ function error(err) {
     process.exit(1);
 }
 async function run() {
+    var _a;
     let config;
     let web3provider;
     let trustedVerifiers = [];
     console.log('Starting Enveloping Relay Server process...\n');
     try {
         const parameters = (0, Utils_1.getParams)();
-        const configFileName = parameters.config ? parameters.config : path_1.default.resolve('./server-config.json');
+        const configFileName = (_a = parameters.config) !== null && _a !== void 0 ? _a : path_1.default.resolve('./server-config.json');
         if (!fs_1.default.existsSync(configFileName)) {
             error(`unable to read config file "${configFileName}"`);
         }

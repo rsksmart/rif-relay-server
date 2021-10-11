@@ -88,9 +88,9 @@ class Register extends CommandClient_1.CommandClient {
 }
 exports.Register = Register;
 async function executeRegister(registerOptions) {
-    var _a;
+    var _a, _b;
     const parameters = (0, Utils_1.getParams)();
-    const configFileName = parameters.config ? parameters.config : path_1.default.resolve('./server-config.json');
+    const configFileName = (_a = parameters.config) !== null && _a !== void 0 ? _a : path_1.default.resolve('./server-config.json');
     const serverConfiguration = (0, Utils_1.parseServerConfig)(configFileName);
     const register = new Register(serverConfiguration.rskNodeUrl, (0, rif_relay_client_1.configure)({ relayHubAddress: serverConfiguration.relayHubAddress }), parameters.mnemonic);
     const portIncluded = serverConfiguration.url.indexOf(':') > 0;
@@ -102,7 +102,7 @@ async function executeRegister(registerOptions) {
         ? registerOptions
         : {
             hub: serverConfiguration.relayHubAddress,
-            from: (_a = parameters.account) !== null && _a !== void 0 ? _a : (await register.findWealthyAccount()),
+            from: (_b = parameters.account) !== null && _b !== void 0 ? _b : (await register.findWealthyAccount()),
             stake: (0, test_helpers_1.ether)(parameters.stake ? parameters.stake.toString() : '0.01'),
             funds: (0, test_helpers_1.ether)(parameters.funds ? parameters.funds.toString() : '0.02'),
             relayUrl,
