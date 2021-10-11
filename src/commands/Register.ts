@@ -136,7 +136,7 @@ export class Register extends CommandClient {
 export async function executeRegister(registerOptions?: RegisterOptions) {
     const parameters: any = getParams();
     const serverConfiguration: ServerConfigParams = parseServerConfig(
-        parameters.config
+        parameters.configDev || parameters.config
     );
     const register = new Register(
         serverConfiguration.rskNodeUrl,
