@@ -27,9 +27,7 @@ async function run() {
     console.log('Starting Enveloping Relay Server process...\n');
     try {
         const parameters = (0, Utils_1.getParams)();
-        const configFileName = parameters.config
-            ? parameters.config
-            : path_1.default.resolve('./server-config.json');
+        const configFileName = parameters.config ? parameters.config : path_1.default.resolve('./server-config.json');
         if (!fs_1.default.existsSync(configFileName)) {
             error(`unable to read config file "${configFileName}"`);
         }
