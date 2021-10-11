@@ -14,6 +14,7 @@ import sourceMapSupport from 'source-map-support';
 //@ts-ignore
 sourceMapSupport.install({ errorFormatterForce: true });
 import { LogLevelNumbers } from 'loglevel';
+import path from 'path';
 
 // TODO: is there a way to merge the typescript definition ServerConfigParams with the runtime checking ConfigParamTypes ?
 export interface ServerConfigParams {
@@ -192,13 +193,18 @@ export function parseServerConfig(args: string[], env: any): any {
         // boolean: filterType(ConfigParamsTypes, 'boolean'),
         default: envDefaults
     });
+
     if (argv._.length > 0) {
         error(`unexpected param(s) ${argv._.join(',')}`);
     }
     // @ts-ignore
     delete argv._;
+    console.log(argv);
     let configFile = {};
-    const configFileName = argv.config as string;
+    let configFileName = argv.config as string;
+    if (argv.rootProject) {
+        configFileName = path.resolve(__dirname, '../', 'server-config.json');
+    }
     if (configFileName != null) {
         if (!fs.existsSync(configFileName)) {
             error(`unable to read config file "${configFileName}"`);

@@ -31,6 +31,7 @@ const rif_relay_client_1 = require("@rsksmart/rif-relay-client");
 const source_map_support_1 = __importDefault(require("source-map-support"));
 //@ts-ignore
 source_map_support_1.default.install({ errorFormatterForce: true });
+const path_1 = __importDefault(require("path"));
 const serverDefaultConfiguration = {
     alertedBlockDelay: 0,
     minAlertedDelayMS: 0,
@@ -159,8 +160,12 @@ function parseServerConfig(args, env) {
     }
     // @ts-ignore
     delete argv._;
+    console.log(argv);
     let configFile = {};
-    const configFileName = argv.config;
+    let configFileName = argv.config;
+    if (argv.rootProject) {
+        configFileName = path_1.default.resolve(__dirname, '../', 'server-config.json');
+    }
     if (configFileName != null) {
         if (!fs.existsSync(configFileName)) {
             error(`unable to read config file "${configFileName}"`);
