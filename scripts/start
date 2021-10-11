@@ -4,4 +4,4 @@ if [ ! -f "dist/commands/Start.js" ]; then
   npm run build
 fi
 
-node dist/commands/Start.js --config server-config.json
+node dist/commands/Start.js --configDev server-config-dev.json

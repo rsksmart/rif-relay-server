@@ -11,7 +11,7 @@ ACCOUNT=""
 
 function register() {
   echo "$@"
-  PARSED_ARGUMENTS=$(getopt -a -n alphabet -o h --long stake:,funds:,account:,mnemonic:,help -- "$@")
+  PARSED_ARGUMENTS=$(getopt -a alphabet -o h --long stake:,funds:,account:,mnemonic:,help -- "$@")
   VALID_ARGUMENTS=$?
   if [ "$VALID_ARGUMENTS" != "0" ]; then
     showUsage
@@ -80,7 +80,7 @@ if [ "${ACCOUNT}" == "" ] && [ "${MNEMONIC}" != "" ] || [ "${ACCOUNT}" != "" ] &
 fi
 
 if [ "${ACCOUNT}" != "" ] && [ "${MNEMONIC}" != "" ]; then
-  node dist/commands/Register.js --config server-config.json --funds="${FUNDS}" --stake="${STAKE}" --account="${ACCOUNT}" --mnemonic="${MNEMONIC}"
+  node dist/commands/Register.js --configDev server-config-dev.json --funds="${FUNDS}" --stake="${STAKE}" --account="${ACCOUNT}" --mnemonic="${MNEMONIC}"
 else
-  node dist/commands/Register.js --config server-config.json --funds="${FUNDS}" --stake="${STAKE}"
+  node dist/commands/Register.js --configDev server-config-dev.json --funds="${FUNDS}" --stake="${STAKE}"
 fi
