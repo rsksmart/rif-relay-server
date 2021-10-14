@@ -53,7 +53,11 @@ async function run(): Promise<void> {
             config.trustedVerifiers = trustedVerifiers;
         }
     } catch (e) {
-        error(e.message);
+        if (e instanceof Error) {
+            error(e.message);
+        } else {
+            console.error(e);
+        }
     }
     const { devMode, workdir } = config;
     if (devMode) {
