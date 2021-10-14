@@ -34,20 +34,20 @@ class Register extends CommandClient_1.CommandClient {
         console.log('Current stake info:');
         console.log('Relayer owner: ', owner);
         console.log('Current unstake delay: ', unstakeDelay);
-        console.log('current stake=', (0, web3_utils_1.fromWei)(stake, 'ether'));
+        console.log('current stake=', web3_utils_1.fromWei(stake, 'ether'));
         if (owner !== rif_relay_common_1.constants.ZERO_ADDRESS &&
-            !(0, rif_relay_common_1.isSameAddress)(owner, options.from)) {
+            !rif_relay_common_1.isSameAddress(owner, options.from)) {
             throw new Error(`Already owned by ${owner}, our account=${options.from}`);
         }
-        if ((0, web3_utils_1.toBN)(unstakeDelay).gte((0, web3_utils_1.toBN)(options.unstakeDelay)) &&
-            (0, web3_utils_1.toBN)(stake).gte((0, web3_utils_1.toBN)(options.stake.toString()))) {
+        if (web3_utils_1.toBN(unstakeDelay).gte(web3_utils_1.toBN(options.unstakeDelay)) &&
+            web3_utils_1.toBN(stake).gte(web3_utils_1.toBN(options.stake.toString()))) {
             console.log('Relayer already staked');
         }
         else {
-            const stakeValue = (0, web3_utils_1.toBN)(options.stake.toString()).sub((0, web3_utils_1.toBN)(stake));
-            console.log(`Staking relayer ${(0, web3_utils_1.fromWei)(stakeValue, 'ether')} RBTC`, stake === '0'
+            const stakeValue = web3_utils_1.toBN(options.stake.toString()).sub(web3_utils_1.toBN(stake));
+            console.log(`Staking relayer ${web3_utils_1.fromWei(stakeValue, 'ether')} RBTC`, stake === '0'
                 ? ''
-                : ` (already has ${(0, web3_utils_1.fromWei)(stake, 'ether')} RBTC)`);
+                : ` (already has ${web3_utils_1.fromWei(stake, 'ether')} RBTC)`);
             const stakeTx = await relayHub.stakeForAddress(relayAddress, options.unstakeDelay.toString(), {
                 value: stakeValue,
                 from: options.from,
@@ -56,11 +56,11 @@ class Register extends CommandClient_1.CommandClient {
             });
             transactions.push(stakeTx.tx);
         }
-        if ((0, rif_relay_common_1.isSameAddress)(owner, options.from)) {
+        if (rif_relay_common_1.isSameAddress(owner, options.from)) {
             console.log('Relayer already authorized');
         }
         const bal = await this.contractInteractor.getBalance(relayAddress);
-        if ((0, web3_utils_1.toBN)(bal).gt((0, web3_utils_1.toBN)(options.funds.toString()))) {
+        if (web3_utils_1.toBN(bal).gt(web3_utils_1.toBN(options.funds.toString()))) {
             console.log('Relayer already funded');
         }
         else {
@@ -85,9 +85,9 @@ class Register extends CommandClient_1.CommandClient {
 exports.Register = Register;
 async function executeRegister(registerOptions) {
     var _a;
-    const parameters = (0, Utils_1.getParams)();
-    const serverConfiguration = (0, Utils_1.parseServerConfig)(parameters.config);
-    const register = new Register(serverConfiguration.rskNodeUrl, (0, rif_relay_client_1.configure)({ relayHubAddress: serverConfiguration.relayHubAddress }), parameters.mnemonic);
+    const parameters = Utils_1.getParams();
+    const serverConfiguration = Utils_1.parseServerConfig(parameters.config);
+    const register = new Register(serverConfiguration.rskNodeUrl, rif_relay_client_1.configure({ relayHubAddress: serverConfiguration.relayHubAddress }), parameters.mnemonic);
     const portIncluded = serverConfiguration.url.indexOf(':') > 0;
     const relayUrl = serverConfiguration.url +
         (!portIncluded && serverConfiguration.port > 0
@@ -98,8 +98,8 @@ async function executeRegister(registerOptions) {
         : {
             hub: serverConfiguration.relayHubAddress,
             from: (_a = parameters.account) !== null && _a !== void 0 ? _a : (await register.findWealthyAccount()),
-            stake: (0, test_helpers_1.ether)(parameters.stake ? parameters.stake.toString() : '0.01'),
-            funds: (0, test_helpers_1.ether)(parameters.funds ? parameters.funds.toString() : '0.02'),
+            stake: test_helpers_1.ether(parameters.stake ? parameters.stake.toString() : '0.01'),
+            funds: test_helpers_1.ether(parameters.funds ? parameters.funds.toString() : '0.02'),
             relayUrl,
             unstakeDelay: '1000',
             gasPrice: '60000000'

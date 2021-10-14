@@ -37,7 +37,7 @@ class KeyManager {
     constructor(count, workdir, seed) {
         this._privateKeys = {};
         this.nonces = {};
-        (0, ow_1.default)(count, ow_1.default.number);
+        ow_1.default(count, ow_1.default.number);
         if (seed != null && workdir != null) {
             throw new Error("Can't specify both seed and workdir");
         }
@@ -83,7 +83,7 @@ class KeyManager {
         this.nonces = {};
         for (let index = 0; index < count; index++) {
             const w = this.hdkey.deriveChild(index).getWallet();
-            const address = (0, web3_utils_1.toHex)(w.getAddress());
+            const address = web3_utils_1.toHex(w.getAddress());
             this._privateKeys[address] = w.getPrivateKey();
             this.nonces[index] = 0;
         }
@@ -98,7 +98,7 @@ class KeyManager {
         return this._privateKeys[signer] != null;
     }
     signTransaction(signer, tx) {
-        (0, ow_1.default)(signer, ow_1.default.string);
+        ow_1.default(signer, ow_1.default.string);
         const privateKey = this._privateKeys[signer];
         if (privateKey === undefined) {
             throw new Error(`Can't sign: signer=${signer} is not managed`);
