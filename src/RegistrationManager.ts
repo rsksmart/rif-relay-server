@@ -12,7 +12,7 @@ import {
     getLatestEventData,
     isRegistrationValid,
     isSecondEventLater,
-    RelayData,
+    RelayManagerData,
     RelayWorkersAdded,
     StakeAdded,
     StakeUnlocked,
@@ -51,7 +51,7 @@ export class RegistrationManager {
     transactionManager: TransactionManager;
     config: ServerConfigParams;
     txStoreManager: TxStoreManager;
-    relayData: RelayData;
+    relayData: RelayManagerData;
     lastWorkerAddedTransaction?: EventData;
     private delayedEvents: Array<{ block: number; eventData: EventData }> = [];
 
@@ -208,9 +208,9 @@ export class RegistrationManager {
         return transactionHashes;
     }
 
-    async getRelayData(): Promise<RelayData> {
-        const relayData: RelayData[] =
-            await this.contractInteractor.getRelayData([this.managerAddress]);
+    async getRelayData(): Promise<RelayManagerData> {
+        const relayData: RelayManagerData[] =
+            await this.contractInteractor.getRelayInfo([this.managerAddress]);
         if (relayData.length > 0) {
             return relayData[0];
         }

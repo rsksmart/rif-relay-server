@@ -109,7 +109,7 @@ class RegistrationManager {
         return transactionHashes;
     }
     async getRelayData() {
-        const relayData = await this.contractInteractor.getRelayData([this.managerAddress]);
+        const relayData = await this.contractInteractor.getRelayInfo([this.managerAddress]);
         if (relayData.length > 0) {
             return relayData[0];
         }
