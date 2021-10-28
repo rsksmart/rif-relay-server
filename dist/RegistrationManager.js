@@ -110,7 +110,10 @@ class RegistrationManager {
     }
     async getRelayData() {
         const relayData = await this.contractInteractor.getRelayInfo([this.managerAddress]);
-        if (relayData.length > 0) {
+        if (relayData.length > 1) {
+            throw new Error('More than one relay manager found for ' + this.managerAddress);
+        }
+        if (relayData.length == 1) {
             return relayData[0];
         }
         throw new Error('No relay found for manager ' + this.managerAddress);
