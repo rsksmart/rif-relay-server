@@ -210,7 +210,7 @@ export class RegistrationManager {
 
     async getRelayData(): Promise<RelayManagerData> {
         const relayData: RelayManagerData[] =
-            await this.contractInteractor.getRelayInfo([this.managerAddress]);
+            await this.contractInteractor.getRelayInfo(new Set<string>(this.managerAddress));
         if (relayData.length > 1) {
             throw new Error('More than one relay manager found for ' + this.managerAddress)
         }
