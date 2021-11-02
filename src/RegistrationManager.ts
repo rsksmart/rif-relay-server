@@ -12,12 +12,12 @@ import {
     getLatestEventData,
     isRegistrationValid,
     isSecondEventLater,
-    RelayManagerData,
     RelayWorkersAdded,
     StakeAdded,
     StakeUnlocked,
     StakeWithdrawn
 } from '@rsksmart/rif-relay-common';
+import { RelayManagerData } from '@rsksmart/rif-relay-contracts';
 import { ServerConfigParams } from './ServerConfigParams';
 import {
     SendTransactionDetails,
