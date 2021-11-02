@@ -217,7 +217,7 @@ export class RegistrationManager {
         if (relayData.length == 1) {
             return relayData[0];
         }
-        throw new Error('No relay found for manager ' + this.managerAddress);
+        throw new Error('No relay manager found for ' + this.managerAddress);
     }
 
     _extractDuePendingEvents(currentBlock: number): EventData[] {
