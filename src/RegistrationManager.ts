@@ -12,12 +12,12 @@ import {
     getLatestEventData,
     isRegistrationValid,
     isSecondEventLater,
-    RelayData,
     RelayWorkersAdded,
     StakeAdded,
     StakeUnlocked,
     StakeWithdrawn
 } from '@rsksmart/rif-relay-common';
+import { RelayManagerData } from '@rsksmart/rif-relay-contracts';
 import { ServerConfigParams } from './ServerConfigParams';
 import {
     SendTransactionDetails,
@@ -51,7 +51,7 @@ export class RegistrationManager {
     transactionManager: TransactionManager;
     config: ServerConfigParams;
     txStoreManager: TxStoreManager;
-    relayData: RelayData;
+    relayData: RelayManagerData;
     lastWorkerAddedTransaction?: EventData;
     private delayedEvents: Array<{ block: number; eventData: EventData }> = [];
 
@@ -208,13 +208,16 @@ export class RegistrationManager {
         return transactionHashes;
     }
 
-    async getRelayData(): Promise<RelayData> {
-        const relayData: RelayData[] =
-            await this.contractInteractor.getRelayData([this.managerAddress]);
-        if (relayData.length > 0) {
+    async getRelayData(): Promise<RelayManagerData> {
+        const relayData: RelayManagerData[] =
+            await this.contractInteractor.getRelayInfo(new Set<string>([this.managerAddress]));
+        if (relayData.length > 1) {
+            throw new Error('More than one relay manager found for ' + this.managerAddress)
+        }
+        if (relayData.length == 1) {
             return relayData[0];
         }
-        throw new Error('No relay found for manager ' + this.managerAddress);
+        throw new Error('No relay manager found for ' + this.managerAddress);
     }
 
     _extractDuePendingEvents(currentBlock: number): EventData[] {
