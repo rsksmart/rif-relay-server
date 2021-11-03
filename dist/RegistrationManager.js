@@ -109,7 +109,7 @@ class RegistrationManager {
         return transactionHashes;
     }
     async getRelayData() {
-        const relayData = await this.contractInteractor.getRelayInfo(new Set(this.managerAddress));
+        const relayData = await this.contractInteractor.getRelayInfo(new Set([this.managerAddress]));
         if (relayData.length > 1) {
             throw new Error('More than one relay manager found for ' + this.managerAddress);
         }
