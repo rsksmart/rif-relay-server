@@ -8,7 +8,6 @@ COPY package*.json ./
 RUN npm ci
 COPY . ./
 
-
 # Runtime container
 FROM node:10-alpine
 
@@ -20,7 +19,9 @@ WORKDIR /srv/app
 COPY --from=compiler --chown=node:node /usr/src/app/node_modules ./node_modules/
 COPY --chown=node:node package*.json ./
 COPY --chown=node:node bin ./bin/
-
+RUN chmod -R 777 ./bin/
+COPY --chown=node:node dist ./dist/
+RUN chmod -R 777 ./dist/
 EXPOSE 8090
-
-ENTRYPOINT [ "./bin/entrypoint" ]
+RUN ls -lah ./bin/
+CMD [ "sh", "./bin/start" ]
