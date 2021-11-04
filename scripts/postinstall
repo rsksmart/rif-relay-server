@@ -1,4 +1,5 @@
 #!/bin/bash
 
+patch-package
 npx husky install
 
