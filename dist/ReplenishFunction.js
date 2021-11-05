@@ -31,14 +31,10 @@ async function defaultReplenishFunction(relayServer, workerIndex, currentBlock) 
     const mustReplenishWorker = !relayServer.workerBalanceRequired.isSatisfied;
     const isReplenishPendingForWorker = await relayServer.txStoreManager.isActionPending(StoredTransaction_1.ServerAction.VALUE_TRANSFER, relayServer.workerAddress);
     if (mustReplenishWorker && !isReplenishPendingForWorker) {
-        const refill = web3_utils_1.toBN(relayServer.config.workerTargetBalance.toString()
-        // @ts-ignore
-        ).sub(relayServer.workerBalanceRequired.currentValue);
+        const refill = web3_utils_1.toBN(relayServer.config.workerTargetBalance.toString()).sub(relayServer.workerBalanceRequired.currentValue);
         console.log(`== replenishServer: mgr balance=${managerEthBalance.toString()}
         \n${relayServer.workerBalanceRequired.description}\n refill=${refill.toString()}`);
-        if (refill.lt(
-        // @ts-ignore
-        managerEthBalance.sub(web3_utils_1.toBN(relayServer.config.managerMinBalance)))) {
+        if (refill.lt(managerEthBalance.sub(web3_utils_1.toBN(relayServer.config.managerMinBalance)))) {
             console.log('Replenishing worker balance by manager rbtc balance');
             const details = {
                 signer: relayServer.managerAddress,
