@@ -1,6 +1,6 @@
 #!/bin/bash
 # Copied and adapted from https://gist.github.com/hoylen/6607180
-# to cover the different version of the getopt command avaialble on
+# to cover the different versions of the getopt command avaialble on
 # Linux and macOS: https://stackoverflow.com/a/4300224/6816965
 
 PROG=`basename $0`
@@ -16,7 +16,7 @@ LONG_OPTS=funds:,stake:,account:,mnemonic:,help
 SHORT_HELP="Usage: $PROG [options]
 Options:
   -f amount     an optional amount of funds to set up (by default 10)
-  -s amount     an optional the amount of stake to set up (by default 20)
+  -s amount     an optional amount of stake to set up (by default 20)
   -a account    an optional account to use for funding and staking (it requires the mnemonic parameter)
   -m mnemonic   an optional mnemonic to use for unlocking the account parameter (it requires the account parameter)
   -h            show this help message"
@@ -24,7 +24,7 @@ Options:
 LONG_HELP="Usage: $PROG [options]
 Options:
   -f | --funds      amount    an optional amount of funds to set up (by default 10)
-  -s | --output     amount    an optional the amount of stake to set up (by default 20)
+  -s | --output     amount    an optional amount of stake to set up (by default 20)
   -a | --account    account   an optional account to use for funding and staking (it requires the mnemonic parameter)
   -m | --mnemonic   mnemonic  an optional mnemonic to use for unlocking the account parameter (it requires the account parameter)
   -h | --help                 show this help message"
@@ -84,13 +84,13 @@ while [ $# -gt 0 ]; do
   shift
 done
 
-# Variables set (either by reading from user inpur or with default value)
+# Variable values set either by reading from user inpur or with the default value
 echo "STAKE: $STAKE"
 echo "FUNDS: ${FUNDS}"
 echo "MNEMONIC: ${MNEMONIC}"
 echo "ACCOUNT: ${ACCOUNT}"
 
-# For debug purposes only, we should never enter in the if
+# For debug purposes only, we should never enter in the if branch
 if [ $# -gt 0 ]; then
   # Remaining parameters can be processed
   for ARG in "$@"; do

@@ -105,7 +105,7 @@ Run the following command:
 npm run register -- -f "<FUNDS>" -s "<STAKE>" -a "<ACCOUNT>" -m "<MNEMONIC>"
 ``` 
 
-On Linux, the long options command is available also:
+The long options command is also available on Linux:
 
 ```bash
 npm run register -- --funds="<FUNDS>" --stake="<STAKE>" --account="<ACCOUNT>" --mnemonic="<MNEMONIC>"
@@ -117,7 +117,7 @@ where:
 - **ACCOUNT**: an optional account to use for funding and staking (it requires the mnemonic parameter)
 - **MNEMONIC**: an optional mnemonic to use for unlocking the account parameter (it requires the account parameter)
 
-There is also an `help` option available for the command:
+The command shows its usage with the `-h` parameter:
 
 ```bash
 npm run register -- -h
