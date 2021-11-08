@@ -102,6 +102,12 @@ Once the relay server is up, you need to register it in order for it to be usabl
 Run the following command:
 
 ```bash
+npm run register -- -f "<FUNDS>" -s "<STAKE>" -a "<ACCOUNT>" -m "<MNEMONIC>"
+``` 
+
+On Linux, the long options command is available also:
+
+```bash
 npm run register -- --funds="<FUNDS>" --stake="<STAKE>" --account="<ACCOUNT>" --mnemonic="<MNEMONIC>"
 ``` 
 
@@ -110,6 +116,12 @@ where:
 - **STAKE**: an optional the amount of stake to set up (by default 20)
 - **ACCOUNT**: an optional account to use for funding and staking (it requires the mnemonic parameter)
 - **MNEMONIC**: an optional mnemonic to use for unlocking the account parameter (it requires the account parameter)
+
+There is also an `help` option available for the command:
+
+```bash
+npm run register -- -h
+```
 
 After this you will be seeing several log entries indicating how everything is turning out. After a little while, look for this entry in the relay server execution terminal to make sure that the server is ready:
 
