@@ -1,0 +1,16 @@
+version: "3"
+
+services:
+  rif-relay:
+    build:
+      context: .
+    entrypoint: sh -c 'node dist/commands/Start.js --config server-config.json'
+    ports:
+      - "8090:8090"
+
+    networks:
+      - rif-relay
+
+networks:
+  rif-relay:
+    driver: bridge
