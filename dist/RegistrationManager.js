@@ -47,10 +47,6 @@ class RegistrationManager {
             this.lastWorkerAddedTransaction =
                 await this._queryLatestWorkerAddedEvent();
         }
-        if (this.lastMinedRegisterTransaction == null) {
-            this.lastMinedRegisterTransaction =
-                await this._queryLatestRegistrationEvent();
-        }
         this.isInitialized = true;
     }
     async handlePastEvents(hubEventsSinceLastScan, lastScannedBlock, currentBlock, forceRegistration) {
@@ -85,14 +81,9 @@ class RegistrationManager {
                     break;
             }
         }
+        this.relayData = await this.getRelayData();
         for (const eventData of hubEventsSinceLastScan) {
             switch (eventData.event) {
-                case rif_relay_common_1.RelayServerRegistered:
-                    if (this.lastMinedRegisterTransaction == null ||
-                        rif_relay_common_1.isSecondEventLater(this.lastMinedRegisterTransaction, eventData)) {
-                        this.lastMinedRegisterTransaction = eventData;
-                    }
-                    break;
                 case rif_relay_common_1.RelayWorkersAdded:
                     if (this.lastWorkerAddedTransaction == null ||
                         rif_relay_common_1.isSecondEventLater(this.lastWorkerAddedTransaction, eventData)) {
@@ -117,6 +108,16 @@ class RegistrationManager {
         }
         return transactionHashes;
     }
+    async getRelayData() {
+        const relayData = await this.contractInteractor.getRelayInfo(new Set([this.managerAddress]));
+        if (relayData.length > 1) {
+            throw new Error('More than one relay manager found for ' + this.managerAddress);
+        }
+        if (relayData.length == 1) {
+            return relayData[0];
+        }
+        throw new Error('No relay manager found for ' + this.managerAddress);
+    }
     _extractDuePendingEvents(currentBlock) {
         const ret = this.delayedEvents
             .filter((event) => event.block <= currentBlock)
@@ -127,14 +128,7 @@ class RegistrationManager {
         return ret;
     }
     _isRegistrationCorrect() {
-        return rif_relay_common_1.isRegistrationValid(this.lastMinedRegisterTransaction, this.config, this.managerAddress);
-    }
-    async _queryLatestRegistrationEvent() {
-        const topics = rif_relay_common_1.address2topic(this.managerAddress);
-        const registerEvents = await this.contractInteractor.getPastEventsForHub([topics], {
-            fromBlock: 1
-        }, [rif_relay_common_1.RelayServerRegistered]);
-        return rif_relay_common_1.getLatestEventData(registerEvents);
+        return rif_relay_common_1.isRegistrationValid(this.relayData, this.config, this.managerAddress);
     }
     _parseEvent(event) {
         if ((event === null || event === void 0 ? void 0 : event.events) === undefined) {

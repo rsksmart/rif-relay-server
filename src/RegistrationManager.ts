@@ -4,20 +4,20 @@ import { EventEmitter } from 'events';
 import { PrefixedHexString } from 'ethereumjs-tx';
 import { toBN, toHex } from 'web3-utils';
 import {
-    AmountRequired,
     address2topic,
+    AmountRequired,
+    boolString,
+    ContractInteractor,
+    defaultEnvironment,
     getLatestEventData,
     isRegistrationValid,
     isSecondEventLater,
-    boolString,
-    defaultEnvironment,
-    RelayServerRegistered,
     RelayWorkersAdded,
     StakeAdded,
     StakeUnlocked,
-    StakeWithdrawn,
-    ContractInteractor
+    StakeWithdrawn
 } from '@rsksmart/rif-relay-common';
+import { RelayManagerData } from '@rsksmart/rif-relay-contracts';
 import { ServerConfigParams } from './ServerConfigParams';
 import {
     SendTransactionDetails,
@@ -51,8 +51,7 @@ export class RegistrationManager {
     transactionManager: TransactionManager;
     config: ServerConfigParams;
     txStoreManager: TxStoreManager;
-
-    lastMinedRegisterTransaction?: EventData;
+    relayData: RelayManagerData;
     lastWorkerAddedTransaction?: EventData;
     private delayedEvents: Array<{ block: number; eventData: EventData }> = [];
 
@@ -111,10 +110,6 @@ export class RegistrationManager {
                 await this._queryLatestWorkerAddedEvent();
         }
 
-        if (this.lastMinedRegisterTransaction == null) {
-            this.lastMinedRegisterTransaction =
-                await this._queryLatestRegistrationEvent();
-        }
         this.isInitialized = true;
     }
 
@@ -166,19 +161,10 @@ export class RegistrationManager {
             }
         }
 
+        this.relayData = await this.getRelayData();
+
         for (const eventData of hubEventsSinceLastScan) {
             switch (eventData.event) {
-                case RelayServerRegistered:
-                    if (
-                        this.lastMinedRegisterTransaction == null ||
-                        isSecondEventLater(
-                            this.lastMinedRegisterTransaction,
-                            eventData
-                        )
-                    ) {
-                        this.lastMinedRegisterTransaction = eventData;
-                    }
-                    break;
                 case RelayWorkersAdded:
                     if (
                         this.lastWorkerAddedTransaction == null ||
@@ -222,6 +208,22 @@ export class RegistrationManager {
         return transactionHashes;
     }
 
+    async getRelayData(): Promise<RelayManagerData> {
+        const relayData: RelayManagerData[] =
+            await this.contractInteractor.getRelayInfo(
+                new Set<string>([this.managerAddress])
+            );
+        if (relayData.length > 1) {
+            throw new Error(
+                'More than one relay manager found for ' + this.managerAddress
+            );
+        }
+        if (relayData.length == 1) {
+            return relayData[0];
+        }
+        throw new Error('No relay manager found for ' + this.managerAddress);
+    }
+
     _extractDuePendingEvents(currentBlock: number): EventData[] {
         const ret = this.delayedEvents
             .filter((event) => event.block <= currentBlock)
@@ -234,23 +236,10 @@ export class RegistrationManager {
 
     _isRegistrationCorrect(): boolean {
         return isRegistrationValid(
-            this.lastMinedRegisterTransaction,
+            this.relayData,
             this.config,
             this.managerAddress
         );
-    }
-
-    async _queryLatestRegistrationEvent(): Promise<EventData | undefined> {
-        const topics = address2topic(this.managerAddress);
-        const registerEvents =
-            await this.contractInteractor.getPastEventsForHub(
-                [topics],
-                {
-                    fromBlock: 1
-                },
-                [RelayServerRegistered]
-            );
-        return getLatestEventData(registerEvents);
     }
 
     _parseEvent(
