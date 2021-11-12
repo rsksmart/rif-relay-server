@@ -20,9 +20,9 @@
   "author": "Relaying Services Team",
   "license": "MIT",
   "dependencies": {
-    "@rsksmart/rif-relay-client": "https://github.com/infuy/rif-relay-client#feature/PP-43/refactor-register-relay",
-    "@rsksmart/rif-relay-common": "https://github.com/infuy/rif-relay-common#feature/PP-43/refactor-register-relay",
-    "@rsksmart/rif-relay-contracts": "https://github.com/anarancio/rif-relay-contracts#feature/PP-43/refactor-register-relay",
+    "@rsksmart/rif-relay-client": "https://github.com/infuy/rif-relay-client",
+    "@rsksmart/rif-relay-common": "https://github.com/infuy/rif-relay-common",
+    "@rsksmart/rif-relay-contracts": "https://github.com/anarancio/rif-relay-contracts",
     "@truffle/hdwallet-provider": "1.2.4",
     "@truffle/abi-utils": "~0.2.3",
     "@trufflesuite/web3-provider-engine": "15.0.13-1",
