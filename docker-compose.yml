@@ -15,10 +15,9 @@ services:
   rif-relay-contracts:
     build:
       context: ./rif-relay-contracts       
-      dockerfile: DockerfileContracts      
+      dockerfile: Dockerfile      
       #entrypoint: sh -c 'npm run deploy development'
 
 networks:
   rif-relay:
     driver: bridge
-    
