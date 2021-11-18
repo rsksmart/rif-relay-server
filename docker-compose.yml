@@ -7,10 +7,18 @@ services:
     entrypoint: sh -c 'node dist/commands/Start.js --config server-config.json'
     ports:
       - "8090:8090"
-
+    depends_on: 
+      - 'rif-relay-contracts'
     networks:
       - rif-relay
+  
+  rif-relay-contracts:
+    build:
+      context: ./rif-relay-contracts       
+      dockerfile: DockerfileContracts      
+      #entrypoint: sh -c 'npm run deploy development'
 
 networks:
   rif-relay:
     driver: bridge
+    
