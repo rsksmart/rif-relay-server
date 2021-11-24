@@ -3,6 +3,7 @@ import { EventData, PastEventOptions } from 'web3-eth-contract';
 import { EventEmitter } from 'events';
 import { PrefixedHexString } from 'ethereumjs-tx';
 import { AmountRequired, ContractInteractor } from '@rsksmart/rif-relay-common';
+import { RelayManagerData } from '@rsksmart/rif-relay-contracts';
 import { ServerConfigParams } from './ServerConfigParams';
 import { TransactionManager } from './TransactionManager';
 import { TxStoreManager } from './TxStoreManager';
@@ -23,7 +24,7 @@ export declare class RegistrationManager {
     transactionManager: TransactionManager;
     config: ServerConfigParams;
     txStoreManager: TxStoreManager;
-    lastMinedRegisterTransaction?: EventData;
+    relayData: RelayManagerData;
     lastWorkerAddedTransaction?: EventData;
     private delayedEvents;
     get isStakeLocked(): boolean;
@@ -31,9 +32,9 @@ export declare class RegistrationManager {
     constructor(contractInteractor: ContractInteractor, transactionManager: TransactionManager, txStoreManager: TxStoreManager, eventEmitter: EventEmitter, config: ServerConfigParams, managerAddress: string, workerAddress: string);
     init(): Promise<void>;
     handlePastEvents(hubEventsSinceLastScan: EventData[], lastScannedBlock: number, currentBlock: number, forceRegistration: boolean): Promise<PrefixedHexString[]>;
+    getRelayData(): Promise<RelayManagerData>;
     _extractDuePendingEvents(currentBlock: number): EventData[];
     _isRegistrationCorrect(): boolean;
-    _queryLatestRegistrationEvent(): Promise<EventData | undefined>;
     _parseEvent(event: {
         events: any[];
         name: string;
