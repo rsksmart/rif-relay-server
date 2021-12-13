@@ -17,6 +17,4 @@ COPY --chown=node:node package*.json ./
 COPY --chown=node:node server-config*.json ./
 COPY --chown=node:node dist ./dist/
 COPY --chown=node:node scripts ./scripts/
-#RUN chmod -R 777 ./dist/
-#RUN npm run register -- --account="0xa975D1DE6d7dA3140E9e293509337373402558bE" --mnemonic="'digital unknown jealous mother legal hedgehog save glory december universe spread figure custom found six'"
 EXPOSE 8090
