@@ -7,7 +7,7 @@ RUN npm i --cache /tmp/1
 COPY . ./
 # Runtime container
 FROM node:12-alpine
-RUN apk add --no-cache bash curl
+RUN apk add --no-cache bash
 RUN mkdir -p /srv/app && chown node:node /srv/app \
  && mkdir -p /srv/data && chown node:node /srv/data
 USER node
