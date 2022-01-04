@@ -214,26 +214,24 @@ class RelayServer extends events_1.default {
             });
             const gasFromRequest = web3_utils_1.toBN(relayReq.relayRequest.request.gas).toNumber();
             const gasFromRequestMaxAgreed = Math.ceil(gasFromRequest * (1 + rif_relay_common_1.constants.MAX_ESTIMATED_GAS_DEVIATION));
-            loglevel_1.default.debug('### RequestFees - gas from request', gasFromRequest);
-            loglevel_1.default.debug('### RequestFees - gas estimatedDestinationGasCost', estimatedDestinationGasCost);
             if (estimatedDestinationGasCost > gasFromRequestMaxAgreed) {
                 throw new Error("Request payload's gas parameters deviate too much fom the estimated gas for this transaction");
             }
             // Actual maximum gas needed to  send the relay transaction
             maxPossibleGas = web3_utils_1.toBN(await this.contractInteractor.estimateRelayTransactionMaxPossibleGasWithTransactionRequest(relayReq));
         }
-        loglevel_1.default.debug('### RequestFees - allowForSponsoredTx ', this.config.allowForSponsoredTx);
+        loglevel_1.default.debug('RequestFees - allowForSponsoredTx ', this.config.allowForSponsoredTx);
         if (!this.config.allowForSponsoredTx) {
             // we need to convert tokenAmount back into rbtc and compare its value with maxPossibleGas
             // if the value is lower than maxPossibleGas, we should throw an error
             // TODO: we may need add some percentage fee at some point.
             const tokenAmountInGas = getGas(getWeiFromRifWei(web3_utils_1.toBN(req.relayRequest.request.tokenAmount)), web3_utils_1.toBN(req.relayRequest.relayData.gasPrice));
             const isTokenAmountAcceptable = tokenAmountInGas.gte(maxPossibleGas);
-            loglevel_1.default.debug('### RequestFees - isTokenAmountAcceptable? ', isTokenAmountAcceptable);
+            loglevel_1.default.debug('RequestFees - isTokenAmountAcceptable? ', isTokenAmountAcceptable);
             if (!isTokenAmountAcceptable) {
                 loglevel_1.default.warn('TokenAmount in gas agreed by the user', tokenAmountInGas.toString());
                 loglevel_1.default.warn('MaxPossibleGas required by the transaction', maxPossibleGas.toString());
-                throw new Error('User agreed to spend lower than what the transaction requires.');
+                throw new Error('User agreed to spend lower than what the transaction may require.');
             }
         }
         return maxPossibleGas;
