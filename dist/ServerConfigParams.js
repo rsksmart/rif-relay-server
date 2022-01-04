@@ -64,7 +64,8 @@ const serverDefaultConfiguration = {
     retryGasPriceFactor: 1.2,
     defaultGasLimit: 500000,
     maxGasPrice: (100e9).toString(),
-    estimateGasFactor: 1.2
+    estimateGasFactor: 1.2,
+    allowForSponsoredTx: false
 };
 const ConfigParamsTypes = {
     config: 'string',

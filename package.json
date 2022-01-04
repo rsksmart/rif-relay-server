@@ -20,7 +20,7 @@
   "author": "Relaying Services Team",
   "license": "MIT",
   "dependencies": {
-    "@rsksmart/rif-relay-client": "https://github.com/infuy/rif-relay-client",
+    "@rsksmart/rif-relay-client": "https://github.com/antomor/rif-relay-client#PP-106/request-fees",
     "@rsksmart/rif-relay-common": "https://github.com/infuy/rif-relay-common",
     "@rsksmart/rif-relay-contracts": "https://github.com/anarancio/rif-relay-contracts",
     "@truffle/abi-utils": "~0.2.3",

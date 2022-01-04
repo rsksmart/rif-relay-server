@@ -52,6 +52,10 @@ export interface ServerConfigParams {
     maxGasPrice: string;
     defaultGasLimit: number;
     estimateGasFactor: number;
+    // revenue-sharing fields
+    // if set to false, the server will reject all the transactions
+    // that require less than the estimated gas.
+    allowForSponsoredTx: boolean;
 }
 
 export interface ServerDependencies {
@@ -95,7 +99,8 @@ const serverDefaultConfiguration: ServerConfigParams = {
     retryGasPriceFactor: 1.2,
     defaultGasLimit: 500000,
     maxGasPrice: (100e9).toString(),
-    estimateGasFactor: 1.2
+    estimateGasFactor: 1.2,
+    allowForSponsoredTx: true
 };
 
 const ConfigParamsTypes = {

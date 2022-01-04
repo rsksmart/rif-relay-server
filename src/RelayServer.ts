@@ -3,7 +3,7 @@ import log from 'loglevel';
 import ow from 'ow';
 import { EventData } from 'web3-eth-contract';
 import { PrefixedHexString } from 'ethereumjs-tx';
-import { toBN } from 'web3-utils';
+import { toBN, fromWei, toWei } from 'web3-utils';
 import {
     IRelayVerifierInstance,
     IRelayHubInstance,
@@ -28,7 +28,9 @@ import {
     DeployTransactionRequest,
     DeployTransactionRequestShape,
     RelayTransactionRequest,
-    RelayTransactionRequestShape
+    RelayTransactionRequestShape,
+    TypedDeployRequestData,
+    TypedRequestData
 } from '@rsksmart/rif-relay-common';
 import { replenishStrategy } from './ReplenishFunction';
 import { RegistrationManager } from './RegistrationManager';
@@ -279,63 +281,7 @@ export class RelayServer extends EventEmitter {
             throw new Error(message);
         }
 
-        let maxPossibleGas: BN;
-
-        if (isDeployRequest) {
-            const deployReq = req as DeployTransactionRequest;
-            // Actual Maximum gas needed to send to the deploy request tx
-            maxPossibleGas = toBN(
-                await this.contractInteractor.walletFactoryEstimateGasOfDeployCall(
-                    deployReq
-                )
-            );
-
-            // TODO: For RIF team
-            // Here the server has the last chance to compare the maxPossibleGas the deploy transaction needs with
-            // the aggreement signed between the client and the relayer. Take this into account during the Arbiter integration.
-        } else {
-            const relayReq = req as RelayTransactionRequest;
-
-            // TODO: For RIF Team
-            // The maxPossibleGas must be compared against the commitment signed with the user.
-            // The relayServer must not allow a call that requires more gas than it was agreed with the user
-            // For now, we can call estimateDestinationContractCallGas to get the "ACTUAL" gas required for the
-            // field req.relayRequest.request.gas and not relay requests that deviated too much from what the user signed
-
-            // But take into acconunt that the aggreement with the user (the one from the Arbiter) has the final decision.
-            // If the Relayer agreeed with the Client a certain percentage of deviation from the original maxGas, then it must honor that agreement
-            // and not the current hardcoded deviation
-
-            const estimatedDesinationGasCost: number =
-                await this.contractInteractor.estimateDestinationContractCallGas(
-                    {
-                        from: relayReq.relayRequest.relayData.callForwarder,
-                        to: relayReq.relayRequest.request.to,
-                        gasPrice: relayReq.relayRequest.relayData.gasPrice,
-                        data: relayReq.relayRequest.request.data
-                    }
-                );
-
-            const gasFromRequest = toBN(
-                relayReq.relayRequest.request.gas
-            ).toNumber();
-            const gasFromRequestMaxAgreed = Math.ceil(
-                gasFromRequest * (1 + constants.MAX_ESTIMATED_GAS_DEVIATION)
-            );
-
-            if (estimatedDesinationGasCost > gasFromRequestMaxAgreed) {
-                throw new Error(
-                    "Request payload's gas parameters deviate too much fom the estimated gas for this transaction"
-                );
-            }
-
-            // Actual maximum gas needed to  send the relay transaction
-            maxPossibleGas = toBN(
-                await this.contractInteractor.estimateRelayTransactionMaxPossibleGasWithTransactionRequest(
-                    relayReq
-                )
-            );
-        }
+        const maxPossibleGas = await this.getMaxPossibleGas(req, isDeployRequest);
 
         try {
             if (this.isDeployRequest(req)) {
@@ -365,6 +311,81 @@ export class RelayServer extends EventEmitter {
         }
 
         return { maxPossibleGas };
+    }
+
+    async getMaxPossibleGas(req: RelayTransactionRequest | DeployTransactionRequest, isDeployRequest: boolean) {
+        let maxPossibleGas: BN;
+
+        if (isDeployRequest) {
+            const deployReq = req as DeployTransactionRequest;
+            // Actual Maximum gas needed to send to the deploy request tx
+            maxPossibleGas = toBN(
+                await this.contractInteractor.walletFactoryEstimateGasOfDeployCall(
+                    deployReq
+                )
+            );
+
+            // TODO: For RIF team
+            // Here the server has the last chance to compare the maxPossibleGas the deploy transaction needs with
+            // the agreement signed between the client and the relayer. Take this into account during the Arbiter integration.
+        } else {
+            const relayReq = req as RelayTransactionRequest;
+
+            // TODO: For RIF Team
+            // The maxPossibleGas must be compared against the commitment signed with the user.
+            // The relayServer must not allow a call that requires more gas than what it was agreed with the user.
+            // For now, we can call estimateDestinationContractCallGas to get the "ACTUAL" gas required for the
+            // field req.relayRequest.request.gas and not relay requests that deviated too much from what the user signed
+
+            // But take into account that the agreement with the user (the one from the Arbiter) has the final decision.
+            // If the Relayer agreed with the Client a certain percentage of deviation from the original maxGas, then it must honor that agreement
+            // and not the current hardcoded deviation
+
+            const estimatedDestinationGasCost: number =
+                await this.contractInteractor.estimateDestinationContractCallGas(
+                    {
+                        from: relayReq.relayRequest.relayData.callForwarder,
+                        to: relayReq.relayRequest.request.to,
+                        gasPrice: relayReq.relayRequest.relayData.gasPrice,
+                        data: relayReq.relayRequest.request.data
+                    }
+                );
+
+            const gasFromRequest = toBN(
+                relayReq.relayRequest.request.gas
+            ).toNumber();
+            const gasFromRequestMaxAgreed = Math.ceil(
+                gasFromRequest * (1 + constants.MAX_ESTIMATED_GAS_DEVIATION)
+            );
+
+            if (estimatedDestinationGasCost > gasFromRequestMaxAgreed) {
+                throw new Error(
+                    "Request payload's gas parameters deviate too much fom the estimated gas for this transaction"
+                );
+            }
+
+            // Actual maximum gas needed to  send the relay transaction
+            maxPossibleGas = toBN(
+                await this.contractInteractor.estimateRelayTransactionMaxPossibleGasWithTransactionRequest(
+                    relayReq
+                )
+            );
+        }
+        log.debug('RequestFees - allowForSponsoredTx ', this.config.allowForSponsoredTx);
+        if (!this.config.allowForSponsoredTx) {
+            // we need to convert tokenAmount back into rbtc and compare its value with maxPossibleGas
+            // if the value is lower than maxPossibleGas, we should throw an error
+            // TODO: we may need add some percentage fee at some point.
+            const tokenAmountInGas = getGas(getWeiFromRifWei(toBN(req.relayRequest.request.tokenAmount)), toBN(req.relayRequest.relayData.gasPrice));
+            const isTokenAmountAcceptable = tokenAmountInGas.gte(maxPossibleGas);
+            log.debug('RequestFees - isTokenAmountAcceptable? ', isTokenAmountAcceptable);
+            if ( !isTokenAmountAcceptable) {
+                log.warn('TokenAmount in gas agreed by the user', tokenAmountInGas.toString());
+                log.warn('MaxPossibleGas required by the transaction', maxPossibleGas.toString());
+                throw new Error('User agreed to spend lower than what the transaction may require.');
+            }
+        }
+        return maxPossibleGas;
     }
 
     async validateViewCallSucceeds(
@@ -971,4 +992,22 @@ latestBlock timestamp   | ${latestBlock.timestamp}
         }
         this.ready = isReady;
     }
+}
+
+/**
+ * TODO: Hard-coded values: for testing purposes only!
+ */
+function getWeiFromRifWei(trifWei: BN): BN {
+    const tRifPriceInRBTC = 0.000005739;
+    const rifTokenDecimals = 18;
+
+    const costInTrif = parseFloat(fromWei(trifWei));
+    const costInRBTC = costInTrif * tRifPriceInRBTC;
+    const costInRBTCFixed = costInRBTC.toFixed(rifTokenDecimals);
+    const costInWei = toWei(costInRBTCFixed);
+    return toBN(costInWei);
+}
+
+function getGas(cost: BN, gasPrice: BN) {
+    return cost.div(gasPrice);
 }
