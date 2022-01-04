@@ -93,7 +93,8 @@ const ConfigParamsTypes = {
     defaultGasLimit: 'number',
     trustedVerifiers: 'string',
     relayVerifierAddress: 'string',
-    deployVerifierAddress: 'string'
+    deployVerifierAddress: 'string',
+    allowForSponsoredTx: 'boolean'
 };
 // by default: no waiting period - use VersionRegistry entries immediately.
 const DefaultRegistryDelayPeriod = 0;

@@ -131,7 +131,9 @@ const ConfigParamsTypes = {
 
     trustedVerifiers: 'string',
     relayVerifierAddress: 'string',
-    deployVerifierAddress: 'string'
+    deployVerifierAddress: 'string',
+    
+    allowForSponsoredTx: 'boolean'
 } as any;
 
 // by default: no waiting period - use VersionRegistry entries immediately.
