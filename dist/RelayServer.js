@@ -263,7 +263,6 @@ class RelayServer extends events_1.default {
             creationBlockNumber: currentBlock,
             gasPrice: req.relayRequest.relayData.gasPrice
         };
-        loglevel_1.default.debug("details is:", details);
         const txDetails = await this.transactionManager.sendTransaction(details);
         // after sending a transaction is a good time to check the worker's balance, and replenish it.
         await this.replenishServer(0, currentBlock);

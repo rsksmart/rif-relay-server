@@ -442,7 +442,6 @@ export class RelayServer extends EventEmitter {
             creationBlockNumber: currentBlock,
             gasPrice: req.relayRequest.relayData.gasPrice
         };
-        log.debug("details is:", details);
         const txDetails = await this.transactionManager.sendTransaction(
             details
         );
