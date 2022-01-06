@@ -3,7 +3,7 @@ import log from 'loglevel';
 import ow from 'ow';
 import { EventData } from 'web3-eth-contract';
 import { PrefixedHexString } from 'ethereumjs-tx';
-import { toBN, fromWei, toWei } from 'web3-utils';
+import { toBN } from 'web3-utils';
 import {
     IRelayVerifierInstance,
     IRelayHubInstance,
@@ -49,6 +49,7 @@ import {
 import { toChecksumAddress } from 'ethereumjs-util';
 import Timeout = NodeJS.Timeout;
 import EventEmitter from 'events';
+import { getGas, getWeiFromRifWei } from './Conversions';
 
 const VERSION = '2.0.1';
 
@@ -992,22 +993,4 @@ latestBlock timestamp   | ${latestBlock.timestamp}
         }
         this.ready = isReady;
     }
-}
-
-/**
- * TODO: Hard-coded values: for testing purposes only!
- */
-function getWeiFromRifWei(trifWei: BN): BN {
-    const tRifPriceInRBTC = 0.000005739;
-    const rifTokenDecimals = 18;
-
-    const costInTrif = parseFloat(fromWei(trifWei));
-    const costInRBTC = costInTrif * tRifPriceInRBTC;
-    const costInRBTCFixed = costInRBTC.toFixed(rifTokenDecimals);
-    const costInWei = toWei(costInRBTCFixed);
-    return toBN(costInWei);
-}
-
-function getGas(cost: BN, gasPrice: BN) {
-    return cost.div(gasPrice);
 }
