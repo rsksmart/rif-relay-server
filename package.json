@@ -20,10 +20,9 @@
   "author": "Relaying Services Team",
   "license": "MIT",
   "dependencies": {
-    "@rsksmart/rif-relay-client": "https://github.com/infuy/rif-relay-client#PP-108/collector-contract",
-    "@rsksmart/rif-relay-common": "https://github.com/infuy/rif-relay-common#PP-108/collector-contract",
-    "@rsksmart/rif-relay-contracts": "https://github.com/anarancio/rif-relay-contracts#PP-108/collector-contract",
-    "@truffle/hdwallet-provider": "1.2.4",
+    "@rsksmart/rif-relay-client": "https://github.com/infuy/rif-relay-client#revenue-sharing-POC",
+    "@rsksmart/rif-relay-common": "https://github.com/infuy/rif-relay-common#revenue-sharing-POC",
+    "@rsksmart/rif-relay-contracts": "https://github.com/anarancio/rif-relay-contracts#revenue-sharing-POC",
     "@truffle/abi-utils": "~0.2.3",
     "@truffle/hdwallet-provider": "1.6.0",
     "@trufflesuite/web3-provider-engine": "15.0.13-1",
