@@ -16,6 +16,7 @@ class Register extends CommandClient_1.CommandClient {
         var _a;
         const transactions = [];
         console.log(`Registering Enveloping relayer at ${options.relayUrl}`);
+        console.log('Options received:', options);
         const response = await this.httpClient.getPingResponse(options.relayUrl);
         if (response.ready) {
             throw new Error('Already registered');
@@ -86,6 +87,7 @@ exports.Register = Register;
 async function executeRegister(registerOptions) {
     var _a;
     const parameters = Utils_1.getParams();
+    console.log('Parsed parameters', parameters);
     const serverConfiguration = Utils_1.parseServerConfig(parameters.config);
     const register = new Register(serverConfiguration.rskNodeUrl, rif_relay_client_1.configure({ relayHubAddress: serverConfiguration.relayHubAddress }), parameters.mnemonic);
     const portIncluded = serverConfiguration.url.indexOf(':') > 0;
