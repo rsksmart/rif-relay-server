@@ -373,7 +373,7 @@ export class RelayServer extends EventEmitter {
         }
         log.debug('RequestFees - allowForSponsoredTx ', this.config.allowForSponsoredTx);
         if (!this.config.allowForSponsoredTx) {
-            // we need to convert tokenAmount back into rbtc and compare its value with maxPossibleGas
+            // we need to convert tokenAmount back into RBTC and compare its value with maxPossibleGas
             // if the value is lower than maxPossibleGas, we should throw an error
             // TODO: we may need add some percentage fee at some point.
             const tokenAmountInGas = getGas(getWeiFromRifWei(toBN(req.relayRequest.request.tokenAmount)), toBN(req.relayRequest.relayData.gasPrice));
