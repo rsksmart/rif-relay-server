@@ -380,7 +380,7 @@ export class RelayServer extends EventEmitter {
             const tokenAmountInGas = getGas(getWeiFromRifWei(toBN(req.relayRequest.request.tokenAmount)), toBN(req.relayRequest.relayData.gasPrice));
             const isTokenAmountAcceptable = tokenAmountInGas.gte(maxPossibleGas);
             log.debug('RequestFees - isTokenAmountAcceptable? ', isTokenAmountAcceptable);
-            if ( !isTokenAmountAcceptable) {
+            if (!isTokenAmountAcceptable) {
                 log.warn('TokenAmount in gas agreed by the user', tokenAmountInGas.toString());
                 log.warn('MaxPossibleGas required by the transaction', maxPossibleGas.toString());
                 throw new Error('User agreed to spend lower than what the transaction may require.');
