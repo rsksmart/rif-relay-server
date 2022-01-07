@@ -16,6 +16,7 @@ const StoredTransaction_1 = require("./StoredTransaction");
 const ServerConfigParams_1 = require("./ServerConfigParams");
 const ethereumjs_util_1 = require("ethereumjs-util");
 const events_1 = __importDefault(require("events"));
+const Conversions_1 = require("./Conversions");
 const VERSION = '2.0.1';
 class RelayServer extends events_1.default {
     constructor(config, dependencies) {
@@ -222,10 +223,10 @@ class RelayServer extends events_1.default {
         }
         loglevel_1.default.debug('RequestFees - allowForSponsoredTx ', this.config.allowForSponsoredTx);
         if (!this.config.allowForSponsoredTx) {
-            // we need to convert tokenAmount back into rbtc and compare its value with maxPossibleGas
+            // we need to convert tokenAmount back into RBTC and compare its value with maxPossibleGas
             // if the value is lower than maxPossibleGas, we should throw an error
             // TODO: we may need add some percentage fee at some point.
-            const tokenAmountInGas = getGas(getWeiFromRifWei(web3_utils_1.toBN(req.relayRequest.request.tokenAmount)), web3_utils_1.toBN(req.relayRequest.relayData.gasPrice));
+            const tokenAmountInGas = Conversions_1.getGas(Conversions_1.getRBTCWeiFromRifWei(web3_utils_1.toBN(req.relayRequest.request.tokenAmount)), web3_utils_1.toBN(req.relayRequest.relayData.gasPrice));
             const isTokenAmountAcceptable = tokenAmountInGas.gte(maxPossibleGas);
             loglevel_1.default.debug('RequestFees - isTokenAmountAcceptable? ', isTokenAmountAcceptable);
             if (!isTokenAmountAcceptable) {
@@ -619,19 +620,4 @@ latestBlock timestamp   | ${latestBlock.timestamp}
     }
 }
 exports.RelayServer = RelayServer;
-/**
- * TODO: Hard-coded values: for testing purposes only!
- */
-function getWeiFromRifWei(trifWei) {
-    const tRifPriceInRBTC = 0.000005739;
-    const rifTokenDecimals = 18;
-    const costInTrif = parseFloat(web3_utils_1.fromWei(trifWei));
-    const costInRBTC = costInTrif * tRifPriceInRBTC;
-    const costInRBTCFixed = costInRBTC.toFixed(rifTokenDecimals);
-    const costInWei = web3_utils_1.toWei(costInRBTCFixed);
-    return web3_utils_1.toBN(costInWei);
-}
-function getGas(cost, gasPrice) {
-    return cost.div(gasPrice);
-}
 //# sourceMappingURL=RelayServer.js.map
