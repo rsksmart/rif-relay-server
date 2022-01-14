@@ -1,13 +1,14 @@
 {
     "url": "http://localhost:8090",
     "port": 8090,
-    "relayHubAddress": "0x3bA95e1cccd397b5124BcdCC5bf0952114E6A701",
-    "relayVerifierAddress": "0x74Dc4471FA8C8fBE09c7a0C400a0852b0A9d04b2",
-    "deployVerifierAddress": "0x1938517B0762103d52590Ca21d459968c25c9E67",
+    "relayHubAddress": "0x80556d67dF2A8614417511B726359C84C0aa5B0D",
+    "relayVerifierAddress": "0xce97EFE1F7dcf2711B6416B00FeB151a71846bfC",
+    "deployVerifierAddress": "0xc4DBCFf7FB741bEBe6359fD153F0d69aF966908e",
     "gasPriceFactor": 1,
     "rskNodeUrl": "http://172.18.0.2:4444",
     "devMode": true,
     "customReplenish": false,
+    "allowForSponsoredTx": false,
     "logLevel": 1,
     "workdir": "/home/rafa/workspace/rsk/enveloping/environment"
 }
