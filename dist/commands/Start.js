@@ -43,7 +43,12 @@ async function run() {
         }
     }
     catch (e) {
-        error(e.message);
+        if (e instanceof Error) {
+            error(e.message);
+        }
+        else {
+            console.error(e);
+        }
     }
     const { devMode, workdir } = config;
     if (devMode) {

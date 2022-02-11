@@ -31,6 +31,7 @@ export class Register extends CommandClient {
     async execute(options: RegisterOptions): Promise<void> {
         const transactions: string[] = [];
         console.log(`Registering Enveloping relayer at ${options.relayUrl}`);
+        console.log('Options received:', options);
         const response = await this.httpClient.getPingResponse(
             options.relayUrl
         );
@@ -135,6 +136,7 @@ export class Register extends CommandClient {
 
 export async function executeRegister(registerOptions?: RegisterOptions) {
     const parameters: any = getParams();
+    console.log('Parsed parameters', parameters);
     const serverConfiguration: ServerConfigParams = parseServerConfig(
         parameters.config
     );

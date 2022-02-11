@@ -46,9 +46,13 @@ export class KeyManager {
                 }
                 this.hdkey = EthereumHDKey.fromMasterSeed(genseed);
             } catch (e) {
-                // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
-                if (!e.message.includes('file already exists')) {
+                if (
+                    e instanceof Error &&
+                    !e.message.includes('file already exists')
+                ) {
                     throw e;
+                } else {
+                    console.error(e);
                 }
             }
         } else {

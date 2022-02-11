@@ -74,7 +74,12 @@ data         | 0x${transaction.data.toString('hex')}
             return Math.round(parseInt(estimateGas) * this.config.estimateGasFactor);
         }
         catch (e) {
-            loglevel_1.default.error(`Failed to estimate gas for method ${methodName}\n. Using default ${this.config.defaultGasLimit}`, e.message);
+            if (e instanceof Error) {
+                loglevel_1.default.error(`Failed to estimate gas for method ${methodName}\n. Using default ${this.config.defaultGasLimit}`, e.message);
+            }
+            else {
+                console.error(e);
+            }
         }
         return this.config.defaultGasLimit;
     }
