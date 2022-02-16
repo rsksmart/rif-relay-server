@@ -15,11 +15,11 @@ export declare class HttpServer {
      * @openapi
      * /getaddr:
      *   get:
-     *     summary: It retrieves some useful information about the server status.
-     *     description: It shows the information about the server status.
+     *     summary: It retrieves server configuration addresses and some general data.
+     *     description: It displays addresses used by the server, as well as chain information, status and version.
      *     responses:
      *       '200':
-     *         description: Information about the currently running instance.
+     *         description: Information about the currently running server instance.
      *         content:
      *           application/json:
      *             schema:
@@ -42,7 +42,7 @@ export declare class HttpServer {
      * /relay:
      *   post:
      *     summary: It relay transactions.
-     *     description: It receives transactions (deploy or forward transactions) and after performing all the checks it broadcast them to the `relayHub`.
+     *     description: It receives transactions to be relayed (deploy or forward requests) and after performing all the checks broadcasts them to the `relayHub`.
      *     requestBody:
      *       description: Deploy transaction or forward transaction.
      *       required: true
@@ -78,7 +78,7 @@ export declare class HttpServer {
      * /tokens:
      *   get:
      *     summary: It retrieves the accepted tokens.
-     *     description: "It retrieves the accepted tokens of the specified verifier if any, otherwise, it retrieves the accepted tokens of all the verifiers in the format { <verifier_address>: [accepted_token_address_1, accepted_token_address_2]}"
+     *     description: "It retrieves the accepted tokens of the specified verifier if any, otherwise, it retrieves the accepted tokens of all the verifiers in the format {<verifier_address>: [accepted_token_address_1, accepted_token_address_2, ...]}"
      *     parameters:
      *       - in: path
      *         name: verifier
