@@ -110,7 +110,7 @@ export class HttpServer {
      *           type: string
      *     responses:
      *       '200':
-     *         description: Information about the currently running instance.
+     *         description: Information about the currently running server instance.
      *         content:
      *           application/json:
      *             schema:
