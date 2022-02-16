@@ -207,7 +207,7 @@ export class HttpServer {
      * /tokens:
      *   get:
      *     summary: It retrieves the accepted tokens.
-     *     description: "It retrieves the accepted tokens of the specified verifier if any, otherwise, it retrieves the accepted tokens of all the verifiers in the format { <verifier_address>: [accepted_token_address_1, accepted_token_address_2]}"
+     *     description: "It retrieves the accepted tokens of the specified verifier if any, otherwise, it retrieves the accepted tokens of all the verifiers in the format {<verifier_address>: [accepted_token_address_1, accepted_token_address_2, ...]}"
      *     parameters:
      *       - in: path
      *         name: verifier
