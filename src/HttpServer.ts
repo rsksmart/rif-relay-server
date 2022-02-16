@@ -156,7 +156,7 @@ export class HttpServer {
      * /relay:
      *   post:
      *     summary: It relay transactions.
-     *     description: It receives transactions (deploy or forward transactions) and after performing all the checks it broadcast them to the `relayHub`.
+     *     description: It receives transactions to be relayed (deploy or forward requests) and after performing all the checks broadcasts them to the `relayHub`.
      *     requestBody:
      *       description: Deploy transaction or forward transaction.
      *       required: true
