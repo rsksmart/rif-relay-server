@@ -5,33 +5,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const swagger_jsdoc_1 = __importDefault(require("swagger-jsdoc"));
 const swagger_ui_express_1 = __importDefault(require("swagger-ui-express"));
-const swaggerDefinition = {
-    openapi: '3.0.0',
-    info: {
-        title: 'RIF Relay Server API',
-        version: '1.0.0',
-        description: 'This is a API application provided to support RIF Relay.',
-        license: {
-            name: 'Licensed Under MIT',
-            url: 'https://spdx.org/licenses/MIT.html'
-        },
-        contact: {
-            name: 'RSK Smart',
-            url: 'https://developers.rsk.co/'
-        }
-    },
-    servers: [
-        {
-            url: 'http://localhost:8090',
-            description: 'Development server'
-        }
-    ]
-};
-const options = {
-    swaggerDefinition,
-    apis: ['./dist/*.js']
-};
-const swaggerSpec = swagger_jsdoc_1.default(options);
 /**
  * @swagger
  * components:
@@ -156,7 +129,33 @@ const swaggerSpec = swagger_jsdoc_1.default(options);
  *         signature:
  *           type: string
  */
-const configureDocumentation = (app) => {
+const configureDocumentation = (app, serverUrl) => {
+    const swaggerDefinition = {
+        openapi: '3.0.0',
+        info: {
+            title: 'RIF Relay Server API',
+            version: '1.0.0',
+            description: 'This is a API application provided to support RIF Relay.',
+            license: {
+                name: 'Licensed Under MIT',
+                url: 'https://spdx.org/licenses/MIT.html'
+            },
+            contact: {
+                name: 'RSK Smart',
+                url: 'https://developers.rsk.co/'
+            }
+        },
+        servers: [
+            {
+                url: serverUrl,
+            }
+        ]
+    };
+    const options = {
+        swaggerDefinition,
+        apis: ['./dist/*.js']
+    };
+    const swaggerSpec = swagger_jsdoc_1.default(options);
     app.use('/docs', swagger_ui_express_1.default.serve, swagger_ui_express_1.default.setup(swaggerSpec));
 };
 exports.default = configureDocumentation;

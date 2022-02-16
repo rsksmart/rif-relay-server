@@ -124,5 +124,5 @@ import express from 'express';
  *         signature:
  *           type: string
  */
-declare const configureDocumentation: (app: express.Express) => void;
+declare const configureDocumentation: (app: express.Express, serverUrl: string) => void;
 export default configureDocumentation;

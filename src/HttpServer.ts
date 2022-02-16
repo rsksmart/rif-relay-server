@@ -24,7 +24,7 @@ export class HttpServer {
         this.app.get('/tokens', this.tokenHandler.bind(this));
         this.app.get('/verifiers', this.verifierHandler.bind(this));
         this.app.post('/relay', this.relayHandler.bind(this));
-        configureDocumentation(this.app);
+        configureDocumentation(this.app, backend.config.url);
         this.backend.once('removed', this.stop.bind(this));
         this.backend.once('unstaked', this.close.bind(this));
         /* eslint-enable */
@@ -149,7 +149,7 @@ export class HttpServer {
      * /relay:
      *   post:
      *     summary: It relay transactions.
-     *     description: It receives transactions to be relayed (deploy or forward requests) and after performing all the checks broadcasts them to the `relayHub`.
+     *     description: It receives transactions to be relayed (deploy or forward requests) and after performing all the checks, it broadcasts them to the `relayHub`. For further information, please have a look at [Rif Relay architecture document](https://developers.rsk.co/rif/relay/architecture/)
      *     requestBody:
      *       description: Deploy transaction or forward transaction.
      *       required: true
@@ -202,7 +202,7 @@ export class HttpServer {
      *     summary: It retrieves the accepted tokens.
      *     description: "It retrieves the accepted tokens of the specified verifier if any, otherwise, it retrieves the accepted tokens of all the verifiers in the format {<verifier_address>: [accepted_token_address_1, accepted_token_address_2, ...]}"
      *     parameters:
-     *       - in: path
+     *       - in: query
      *         name: verifier
      *         required: false
      *         description: The address of the verifier to use to retrieve the accepted tokens.
