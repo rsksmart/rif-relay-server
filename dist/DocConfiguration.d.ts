@@ -8,14 +8,14 @@ import express from 'express';
  *       type: object
  *       properties:
  *         relayWorkerAddress:
- *           type: string
- *           description: Relay Worker address.
+ *           type: address
+ *           description: The address of the [relay worker](https://developers.rsk.co/rif/relay/architecture/#relay-worker).
  *         relayManagerAddress:
- *           type: string
- *           description: Relay Manager address.
+ *           type: address
+ *           description: The address of the [relay manager](https://developers.rsk.co/rif/relay/architecture/#relay-manager).
  *         relayHubAddress:
- *           type: string
- *           description: Relay Hub address.
+ *           type: address
+ *           description: The address of the [relay hub](https://developers.rsk.co/rif/relay/architecture/#relay-hub).
  *         minGasPrice:
  *           type: string
  *           description: Gas price of the current network.
@@ -50,13 +50,17 @@ import express from 'express';
  *       type: object
  *       properties:
  *         relayHub:
- *           type: string
+ *           type: address
+ *           description: The address of the [relay hub](https://developers.rsk.co/rif/relay/architecture/#relay-hub).
  *         from:
- *           type: string
+ *           type: address
+ *           description: The address of the EOA who signs the transaction.
  *         to:
- *           type: string
+ *           type: address
+ *           description: The receiver of the transaction.
  *         tokenContract:
- *           type: string
+ *           type: address
+ *           description: The address of the contract used to pay for the fees.
  *         value:
  *           type: string
  *         gas:
@@ -65,8 +69,10 @@ import express from 'express';
  *           type: string
  *         tokenAmount:
  *           type: string
+ *           description: The amount of the fees paid to execute the transaction.
  *         tokenGas:
  *           type: string
+ *           description: The amount of gas required to transfer the fees.
  *         data:
  *           type: string
  *     DeployTransactionRequest:
@@ -80,25 +86,33 @@ import express from 'express';
  *       type: object
  *       properties:
  *         relayHub:
- *           type: string
+ *           type: address
+ *           description: The address of the [relay hub](https://developers.rsk.co/rif/relay/architecture/#relay-hub).
  *         from:
- *           type: string
+ *           type: address
+ *           description: The address of the EOA who signs the transaction.
  *         to:
- *           type: string
+ *           type: address
+ *           description: The receiver of the transaction.
  *         tokenContract:
- *           type: string
+ *           type: address
+ *           description: The address of the contract used to pay for the fees.
  *         recoverer:
- *           type: string
+ *           type: address
+ *           description: Address of a recoverer account, it can be a smart contract or a zero address. It can be used by some contracts to give specific roles to the caller and it's used during the Smart Wallet address generation.
  *         value:
  *           type: string
  *         nonce:
  *           type: string
  *         tokenAmount:
  *           type: string
+ *           description: The amount of the fees paid to execute the transaction.
  *         tokenGas:
  *           type: string
+ *           description: The amount of gas required to transfer the fees.
  *         index:
  *           type: string
+ *           description: It allows to create many addresses for the same owner|recoverer
  *         data:
  *           type: string
  *     RelayData:
@@ -108,21 +122,27 @@ import express from 'express';
  *           type: string
  *         domainSeparator:
  *           type: string
+ *           description: Domain used when signing this request
  *         relayWorker:
- *           type: string
+ *           type: address
+ *           description: The address of the [relay worker](https://developers.rsk.co/rif/relay/architecture/#relay-worker).
  *         callForwarder:
- *           type: string
+ *           type: address
+ *           description: The address of the smart contract that forwards the request (SmartWallet factory address for deploy transactions and SmartWallet address for relayed transactions)
  *         callVerifier:
- *           type: string
+ *           type: address
+ *           description: The address of the contract entitled to verify the transaction. See [Relay and Deploy verifier](https://developers.rsk.co/rif/relay/architecture/#relay--deploy-verifier) for further details.
  *     RelayMetadata:
  *       type: object
  *       properties:
  *         relayHubAddress:
- *           type: string
+ *           type: address
+ *           description: The address of the [relay hub](https://developers.rsk.co/rif/relay/architecture/#relay-hub).
  *         relayMaxNonce:
  *           type: number
  *         signature:
  *           type: string
+ *           description: Transaction signature that will be used to verify if correctness of the transaction.
  */
 declare const configureDocumentation: (app: express.Express, serverUrl: string) => void;
 export default configureDocumentation;

@@ -154,10 +154,10 @@ class HttpServer {
      *           examples:
      *             deploy:
      *               summary: "Deploy request example"
-     *               value: {"relayRequest":{"request":{"relayHub":"0x<relay_hub>","to":"0x0000000000000000000000000000000000000000","data":"0x","from":"0x<from_address>","value":"0","nonce":"0","tokenAmount":"<token_amount>","tokenGas":"<token_gas>","tokenContract":"0x<token_contract>","recoverer":"0x0000000000000000000000000000000000000000","index":"1"},"relayData":{"gasPrice":"<gas_price>","callVerifier":"0x<call_verifier>","domainSeparator":"0x<domain_separator>","callForwarder":"0x<call_forwarder>","relayWorker":"0x<relay_worker>"}},"metadata":{"relayHubAddress":"0x<relay_hub>","signature":"0x<tx_signature>","relayMaxNonce":1}}
+     *               value: {"relayRequest":{"request":{"relayHub":"0x66Fa9FEAfB8Db66Fe2160ca7aEAc7FC24e254387","to":"0x0000000000000000000000000000000000000000","data":"0x","from":"0xCB8F8130E289946aec9a17b29819716B1E9e4998","value":"0","nonce":"5","tokenAmount":"0","tokenGas":"0x00","tokenContract":"0xF5859303f76596dD558B438b18d0Ce0e1660F3ea","recoverer":"0x0000000000000000000000000000000000000000","index":"6"},"relayData":{"gasPrice":"65164000","callVerifier":"0x5C6e96a84271AC19974C3e99d6c4bE4318BfE483","domainSeparator":"0xa81483953da7601ef828906dbab2e4baf21ddfd3d3c484fe7c43c55836c6c772","callForwarder":"0xeaB5b9fA91aeFFaA9c33F9b33d12AB7088fa7f6f","relayWorker":"0x74105590d404df3f384a099c2e55135281ca6b40"}},"metadata":{"relayHubAddress":"0x66Fa9FEAfB8Db66Fe2160ca7aEAc7FC24e254387","signature":"0x1285a1fa3217b0b8ca9b23ee2404324c965af9bb3908199ffc8bc7a47f59cef9160a142da5269fa5b7bfa8a688c1a507bedeba0650f1d617b93c8ece598aba651c","relayMaxNonce":30}}
      *             forward:
      *               summary: "Forward request example"
-     *               value: {"relayRequest":{"request":{"relayHub":"0x<relay_hub>","to":"0x<to_address>","data":"0x<call_data>","from":"0x<from_address>","value":"0","nonce":"0","gas":"<gas>","tokenAmount":"<token_amount>","tokenGas":"<token_gas>","tokenContract":"0x<token_contract>"},"relayData":{"gasPrice":"<gas_price>","callVerifier":"0x<call_verifier>","domainSeparator":"0x<domain_separator>","callForwarder":"0x<call_forwarder>","relayWorker":"0x<relay_worker>"}},"metadata":{"relayHubAddress":"0x<relay_hub>","signature":"0x<tx_signature>","relayMaxNonce":4}}
+     *               value: {"relayRequest":{"request":{"relayHub":"0x66Fa9FEAfB8Db66Fe2160ca7aEAc7FC24e254387","to":"0xF5859303f76596dD558B438b18d0Ce0e1660F3ea","data":"0xa9059cbb000000000000000000000000cb8f8130e289946aec9a17b29819716b1e9e49980000000000000000000000000000000000000000000000000429d069189e0000","from":"0xCB8F8130E289946aec9a17b29819716B1E9e4998","value":"0","nonce":"1","gas":"16559","tokenAmount":"100000000000000000","tokenGas":"16559","tokenContract":"0xF5859303f76596dD558B438b18d0Ce0e1660F3ea"},"relayData":{"gasPrice":"65164000","callVerifier":"0x56ccdB6D312307Db7A4847c3Ea8Ce2449e9B79e9","domainSeparator":"0x6c2c692f3161d8587aaceabe51a7569e16f267d57e928ee6947559582f9be4ea","callForwarder":"0xc3D55e5244b4aB3cFbF5BD41ad1A6C5bfF2381AD","relayWorker":"0x74105590d404df3f384a099c2e55135281ca6b40"}},"metadata":{"relayHubAddress":"0x66Fa9FEAfB8Db66Fe2160ca7aEAc7FC24e254387","signature":"0x40c462a5a5ad1b87f0ff1a685b5f0884c712c9fb211763601efcf723c005122637e18d4483edd1164f759c38a3b0a39803898caa2a88a144038556ad34949d171b","relayMaxNonce":31}}
      *     responses:
      *       '200':
      *         description: "An hash of the signed transaction."
@@ -167,9 +167,9 @@ class HttpServer {
      *               type: object
      *               properties:
      *                 signedTx:
-     *                   type: string
+     *                   type: address
      *               example:
-     *                  signedTx: "0x<signed_tx_hash>"
+     *                  signedTx: "0xf9036a1b8403e252e08301f9699466fa9feafb8db66fe2160ca7aeac7fc24e25438780b90304180e59260000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000028000000000000000000000000000000000000000000000000000000000000000c00000000000000000000000000000000000000000000000000000000003e252e0a81483953da7601ef828906dbab2e4baf21ddfd3d3c484fe7c43c55836c6c77200000000000000000000000074105590d404df3f384a099c2e55135281ca6b40000000000000000000000000eab5b9fa91aeffaa9c33f9b33d12ab7088fa7f6f0000000000000000000000005c6e96a84271ac19974c3e99d6c4be4318bfe48300000000000000000000000066fa9feafb8db66fe2160ca7aeac7fc24e254387000000000000000000000000cb8f8130e289946aec9a17b29819716b1e9e49980000000000000000000000000000000000000000000000000000000000000000000000000000000000000000f5859303f76596dd558b438b18d0ce0e1660f3ea0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000160000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000411285a1fa3217b0b8ca9b23ee2404324c965af9bb3908199ffc8bc7a47f59cef9160a142da5269fa5b7bfa8a688c1a507bedeba0650f1d617b93c8ece598aba651c0000000000000000000000000000000000000000000000000000000000000062a053917eb36fd417620eb21f6fa35b701a9efa2dc4a39422c04e1469b21b1c0b63a010ff3e24bc8421bb801abb914c3f6031ecf99e7bb8d514eae77bbb7db8d1208c"
      */
     async relayHandler(req, res) {
         try {
@@ -198,7 +198,7 @@ class HttpServer {
      *         required: false
      *         description: The address of the verifier to use to retrieve the accepted tokens.
      *         schema:
-     *           type: string
+     *           type: address
      *     responses:
      *       '200':
      *         description: "List of tokens accepted by the verifier(s) in the format { <verifier_address>: [accepted_token_address_1, accepted_token_address_2]}"
@@ -212,10 +212,10 @@ class HttpServer {
      *                 type: array
      *                 description: List of tokens accepted by the verifier.
      *                 items:
-     *                   type: string
+     *                   type: address
      *                   description: Token address
      *               example:
-     *                 0x<verifier_address_1>: ["0x<token_address_1>", "0x<token_address_2>"]
+     *                 { "0x5159345aaB821172e795d56274D0f5FDFdC6aBD9": ["0x726ECC75d5D51356AA4d0a5B648790cC345985ED"], "0x1eD614cd3443EFd9c70F04b6d777aed947A4b0c4": ["0x726ECC75d5D51356AA4d0a5B648790cC345985ED"] }
      */
     async tokenHandler(req, res) {
         try {
@@ -252,9 +252,9 @@ class HttpServer {
      *                 trustedVerifiers:
      *                   type: array
      *                   items:
-     *                     type: string
+     *                     type: address
      *               example:
-     *                 trustedVerifiers: ["0x<verifier_address_1>", "0x<verifier_address_2>"]
+     *                 { trustedVerifiers: ["0x5159345aaB821172e795d56274D0f5FDFdC6aBD9", "0x1eD614cd3443EFd9c70F04b6d777aed947A4b0c4"] }
      */
     async verifierHandler(_, res) {
         try {
