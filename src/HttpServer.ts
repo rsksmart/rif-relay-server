@@ -99,8 +99,8 @@ export class HttpServer {
      * @openapi
      * /getaddr:
      *   get:
-     *     summary: It retrieves some useful information about the server status.
-     *     description: It shows the information about the server status.
+     *     summary: It retrieves server configuration addresses and some general data.
+     *     description: It displays addresses used by the server, as well as chain information, status and version.
      *     parameters:
      *       - in: path
      *         name: verifier
