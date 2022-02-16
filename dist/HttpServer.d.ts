@@ -17,13 +17,6 @@ export declare class HttpServer {
      *   get:
      *     summary: It retrieves some useful information about the server status.
      *     description: It shows the information about the server status.
-     *     parameters:
-     *       - in: path
-     *         name: verifier
-     *         required: false
-     *         description: The address of the verifier (Not used at the moment).
-     *         schema:
-     *           type: string
      *     responses:
      *       '200':
      *         description: Information about the currently running instance.

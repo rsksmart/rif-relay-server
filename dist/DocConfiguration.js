@@ -13,19 +13,19 @@ const swaggerDefinition = {
         description: 'This is a API application provided to support RIF Relay.',
         license: {
             name: 'Licensed Under MIT',
-            url: 'https://spdx.org/licenses/MIT.html',
+            url: 'https://spdx.org/licenses/MIT.html'
         },
         contact: {
             name: 'RSK Smart',
-            url: 'https://developers.rsk.co/',
-        },
+            url: 'https://developers.rsk.co/'
+        }
     },
     servers: [
         {
             url: 'http://localhost:8090',
-            description: 'Development server',
-        },
-    ],
+            description: 'Development server'
+        }
+    ]
 };
 const options = {
     swaggerDefinition,

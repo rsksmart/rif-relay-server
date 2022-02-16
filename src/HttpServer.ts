@@ -101,13 +101,6 @@ export class HttpServer {
      *   get:
      *     summary: It retrieves server configuration addresses and some general data.
      *     description: It displays addresses used by the server, as well as chain information, status and version.
-     *     parameters:
-     *       - in: path
-     *         name: verifier
-     *         required: false
-     *         description: The address of the verifier (Not used at the moment).
-     *         schema:
-     *           type: string
      *     responses:
      *       '200':
      *         description: Information about the currently running server instance.
