@@ -130,7 +130,7 @@ import swaggerUi from 'swagger-ui-express';
  *           description: The address of the [relay worker](https://developers.rsk.co/rif/relay/architecture/#relay-worker).
  *         callForwarder:
  *           type: address
- *           description: The address of the smart contract that forwards the request (SmartWallet factory address for deploy transactions and SmartWallet address for relayed transactions)
+ *           description: The address of the smart contract that forwards the request (SmartWallet factory address for deploy transactions and SmartWallet address for relayed transactions).
  *         callVerifier:
  *           type: address
  *           description: The address of the contract entitled to verify the transaction. See [Relay and Deploy verifier](https://developers.rsk.co/rif/relay/architecture/#relay--deploy-verifier) for further details.
