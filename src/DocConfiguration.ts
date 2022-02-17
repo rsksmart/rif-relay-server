@@ -144,7 +144,7 @@ import swaggerUi from 'swagger-ui-express';
  *           type: number
  *         signature:
  *           type: string
- *           description: Transaction signature that will be used to verify if correctness of the transaction.
+ *           description: Transaction signature that will be used to verify the correctness of the transaction.
  */
 
 const configureDocumentation = (app: express.Express, serverUrl: string) => {
