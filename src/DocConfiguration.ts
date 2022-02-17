@@ -124,7 +124,7 @@ import swaggerUi from 'swagger-ui-express';
  *           type: string
  *         domainSeparator:
  *           type: string
- *           description: Domain used when signing this request
+ *           description: Domain used when signing this request.
  *         relayWorker:
  *           type: address
  *           description: The address of the [relay worker](https://developers.rsk.co/rif/relay/architecture/#relay-worker).
