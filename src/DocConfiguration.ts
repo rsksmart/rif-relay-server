@@ -114,7 +114,7 @@ import swaggerUi from 'swagger-ui-express';
  *           description: The amount of gas required to transfer the fees.
  *         index:
  *           type: string
- *           description: It allows to create many addresses for the same owner|recoverer
+ *           description: It allows the creation of many addresses for the same owner/recoverer.
  *         data:
  *           type: string
  *     RelayData:
