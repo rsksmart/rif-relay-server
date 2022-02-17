@@ -78,7 +78,7 @@ export declare class HttpServer {
      * /tokens:
      *   get:
      *     summary: It retrieves the accepted tokens.
-     *     description: "It retrieves the accepted tokens of the specified verifier if any, otherwise, it retrieves the accepted tokens of all the verifiers in the format {<verifier_address>: [accepted_token_address_1, accepted_token_address_2, ...]}"
+     *     description: "It retrieves the accepted tokens of the specified verifier if any, otherwise, it retrieves the accepted tokens of all the verifiers."
      *     parameters:
      *       - in: query
      *         name: verifier
@@ -88,7 +88,7 @@ export declare class HttpServer {
      *           type: address
      *     responses:
      *       '200':
-     *         description: "List of tokens accepted by the verifier(s) in the format { <verifier_address>: [accepted_token_address_1, accepted_token_address_2]}"
+     *         description: "Accepted tokens by the verifier(s)"
      *         content:
      *           application/json:
      *             schema:
