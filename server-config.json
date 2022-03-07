@@ -8,7 +8,7 @@
     "rskNodeUrl": "http://rskj:4444",
     "devMode": true,
     "customReplenish": false,
-    "allowForSponsoredTx": false,
+    "allowForSponsoredTx": true,
     "logLevel": 1,
     "workdir": "/home/user/workspace/enveloping/environment"
 }
