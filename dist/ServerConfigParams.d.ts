@@ -2,6 +2,7 @@ import { ContractInteractor } from '@rsksmart/rif-relay-common';
 import { KeyManager } from './KeyManager';
 import { TxStoreManager } from './TxStoreManager';
 import { LogLevelNumbers } from 'loglevel';
+import 'dotenv/config';
 export interface ServerConfigParams {
     url: string;
     port: number;
@@ -55,5 +56,5 @@ export declare function explicitType([key, val]: [string, any]): any;
  * the config file..)
  */
 export declare function parseServerConfig(args: string[], env: any): any;
-export declare function resolveServerConfig(config: Partial<ServerConfigParams>, web3provider: any): Promise<Partial<ServerConfigParams>>;
+export declare function resolveServerConfig(config: Partial<ServerConfigParams>, web3provider: any): Promise<ServerConfigParams>;
 export declare function configureServer(partialConfig: Partial<ServerConfigParams>): ServerConfigParams;

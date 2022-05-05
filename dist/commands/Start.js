@@ -22,10 +22,11 @@ async function run() {
     let config;
     let web3provider;
     let trustedVerifiers = [];
-    console.log('Starting Enveloping Relay Server process...\n');
+    console.info('Starting Enveloping Relay Server process...\n');
     try {
         const conf = await ServerConfigParams_1.parseServerConfig(process.argv.slice(2), process.env);
-        console.log(conf);
+        loglevel_1.default.setLevel(conf.logLevel);
+        loglevel_1.default.info(conf);
         if (conf.rskNodeUrl == null) {
             error('missing rskNodeUrl');
         }

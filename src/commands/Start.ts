@@ -24,13 +24,14 @@ async function run(): Promise<void> {
     let config: ServerConfigParams;
     let web3provider;
     let trustedVerifiers: string[] = [];
-    console.log('Starting Enveloping Relay Server process...\n');
+    console.info('Starting Enveloping Relay Server process...\n');
     try {
         const conf = await parseServerConfig(
             process.argv.slice(2),
             process.env
         );
-        console.log(conf);
+        log.setLevel(conf.logLevel);
+        log.info(conf);
         if (conf.rskNodeUrl == null) {
             error('missing rskNodeUrl');
         }
@@ -47,7 +48,7 @@ async function run(): Promise<void> {
         config = (await resolveServerConfig(
             conf,
             web3provider
-        )) as ServerConfigParams;
+        ));
         log.debug('runServer() - config done');
         if (trustedVerifiers.length > 0) {
             config.trustedVerifiers = trustedVerifiers;

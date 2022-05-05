@@ -31,6 +31,7 @@ const rif_relay_client_1 = require("@rsksmart/rif-relay-client");
 const source_map_support_1 = __importDefault(require("source-map-support"));
 //@ts-ignore
 source_map_support_1.default.install({ errorFormatterForce: true });
+require("dotenv/config");
 const serverDefaultConfiguration = {
     alertedBlockDelay: 0,
     minAlertedDelayMS: 0,
@@ -167,7 +168,7 @@ function parseServerConfig(args, env) {
         }
         configFile = JSON.parse(fs.readFileSync(configFileName, 'utf8'));
     }
-    const config = Object.assign(Object.assign({}, configFile), argv);
+    const config = Object.assign(Object.assign(Object.assign({}, configFile), argv), { logLevel: configFile.logLevel || env.LOG_LEVEL });
     return entriesToObj(Object.entries(config).map(explicitType));
 }
 exports.parseServerConfig = parseServerConfig;

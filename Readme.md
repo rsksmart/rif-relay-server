@@ -189,6 +189,10 @@ to check and fix the errors before trying to commit again:
 * `npm run prettier`: to check codestyles errors
 * `npm run prettier:fix`: to fix codestyles errors
 
+## ts-node
+In order to run the server without having to rebuild every time a change is made, use the following command:
+* `npm run debug`: run the server with ts-node
+
 ### Generating a new distributable version
 
 **IMPORTANT: when you publish a version postinstall scripts must be disabled. This is disabled by default, so don't push any changes to the postinstall scripts section in the `package.json` file.**
