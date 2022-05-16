@@ -123,8 +123,7 @@ export class RelayServer extends EventEmitter {
         return this.customReplenish;
     }
 
-    async pingHandler(verifier?: string): Promise<PingResponse> {
-        console.debug('Ping handler Verifier', verifier);
+    async pingHandler(): Promise<PingResponse> {
         return {
             relayWorkerAddress: this.workerAddress,
             relayManagerAddress: this.managerAddress,
