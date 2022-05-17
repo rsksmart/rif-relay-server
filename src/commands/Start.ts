@@ -16,7 +16,7 @@ import {
 import log from 'loglevel';
 
 function error(err: string): void {
-    console.error(err);
+    log.error(err);
     process.exit(1);
 }
 
@@ -24,7 +24,7 @@ async function run(): Promise<void> {
     let config: ServerConfigParams;
     let web3provider;
     let trustedVerifiers: string[] = [];
-    console.info('Starting Enveloping Relay Server process...\n');
+    log.info('Starting Enveloping Relay Server process...\n');
     try {
         const conf = await parseServerConfig(
             process.argv.slice(2),
@@ -57,7 +57,7 @@ async function run(): Promise<void> {
         if (e instanceof Error) {
             error(e.message);
         } else {
-            console.error(e);
+            log.error(e);
         }
     }
     const { devMode, workdir } = config;

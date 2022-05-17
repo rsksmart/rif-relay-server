@@ -27,6 +27,7 @@ const ethereumjs_wallet_1 = __importStar(require("ethereumjs-wallet"));
 const fs_1 = __importDefault(require("fs"));
 const ow_1 = __importDefault(require("ow"));
 const web3_utils_1 = require("web3-utils");
+const loglevel_1 = __importDefault(require("loglevel"));
 exports.KEYSTORE_FILENAME = 'keystore';
 class KeyManager {
     /**
@@ -65,7 +66,7 @@ class KeyManager {
                     throw e;
                 }
                 else {
-                    console.error(e);
+                    loglevel_1.default.error(e);
                 }
             }
         }

@@ -15,14 +15,14 @@ const rif_relay_client_1 = require("@rsksmart/rif-relay-client");
 const ServerConfigParams_1 = require("../ServerConfigParams");
 const loglevel_1 = __importDefault(require("loglevel"));
 function error(err) {
-    console.error(err);
+    loglevel_1.default.error(err);
     process.exit(1);
 }
 async function run() {
     let config;
     let web3provider;
     let trustedVerifiers = [];
-    console.info('Starting Enveloping Relay Server process...\n');
+    loglevel_1.default.info('Starting Enveloping Relay Server process...\n');
     try {
         const conf = await ServerConfigParams_1.parseServerConfig(process.argv.slice(2), process.env);
         loglevel_1.default.setLevel(conf.logLevel);
@@ -48,7 +48,7 @@ async function run() {
             error(e.message);
         }
         else {
-            console.error(e);
+            loglevel_1.default.error(e);
         }
     }
     const { devMode, workdir } = config;

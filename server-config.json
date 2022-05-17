@@ -1,13 +1,12 @@
 {
     "url": "http://localhost:8090",
     "port": 8090,
-    "relayHubAddress": "0x3bA95e1cccd397b5124BcdCC5bf0952114E6A701",
-    "relayVerifierAddress": "0x74Dc4471FA8C8fBE09c7a0C400a0852b0A9d04b2",
-    "deployVerifierAddress": "0x1938517B0762103d52590Ca21d459968c25c9E67",
+    "relayHubAddress": "0xE0825f57Dd05Ef62FF731c27222A86E104CC4Cad",
+    "relayVerifierAddress": "0x5159345aaB821172e795d56274D0f5FDFdC6aBD9",
+    "deployVerifierAddress": "0x1eD614cd3443EFd9c70F04b6d777aed947A4b0c4",
     "gasPriceFactor": 1,
-    "rskNodeUrl": "http://rskj:4444",
+    "rskNodeUrl": "http://127.0.0.1:4444",
     "devMode": true,
     "customReplenish": false,
-    "logLevel": 1,
-    "workdir": "/home/user/workspace/enveloping/environment"
+    "workdir": "/Users/christos/enveloping/environment"
 }

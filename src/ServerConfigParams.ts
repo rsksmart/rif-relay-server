@@ -14,8 +14,8 @@ import sourceMapSupport from 'source-map-support';
 //@ts-ignore
 sourceMapSupport.install({ errorFormatterForce: true });
 import { LogLevelNumbers } from 'loglevel';
+import log from 'loglevel';
 import 'dotenv/config';
-//const LOG_LEVEL = Number.parseInt(process.env.LOG_LEVEL) as LogLevelNumbers;
 
 // TODO: is there a way to merge the typescript definition ServerConfigParams with the runtime checking ConfigParamTypes ?
 export interface ServerConfigParams {
@@ -258,7 +258,7 @@ export async function resolveServerConfig(
             `Invalid param relayHubId ${relayHubId} @ ${version}: not an address:`
         );
 
-        console.log(
+        log.info(
             `Using RelayHub ID:${relayHubId} version:${version} address:${value} . created at: ${new Date(
                 time * 1000
             ).toString()}`
