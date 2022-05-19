@@ -78,7 +78,7 @@ data         | 0x${transaction.data.toString('hex')}
                 loglevel_1.default.error(`Failed to estimate gas for method ${methodName}\n. Using default ${this.config.defaultGasLimit}`, e.message);
             }
             else {
-                console.error(e);
+                loglevel_1.default.error(e);
             }
         }
         return this.config.defaultGasLimit;

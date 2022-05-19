@@ -10,6 +10,7 @@ import {
 import { HttpClient, HttpWrapper } from '@rsksmart/rif-relay-client';
 // @ts-ignore
 import { ether } from '@openzeppelin/test-helpers';
+import log from 'loglevel';
 
 /**
  * This is helper class to execute commands to interact with the server
@@ -42,12 +43,12 @@ export abstract class CommandClient {
             for (const account of accounts) {
                 const balance = new BN(await this.web3.eth.getBalance(account));
                 if (balance.gte(requiredBalance)) {
-                    console.log(`Found funded account ${account}`);
+                    log.info(`Found funded account ${account}`);
                     return account;
                 }
             }
         } catch (error) {
-            console.error('Failed to retrieve accounts and balances:', error);
+            log.error('Failed to retrieve accounts and balances:', error);
         }
         throw new Error(
             `could not find unlocked account with sufficient balance; all accounts:\n - ${accounts.join(
@@ -62,7 +63,7 @@ export abstract class CommandClient {
     }
 
     async waitForRelay(relayUrl: string, timeout = 60): Promise<void> {
-        console.error(`Will wait up to ${timeout}s for the relay to be ready`);
+        log.error(`Will wait up to ${timeout}s for the relay to be ready`);
 
         const endTime = Date.now() + timeout * 1000;
         while (Date.now() < endTime) {
@@ -71,9 +72,9 @@ export abstract class CommandClient {
                 isReady = await this.isRelayReady(relayUrl);
             } catch (e) {
                 if (e instanceof Error) {
-                    console.log(e.message);
+                    log.info(e.message);
                 } else {
-                    console.error(e);
+                    log.error(e);
                 }
             }
             if (isReady) {

@@ -5,3 +5,5 @@ build/
 .idea/
 package-lock.json
 environment
+.vscode/
+.env

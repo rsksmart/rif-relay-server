@@ -42,7 +42,6 @@ class RelayServer extends events_1.default {
         this.customReplenish = this.config.customReplenish;
         this.workerBalanceRequired = new rif_relay_common_1.AmountRequired('Worker Balance', web3_utils_1.toBN(this.config.workerMinBalance));
         this.printServerAddresses();
-        loglevel_1.default.setLevel(this.config.logLevel);
         loglevel_1.default.warn('RelayServer version', VERSION);
         loglevel_1.default.info('Using server configuration:\n', this.config);
     }
@@ -461,11 +460,11 @@ latestBlock timestamp   | ${latestBlock.timestamp}
         return web3_utils_1.toBN(await this.contractInteractor.getBalance(this.managerAddress, 'pending'));
     }
     async getWorkerBalance(workerIndex) {
-        console.debug('getWorkerBalance: workerIndex', workerIndex);
+        loglevel_1.default.debug('getWorkerBalance: workerIndex', workerIndex);
         return web3_utils_1.toBN(await this.contractInteractor.getBalance(this.workerAddress, 'pending'));
     }
     async _shouldRegisterAgain(currentBlock, hubEventsSinceLastScan) {
-        console.debug('_shouldRegisterAgain: hubEventsSinceLastScan', hubEventsSinceLastScan);
+        loglevel_1.default.debug('_shouldRegisterAgain: hubEventsSinceLastScan', hubEventsSinceLastScan);
         const isPendingActivityTransaction = (await this.txStoreManager.isActionPending(StoredTransaction_1.ServerAction.RELAY_CALL)) ||
             (await this.txStoreManager.isActionPending(StoredTransaction_1.ServerAction.REGISTER_SERVER));
         if (this.config.registrationBlockRate === 0 ||
@@ -513,7 +512,7 @@ latestBlock timestamp   | ${latestBlock.timestamp}
     }
     async _handleTransactionRelayedEvent(event) {
         // Here put anything that needs to be performed after a Transaction gets relayed
-        console.debug('_handleTransactionRelayedEvent: event', event);
+        loglevel_1.default.debug('_handleTransactionRelayedEvent: event', event);
     }
     async _handleTransactionRejectedByRecipientEvent(blockNumber) {
         this.alerted = true;
@@ -566,7 +565,7 @@ latestBlock timestamp   | ${latestBlock.timestamp}
         return await this.transactionManager.boostUnderpricedPendingTransactionsForSigner(this.managerAddress, blockNumber);
     }
     async _boostStuckTransactionsForWorker(blockNumber, workerIndex) {
-        console.debug('_boostStuckTransactionsForWorker: workerIndex', workerIndex);
+        loglevel_1.default.debug('_boostStuckTransactionsForWorker: workerIndex', workerIndex);
         const signer = this.workerAddress;
         return await this.transactionManager.boostUnderpricedPendingTransactionsForSigner(signer, blockNumber);
     }

@@ -1,9 +1,13 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.replenishStrategy = void 0;
 const web3_utils_1 = require("web3-utils");
 const rif_relay_common_1 = require("@rsksmart/rif-relay-common");
 const StoredTransaction_1 = require("./StoredTransaction");
+const loglevel_1 = __importDefault(require("loglevel"));
 async function replenishStrategy(relayServer, workerIndex, currentBlock) {
     let transactionHashes = [];
     if (relayServer.isCustomReplenish()) {
@@ -32,10 +36,10 @@ async function defaultReplenishFunction(relayServer, workerIndex, currentBlock) 
     const isReplenishPendingForWorker = await relayServer.txStoreManager.isActionPending(StoredTransaction_1.ServerAction.VALUE_TRANSFER, relayServer.workerAddress);
     if (mustReplenishWorker && !isReplenishPendingForWorker) {
         const refill = web3_utils_1.toBN(relayServer.config.workerTargetBalance.toString()).sub(relayServer.workerBalanceRequired.currentValue);
-        console.log(`== replenishServer: mgr balance=${managerEthBalance.toString()}
+        loglevel_1.default.info(`== replenishServer: mgr balance=${managerEthBalance.toString()}
         \n${relayServer.workerBalanceRequired.description}\n refill=${refill.toString()}`);
         if (refill.lt(managerEthBalance.sub(web3_utils_1.toBN(relayServer.config.managerMinBalance)))) {
-            console.log('Replenishing worker balance by manager rbtc balance');
+            loglevel_1.default.info('Replenishing worker balance by manager rbtc balance');
             const details = {
                 signer: relayServer.managerAddress,
                 serverAction: StoredTransaction_1.ServerAction.VALUE_TRANSFER,
@@ -50,7 +54,7 @@ async function defaultReplenishFunction(relayServer, workerIndex, currentBlock) 
         else {
             const message = `== replenishServer: can't replenish: mgr balance too low ${managerEthBalance.toString()} refill=${refill.toString()}`;
             relayServer.emit('fundingNeeded', message);
-            console.log(message);
+            loglevel_1.default.info(message);
         }
     }
     return transactionHashes;

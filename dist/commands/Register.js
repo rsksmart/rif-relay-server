@@ -1,4 +1,7 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.executeRegister = exports.Register = void 0;
 const CommandClient_1 = require("./helpers/CommandClient");
@@ -8,6 +11,7 @@ const Utils_1 = require("./helpers/Utils");
 const rif_relay_client_1 = require("@rsksmart/rif-relay-client");
 // @ts-ignore
 const test_helpers_1 = require("@openzeppelin/test-helpers");
+const loglevel_1 = __importDefault(require("loglevel"));
 class Register extends CommandClient_1.CommandClient {
     constructor(host, config, mnemonic) {
         super(host, config, mnemonic);
@@ -15,8 +19,8 @@ class Register extends CommandClient_1.CommandClient {
     async execute(options) {
         var _a;
         const transactions = [];
-        console.log(`Registering Enveloping relayer at ${options.relayUrl}`);
-        console.log('Options received:', options);
+        loglevel_1.default.info(`Registering Enveloping relayer at ${options.relayUrl}`);
+        loglevel_1.default.info('Options received:', options);
         const response = await this.httpClient.getPingResponse(options.relayUrl);
         if (response.ready) {
             throw new Error('Already registered');
@@ -32,21 +36,21 @@ class Register extends CommandClient_1.CommandClient {
         const relayHubAddress = (_a = this.config.relayHubAddress) !== null && _a !== void 0 ? _a : response.relayHubAddress;
         const relayHub = await this.contractInteractor._createRelayHub(relayHubAddress);
         const { stake, unstakeDelay, owner } = await relayHub.getStakeInfo(relayAddress);
-        console.log('Current stake info:');
-        console.log('Relayer owner: ', owner);
-        console.log('Current unstake delay: ', unstakeDelay);
-        console.log('current stake=', web3_utils_1.fromWei(stake, 'ether'));
+        loglevel_1.default.info('Current stake info:');
+        loglevel_1.default.info('Relayer owner: ', owner);
+        loglevel_1.default.info('Current unstake delay: ', unstakeDelay);
+        loglevel_1.default.info('current stake=', web3_utils_1.fromWei(stake, 'ether'));
         if (owner !== rif_relay_common_1.constants.ZERO_ADDRESS &&
             !rif_relay_common_1.isSameAddress(owner, options.from)) {
             throw new Error(`Already owned by ${owner}, our account=${options.from}`);
         }
         if (web3_utils_1.toBN(unstakeDelay).gte(web3_utils_1.toBN(options.unstakeDelay)) &&
             web3_utils_1.toBN(stake).gte(web3_utils_1.toBN(options.stake.toString()))) {
-            console.log('Relayer already staked');
+            loglevel_1.default.info('Relayer already staked');
         }
         else {
             const stakeValue = web3_utils_1.toBN(options.stake.toString()).sub(web3_utils_1.toBN(stake));
-            console.log(`Staking relayer ${web3_utils_1.fromWei(stakeValue, 'ether')} RBTC`, stake === '0'
+            loglevel_1.default.info(`Staking relayer ${web3_utils_1.fromWei(stakeValue, 'ether')} RBTC`, stake === '0'
                 ? ''
                 : ` (already has ${web3_utils_1.fromWei(stake, 'ether')} RBTC)`);
             const stakeTx = await relayHub.stakeForAddress(relayAddress, options.unstakeDelay.toString(), {
@@ -58,14 +62,14 @@ class Register extends CommandClient_1.CommandClient {
             transactions.push(stakeTx.tx);
         }
         if (rif_relay_common_1.isSameAddress(owner, options.from)) {
-            console.log('Relayer already authorized');
+            loglevel_1.default.info('Relayer already authorized');
         }
         const bal = await this.contractInteractor.getBalance(relayAddress);
         if (web3_utils_1.toBN(bal).gt(web3_utils_1.toBN(options.funds.toString()))) {
-            console.log('Relayer already funded');
+            loglevel_1.default.info('Relayer already funded');
         }
         else {
-            console.log('Funding relayer');
+            loglevel_1.default.info('Funding relayer');
             const _fundTx = await this.web3.eth.sendTransaction({
                 from: options.from,
                 to: relayAddress,
@@ -80,14 +84,14 @@ class Register extends CommandClient_1.CommandClient {
             transactions.push(fundTx.transactionHash);
         }
         await this.waitForRelay(options.relayUrl);
-        console.log('Executed Transactions', transactions);
+        loglevel_1.default.info('Executed Transactions', transactions);
     }
 }
 exports.Register = Register;
 async function executeRegister(registerOptions) {
     var _a;
     const parameters = Utils_1.getParams();
-    console.log('Parsed parameters', parameters);
+    loglevel_1.default.info('Parsed parameters', parameters);
     const serverConfiguration = Utils_1.parseServerConfig(parameters.config);
     const register = new Register(serverConfiguration.rskNodeUrl, rif_relay_client_1.configure({ relayHubAddress: serverConfiguration.relayHubAddress }), parameters.mnemonic);
     const portIncluded = serverConfiguration.url.indexOf(':') > 0;
@@ -110,9 +114,9 @@ async function executeRegister(registerOptions) {
 exports.executeRegister = executeRegister;
 executeRegister()
     .then(() => {
-    console.log('Registration is done!');
+    loglevel_1.default.info('Registration is done!');
 })
     .catch((error) => {
-    console.log('Error registering relay server', error);
+    loglevel_1.default.info('Error registering relay server', error);
 });
 //# sourceMappingURL=Register.js.map

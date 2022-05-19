@@ -11,6 +11,7 @@ const rif_relay_common_1 = require("@rsksmart/rif-relay-common");
 const rif_relay_client_1 = require("@rsksmart/rif-relay-client");
 // @ts-ignore
 const test_helpers_1 = require("@openzeppelin/test-helpers");
+const loglevel_1 = __importDefault(require("loglevel"));
 /**
  * This is helper class to execute commands to interact with the server
  */
@@ -32,13 +33,13 @@ class CommandClient {
             for (const account of accounts) {
                 const balance = new bn_js_1.default(await this.web3.eth.getBalance(account));
                 if (balance.gte(requiredBalance)) {
-                    console.log(`Found funded account ${account}`);
+                    loglevel_1.default.info(`Found funded account ${account}`);
                     return account;
                 }
             }
         }
         catch (error) {
-            console.error('Failed to retrieve accounts and balances:', error);
+            loglevel_1.default.error('Failed to retrieve accounts and balances:', error);
         }
         throw new Error(`could not find unlocked account with sufficient balance; all accounts:\n - ${accounts.join('\n - ')}`);
     }
@@ -47,7 +48,7 @@ class CommandClient {
         return response.ready;
     }
     async waitForRelay(relayUrl, timeout = 60) {
-        console.error(`Will wait up to ${timeout}s for the relay to be ready`);
+        loglevel_1.default.error(`Will wait up to ${timeout}s for the relay to be ready`);
         const endTime = Date.now() + timeout * 1000;
         while (Date.now() < endTime) {
             let isReady = false;
@@ -56,10 +57,10 @@ class CommandClient {
             }
             catch (e) {
                 if (e instanceof Error) {
-                    console.log(e.message);
+                    loglevel_1.default.info(e.message);
                 }
                 else {
-                    console.error(e);
+                    loglevel_1.default.error(e);
                 }
             }
             if (isReady) {

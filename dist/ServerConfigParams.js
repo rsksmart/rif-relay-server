@@ -31,6 +31,8 @@ const rif_relay_client_1 = require("@rsksmart/rif-relay-client");
 const source_map_support_1 = __importDefault(require("source-map-support"));
 //@ts-ignore
 source_map_support_1.default.install({ errorFormatterForce: true });
+const loglevel_1 = __importDefault(require("loglevel"));
+require("dotenv/config");
 const serverDefaultConfiguration = {
     alertedBlockDelay: 0,
     minAlertedDelayMS: 0,
@@ -167,7 +169,7 @@ function parseServerConfig(args, env) {
         }
         configFile = JSON.parse(fs.readFileSync(configFileName, 'utf8'));
     }
-    const config = Object.assign(Object.assign({}, configFile), argv);
+    const config = Object.assign(Object.assign(Object.assign({}, configFile), argv), { logLevel: configFile.logLevel || env.LOG_LEVEL });
     return entriesToObj(Object.entries(config).map(explicitType));
 }
 exports.parseServerConfig = parseServerConfig;
@@ -188,7 +190,7 @@ async function resolveServerConfig(config, web3provider) {
         const versionRegistry = new rif_relay_common_1.VersionRegistry(web3provider, config.versionRegistryAddress);
         const { version, value, time } = await versionRegistry.getVersion(relayHubId, (_b = config.versionRegistryDelayPeriod) !== null && _b !== void 0 ? _b : DefaultRegistryDelayPeriod);
         contractInteractor.validateAddress(value, `Invalid param relayHubId ${relayHubId} @ ${version}: not an address:`);
-        console.log(`Using RelayHub ID:${relayHubId} version:${version} address:${value} . created at: ${new Date(time * 1000).toString()}`);
+        loglevel_1.default.info(`Using RelayHub ID:${relayHubId} version:${version} address:${value} . created at: ${new Date(time * 1000).toString()}`);
         config.relayHubAddress = value;
     }
     else {

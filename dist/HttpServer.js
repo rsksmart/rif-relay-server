@@ -30,13 +30,13 @@ class HttpServer {
         this.backend.once('unstaked', this.close.bind(this));
         /* eslint-enable */
         this.backend.on('error', (e) => {
-            console.error('httpServer:', e);
+            loglevel_1.default.error('httpServer:', e);
         });
     }
     start() {
         if (this.serverInstance === undefined) {
             this.serverInstance = this.app.listen(this.port, () => {
-                console.log('Listening on port', this.port);
+                loglevel_1.default.info('Listening on port', this.port);
                 this.startBackend();
             });
         }
@@ -52,10 +52,10 @@ class HttpServer {
     stop() {
         var _a;
         (_a = this.serverInstance) === null || _a === void 0 ? void 0 : _a.close();
-        console.log('Http server stopped.\nShutting down relay...');
+        loglevel_1.default.info('Http server stopped.\nShutting down relay...');
     }
     close() {
-        console.log('Stopping relay worker...');
+        loglevel_1.default.info('Stopping relay worker...');
         this.backend.stop();
     }
     // TODO: use this when changing to jsonrpc
@@ -86,7 +86,7 @@ class HttpServer {
                 status = jsonrpc_lite_1.default.error(req.body.id, new jsonrpc_lite_1.default.JsonRpcError(stack, -125));
             }
             else {
-                console.error(e);
+                loglevel_1.default.error(e);
             }
         }
         res.send(status);
@@ -109,7 +109,7 @@ class HttpServer {
         try {
             const pingResponse = await this.backend.pingHandler();
             res.send(pingResponse);
-            console.log(`address ${pingResponse.relayWorkerAddress} sent. ready: ${pingResponse.ready}`);
+            loglevel_1.default.info(`address ${pingResponse.relayWorkerAddress} sent. ready: ${pingResponse.ready}`);
         }
         catch (e) {
             if (e instanceof Error) {
@@ -118,7 +118,7 @@ class HttpServer {
                 loglevel_1.default.error(`ping handler rejected: ${message}`);
             }
             else {
-                console.error(e);
+                loglevel_1.default.error(e);
             }
         }
     }
@@ -179,10 +179,10 @@ class HttpServer {
         catch (e) {
             if (e instanceof Error) {
                 res.send({ error: e.message });
-                console.log('tx failed:', e);
+                loglevel_1.default.info('tx failed:', e);
             }
             else {
-                console.error(e);
+                loglevel_1.default.error(e);
             }
         }
     }
@@ -230,7 +230,7 @@ class HttpServer {
                 loglevel_1.default.error(`token handler rejected: ${message}`);
             }
             else {
-                console.error(e);
+                loglevel_1.default.error(e);
             }
         }
     }
@@ -268,7 +268,7 @@ class HttpServer {
                 loglevel_1.default.error(`verified handler rejected: ${message}`);
             }
             else {
-                console.error(e);
+                loglevel_1.default.error(e);
             }
         }
     }
