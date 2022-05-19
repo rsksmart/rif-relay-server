@@ -56,9 +56,8 @@ class RelayServer extends events_1.default {
     isCustomReplenish() {
         return this.customReplenish;
     }
-    async pingHandler(verifier) {
+    async pingHandler() {
         var _a, _b, _c;
-        console.debug('Ping handler Verifier', verifier);
         return {
             relayWorkerAddress: this.workerAddress,
             relayManagerAddress: this.managerAddress,

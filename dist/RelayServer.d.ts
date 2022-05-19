@@ -39,7 +39,7 @@ export declare class RelayServer extends EventEmitter {
     printServerAddresses(): void;
     getMinGasPrice(): number;
     isCustomReplenish(): boolean;
-    pingHandler(verifier?: string): Promise<PingResponse>;
+    pingHandler(): Promise<PingResponse>;
     tokenHandler(verifier?: string): Promise<TokenResponse>;
     verifierHandler(): Promise<VerifierResponse>;
     isDeployRequest(req: any): boolean;

@@ -114,7 +114,7 @@ import express from 'express';
  *           description: The amount of gas required to transfer the fees.
  *         index:
  *           type: string
- *           description: It allows to create many addresses for the same owner|recoverer
+ *           description: It allows the creation of many addresses for the same owner/recoverer.
  *         data:
  *           type: string
  *     RelayData:
@@ -124,13 +124,13 @@ import express from 'express';
  *           type: string
  *         domainSeparator:
  *           type: string
- *           description: Domain used when signing this request
+ *           description: Domain used when signing this request.
  *         relayWorker:
  *           type: address
  *           description: The address of the [relay worker](https://developers.rsk.co/rif/relay/architecture/#relay-worker).
  *         callForwarder:
  *           type: address
- *           description: The address of the smart contract that forwards the request (SmartWallet factory address for deploy transactions and SmartWallet address for relayed transactions)
+ *           description: The address of the smart contract that forwards the request (SmartWallet factory address for deploy transactions and SmartWallet address for relayed transactions).
  *         callVerifier:
  *           type: address
  *           description: The address of the contract entitled to verify the transaction. See [Relay and Deploy verifier](https://developers.rsk.co/rif/relay/architecture/#relay--deploy-verifier) for further details.
@@ -144,7 +144,7 @@ import express from 'express';
  *           type: number
  *         signature:
  *           type: string
- *           description: Transaction signature that will be used to verify if correctness of the transaction.
+ *           description: Transaction signature that will be used to verify the correctness of the transaction.
  */
 declare const configureDocumentation: (app: express.Express, serverUrl: string) => void;
 export default configureDocumentation;
