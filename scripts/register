@@ -9,8 +9,8 @@ if [ ! -f "dist/commands/Register.js" ]; then
 fi
 
 # getopts options
-SHORT_OPTS=f:s:a:m:h
-LONG_OPTS=funds:,stake:,account:,mnemonic:,help
+SHORT_OPTS=f:s:a:m:c:h
+LONG_OPTS=funds:,stake:,account:,mnemonic:,config_file:,help
 
 # help message
 SHORT_HELP="Usage: $PROG [options]
@@ -19,15 +19,17 @@ Options:
   -s amount     an optional amount of stake to set up (by default 20)
   -a account    an optional account to use for funding and staking (it requires the mnemonic parameter)
   -m mnemonic   an optional mnemonic to use for unlocking the account parameter (it requires the account parameter)
+  -c path       an optional path to a file containing an alternative server configuration
   -h            show this help message"
 
 LONG_HELP="Usage: $PROG [options]
 Options:
-  -f | --funds      amount    an optional amount of funds to set up (by default 10)
-  -s | --output     amount    an optional amount of stake to set up (by default 20)
-  -a | --account    account   an optional account to use for funding and staking (it requires the mnemonic parameter)
-  -m | --mnemonic   mnemonic  an optional mnemonic to use for unlocking the account parameter (it requires the account parameter)
-  -h | --help                 show this help message"
+  -f | --funds        amount    an optional amount of funds to set up (by default 10)
+  -s | --output       amount    an optional amount of stake to set up (by default 20)
+  -a | --account      account   an optional account to use for funding and staking (it requires the mnemonic parameter)
+  -m | --mnemonic     mnemonic  an optional mnemonic to use for unlocking the account parameter (it requires the account parameter)
+  -c | --config_file  path      an optional path to a file containing an alternative server configuration
+  -h | --help                   show this help message"
 
 
 # default paramters
@@ -35,6 +37,7 @@ STAKE=20
 FUNDS=10
 MNEMONIC=""
 ACCOUNT=""
+CONFIG_FILE="server-config.json"
 
 HAS_GNU_ENHANCED_GETOPT=
 if getopt -T >/dev/null; then :
@@ -74,6 +77,7 @@ while [ $# -gt 0 ]; do
   -f | --funds) FUNDS=$(echo "$2" | xargs); shift;;
   -a | --account)    ACCOUNT=$(echo "$2" | xargs); shift;;
   -m | --mnemonic)   MNEMONIC=$(echo "$2" | xargs); shift;;
+  -c | --config_file) CONFIG_FILE=$(echo "$2" | xargs); shift;;
   -h | --help)  showUsage; exit 0; shift;;
   # -- means the end of the arguments; drop this, and break out of the while loop
   --) shift; break ;;
@@ -84,11 +88,12 @@ while [ $# -gt 0 ]; do
   shift
 done
 
-# Variable values set either by reading from user inpur or with the default value
+# Variable values set either by reading from user input or with the default value
 echo "STAKE: $STAKE"
 echo "FUNDS: ${FUNDS}"
 echo "MNEMONIC: ${MNEMONIC}"
 echo "ACCOUNT: ${ACCOUNT}"
+echo "CONFIG_FILE": ${CONFIG_FILE}
 
 # For debug purposes only, we should never enter in the if branch
 if [ $# -gt 0 ]; then
@@ -109,12 +114,12 @@ if [ "${FUNDS}" == "" ]; then
 fi
 
 if [ "${ACCOUNT}" == "" ] && [ "${MNEMONIC}" != "" ] || [ "${ACCOUNT}" != "" ] && [ "${MNEMONIC}" == "" ]; then
-  echo "Error, account and mnemonic are both necessary!"
+  echo "Error, account and mnemonic should be specified both or none!"
   exit 1
 fi
 
 if [ "${ACCOUNT}" != "" ] && [ "${MNEMONIC}" != "" ]; then
-  node dist/commands/Register.js --config server-config.json --funds="${FUNDS}" --stake="${STAKE}" --account="${ACCOUNT}" --mnemonic="${MNEMONIC}"
+  node dist/commands/Register.js --config="${CONFIG_FILE}" --funds="${FUNDS}" --stake="${STAKE}" --account="${ACCOUNT}" --mnemonic="${MNEMONIC}"
 else
-  node dist/commands/Register.js --config server-config.json --funds="${FUNDS}" --stake="${STAKE}"
+  node dist/commands/Register.js --config="${CONFIG_FILE}" --funds="${FUNDS}" --stake="${STAKE}"
 fi
