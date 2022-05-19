@@ -107,7 +107,7 @@ class HttpServer {
      */
     async pingHandler(req, res) {
         try {
-            const pingResponse = await this.backend.pingHandler(req.query.verifier);
+            const pingResponse = await this.backend.pingHandler();
             res.send(pingResponse);
             loglevel_1.default.info(`address ${pingResponse.relayWorkerAddress} sent. ready: ${pingResponse.ready}`);
         }
