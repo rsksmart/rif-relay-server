@@ -76,7 +76,26 @@ Where:
 - **logLevel**: is the log level for the relay server.
 - **workdir**: is the absolute path to the folder where the server will store the database and all its data.
 
-Afterwards, run `npm start` to start the server.
+Afterwards, run the following command:
+
+```bash
+npm run start -- -c "<PATH>"
+``` 
+
+The long options command is also available on Linux:
+
+```bash
+npm run start -- --config_file="<PATH>"
+``` 
+
+where:
+- **CONFIG_FILE**: an optional path to an alternative configuration file. If not specified, the server will be started using server-config.json.
+
+The command shows its usage with the `-h` parameter:
+
+```bash
+npm run start -- -h
+```
 
 You can browse the `getAddr` endpoint (e.g. by doing `curl` to `http://localhost:8090/getaddr`) to verify the server is running correctly as well as visualize some useful information:
 
@@ -102,13 +121,13 @@ Once the relay server is up, you need to register it in order for it to be usabl
 Run the following command:
 
 ```bash
-npm run register -- -f "<FUNDS>" -s "<STAKE>" -a "<ACCOUNT>" -m "<MNEMONIC>"
+npm run register -- -f "<FUNDS>" -s "<STAKE>" -a "<ACCOUNT>" -m "<MNEMONIC>" -c "<PATH>"
 ``` 
 
 The long options command is also available on Linux:
 
 ```bash
-npm run register -- --funds="<FUNDS>" --stake="<STAKE>" --account="<ACCOUNT>" --mnemonic="<MNEMONIC>"
+npm run register -- --funds="<FUNDS>" --stake="<STAKE>" --account="<ACCOUNT>" --mnemonic="<MNEMONIC>" --config_file="<PATH>"
 ``` 
 
 where:
@@ -116,6 +135,7 @@ where:
 - **STAKE**: an optional the amount of stake to set up (by default 20)
 - **ACCOUNT**: an optional account to use for funding and staking (it requires the mnemonic parameter)
 - **MNEMONIC**: an optional mnemonic to use for unlocking the account parameter (it requires the account parameter)
+- **CONFIG_FILE**: an optional path to an alternative configuration file. If not specified, the server will be registered using server-config.json.
 
 The command shows its usage with the `-h` parameter:
 

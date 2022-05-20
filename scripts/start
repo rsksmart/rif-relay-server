@@ -83,7 +83,7 @@ if [ $# -gt 0 ]; then
 fi
 
 if [ "${CONFIG_FILE}" == "" ]; then
-   echo "No config file was specified, starting the server with default configuration"
+   echo "The config file specified isn't valid, starting the server with the configuration specified in server-config.json"
    node dist/commands/Start.js --config server-config.json
 else
    echo "Starting server with configuration specified in ${CONFIG_FILE}"

@@ -19,7 +19,7 @@ Options:
   -s amount     an optional amount of stake to set up (by default 20)
   -a account    an optional account to use for funding and staking (it requires the mnemonic parameter)
   -m mnemonic   an optional mnemonic to use for unlocking the account parameter (it requires the account parameter)
-  -c path       an optional path to a file containing an alternative server configuration
+  -c path       an optional path to a file containing an alternative server configuration. By default server-config.json
   -h            show this help message"
 
 LONG_HELP="Usage: $PROG [options]
@@ -28,7 +28,7 @@ Options:
   -s | --output       amount    an optional amount of stake to set up (by default 20)
   -a | --account      account   an optional account to use for funding and staking (it requires the mnemonic parameter)
   -m | --mnemonic     mnemonic  an optional mnemonic to use for unlocking the account parameter (it requires the account parameter)
-  -c | --config_file  path      an optional path to a file containing an alternative server configuration
+  -c | --config_file  path      an optional path to a file containing an alternative server configuration. By default server-config.json
   -h | --help                   show this help message"
 
 
