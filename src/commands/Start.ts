@@ -45,10 +45,7 @@ async function run(): Promise<void> {
 
         web3provider = new Web3.providers.HttpProvider(conf.rskNodeUrl);
         log.debug('runServer() - web3Provider done');
-        config = (await resolveServerConfig(
-            conf,
-            web3provider
-        ));
+        config = await resolveServerConfig(conf, web3provider);
         log.debug('runServer() - config done');
         if (trustedVerifiers.length > 0) {
             config.trustedVerifiers = trustedVerifiers;

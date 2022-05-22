@@ -207,8 +207,12 @@ export function parseServerConfig(args: string[], env: any): any {
         }
         configFile = JSON.parse(fs.readFileSync(configFileName, 'utf8'));
     }
-    
-    const config = { ...configFile, ...argv, logLevel: configFile.logLevel || env.LOG_LEVEL };
+
+    const config = {
+        ...configFile,
+        ...argv,
+        logLevel: configFile.logLevel || env.LOG_LEVEL
+    };
     return entriesToObj(Object.entries(config).map(explicitType));
 }
 

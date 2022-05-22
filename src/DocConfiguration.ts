@@ -155,7 +155,8 @@ const configureDocumentation = (app: express.Express, serverUrl: string) => {
         info: {
             title: 'RIF Relay Server API',
             version: '1.0.0',
-            description: 'This is a API application provided to support RIF Relay.',
+            description:
+                'This is a API application provided to support RIF Relay.',
             license: {
                 name: 'Licensed Under MIT',
                 url: 'https://spdx.org/licenses/MIT.html'
@@ -167,16 +168,16 @@ const configureDocumentation = (app: express.Express, serverUrl: string) => {
         },
         servers: [
             {
-                url: serverUrl,
+                url: serverUrl
             }
         ]
     };
-    
+
     const options = {
         swaggerDefinition,
         apis: ['./dist/*.js']
     };
-    
+
     const swaggerSpec = swaggerJSDoc(options);
     app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 };
