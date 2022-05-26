@@ -1,0 +1,20 @@
+name: CI for Rif-Relay-Server
+on: [push]
+jobs:
+    check-linting:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v2
+            - name: Use Node.js
+              uses: actions/setup-node@v2
+              with:
+                  node-version: '16.x'
+
+            - name: Install dependencies
+              run: npm install
+
+            - name: Check Linter bugs
+              run: npm run lint
+
+            - name: Check Codestyles errors
+              run: npm run prettier

@@ -105,7 +105,7 @@ export class RelayServer extends EventEmitter {
             toBN(this.config.workerMinBalance)
         );
         this.printServerAddresses();
-        
+
         log.warn('RelayServer version', VERSION);
         log.info('Using server configuration:\n', this.config);
     }
@@ -924,10 +924,7 @@ latestBlock timestamp   | ${latestBlock.timestamp}
         blockNumber: number,
         workerIndex: number
     ): Promise<Map<PrefixedHexString, SignedTransactionDetails>> {
-        log.debug(
-            '_boostStuckTransactionsForWorker: workerIndex',
-            workerIndex
-        );
+        log.debug('_boostStuckTransactionsForWorker: workerIndex', workerIndex);
         const signer = this.workerAddress;
         return await this.transactionManager.boostUnderpricedPendingTransactionsForSigner(
             signer,
