@@ -169,7 +169,7 @@ const configureDocumentation = (app, serverUrl) => {
         },
         servers: [
             {
-                url: serverUrl,
+                url: serverUrl
             }
         ]
     };

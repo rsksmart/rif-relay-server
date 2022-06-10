@@ -37,7 +37,7 @@ async function run() {
         }
         web3provider = new web3_1.default.providers.HttpProvider(conf.rskNodeUrl);
         loglevel_1.default.debug('runServer() - web3Provider done');
-        config = (await ServerConfigParams_1.resolveServerConfig(conf, web3provider));
+        config = await ServerConfigParams_1.resolveServerConfig(conf, web3provider);
         loglevel_1.default.debug('runServer() - config done');
         if (trustedVerifiers.length > 0) {
             config.trustedVerifiers = trustedVerifiers;
