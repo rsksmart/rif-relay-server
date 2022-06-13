@@ -7,6 +7,7 @@
     "build": "scripts/build",
     "dist": "scripts/dist",
     "lint": "eslint . --ext .ts",
+    "prepare": "./scripts/prepare",
     "lint:fix": "eslint . --ext .ts --fix",
     "prettier:fix": "npx prettier --write --ignore-unknown .",
     "prettier": "npx prettier --check .",
