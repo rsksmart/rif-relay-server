@@ -28,9 +28,7 @@ import {
     DeployTransactionRequest,
     DeployTransactionRequestShape,
     RelayTransactionRequest,
-    RelayTransactionRequestShape,
-    TypedDeployRequestData,
-    TypedRequestData
+    RelayTransactionRequestShape
 } from '@rsksmart/rif-relay-common';
 import { replenishStrategy } from './ReplenishFunction';
 import { RegistrationManager } from './RegistrationManager';
