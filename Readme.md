@@ -45,7 +45,7 @@ Then just run `npm install` to install all dependencies.
 
 You can use this repository directly to start your server. 
 
-To start the relay server, you need to configure the json config file located at `<PROJECT_ROOT>/jsrelay/config/relay-config.json` which has this structure:
+To start the relay server, you need to configure the `server-config.json` file, which has this structure:
    
 ```json
 {

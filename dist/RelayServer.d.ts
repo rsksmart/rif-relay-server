@@ -1,4 +1,5 @@
 /// <reference types="@openeth/truffle-typings" />
+/// <reference types="bn.js" />
 /// <reference types="node" />
 import { EventData } from 'web3-eth-contract';
 import { PrefixedHexString } from 'ethereumjs-tx';
@@ -50,6 +51,7 @@ export declare class RelayServer extends EventEmitter {
     validateRequestWithVerifier(req: RelayTransactionRequest | DeployTransactionRequest): Promise<{
         maxPossibleGas: BN;
     }>;
+    getMaxPossibleGas(req: RelayTransactionRequest | DeployTransactionRequest, isDeployRequest: boolean): Promise<import("bn.js")>;
     validateViewCallSucceeds(method: any, req: RelayTransactionRequest | DeployTransactionRequest, maxPossibleGas: BN): Promise<void>;
     createRelayTransaction(req: RelayTransactionRequest | DeployTransactionRequest): Promise<SignedTransactionDetails>;
     intervalHandler(): Promise<void>;

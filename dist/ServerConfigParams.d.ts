@@ -38,6 +38,7 @@ export interface ServerConfigParams {
     maxGasPrice: string;
     defaultGasLimit: number;
     estimateGasFactor: number;
+    allowForSponsoredTx: boolean;
 }
 export interface ServerDependencies {
     managerKeyManager: KeyManager;
