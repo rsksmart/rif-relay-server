@@ -282,7 +282,10 @@ export class RelayServer extends EventEmitter {
             throw new Error(message);
         }
 
-        const maxPossibleGas = await this.getMaxPossibleGas(req, isDeployRequest);
+        const maxPossibleGas = await this.getMaxPossibleGas(
+            req,
+            isDeployRequest
+        );
 
         try {
             if (this.isDeployRequest(req)) {
@@ -314,7 +317,10 @@ export class RelayServer extends EventEmitter {
         return { maxPossibleGas };
     }
 
-    async getMaxPossibleGas(req: RelayTransactionRequest | DeployTransactionRequest, isDeployRequest: boolean) {
+    async getMaxPossibleGas(
+        req: RelayTransactionRequest | DeployTransactionRequest,
+        isDeployRequest: boolean
+    ) {
         let maxPossibleGas: BN;
 
         if (isDeployRequest) {
@@ -372,18 +378,38 @@ export class RelayServer extends EventEmitter {
                 )
             );
         }
-        log.debug('RequestFees - allowForSponsoredTx ', this.config.allowForSponsoredTx);
+        log.debug(
+            'RequestFees - allowForSponsoredTx ',
+            this.config.allowForSponsoredTx
+        );
         if (!this.config.allowForSponsoredTx) {
             // we need to convert tokenAmount back into RBTC and compare its value with maxPossibleGas
             // if the value is lower than maxPossibleGas, we should throw an error
             // TODO: we may need add some percentage fee at some point.
-            const tokenAmountInGas = getGas(getRBTCWeiFromRifWei(toBN(req.relayRequest.request.tokenAmount)), toBN(req.relayRequest.relayData.gasPrice));
-            const isTokenAmountAcceptable = tokenAmountInGas.gte(maxPossibleGas);
-            log.debug('RequestFees - isTokenAmountAcceptable? ', isTokenAmountAcceptable);
+            const tokenAmountInGas = getGas(
+                getRBTCWeiFromRifWei(
+                    toBN(req.relayRequest.request.tokenAmount)
+                ),
+                toBN(req.relayRequest.relayData.gasPrice)
+            );
+            const isTokenAmountAcceptable =
+                tokenAmountInGas.gte(maxPossibleGas);
+            log.debug(
+                'RequestFees - isTokenAmountAcceptable? ',
+                isTokenAmountAcceptable
+            );
             if (!isTokenAmountAcceptable) {
-                log.warn('TokenAmount in gas agreed by the user', tokenAmountInGas.toString());
-                log.warn('MaxPossibleGas required by the transaction', maxPossibleGas.toString());
-                throw new Error('User agreed to spend lower than what the transaction may require.');
+                log.warn(
+                    'TokenAmount in gas agreed by the user',
+                    tokenAmountInGas.toString()
+                );
+                log.warn(
+                    'MaxPossibleGas required by the transaction',
+                    maxPossibleGas.toString()
+                );
+                throw new Error(
+                    'User agreed to spend lower than what the transaction may require.'
+                );
             }
         }
         return maxPossibleGas;

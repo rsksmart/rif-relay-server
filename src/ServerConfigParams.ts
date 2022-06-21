@@ -132,7 +132,7 @@ const ConfigParamsTypes = {
     trustedVerifiers: 'string',
     relayVerifierAddress: 'string',
     deployVerifierAddress: 'string',
-    
+
     allowForSponsoredTx: 'boolean'
 } as any;
 

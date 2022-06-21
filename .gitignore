@@ -5,3 +5,7 @@ build/
 .idea/
 package-lock.json
 environment
+
+.gitignore
+.env
+.vscode/
