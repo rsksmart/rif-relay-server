@@ -12,6 +12,7 @@ import { configure } from '@rsksmart/rif-relay-client';
 // @ts-ignore
 import { ether } from '@openzeppelin/test-helpers';
 import { ServerConfigParams } from '../ServerConfigParams';
+import log from 'loglevel';
 
 export interface RegisterOptions {
     hub: string;
@@ -30,8 +31,8 @@ export class Register extends CommandClient {
 
     async execute(options: RegisterOptions): Promise<void> {
         const transactions: string[] = [];
-        console.log(`Registering Enveloping relayer at ${options.relayUrl}`);
-        console.log('Options received:', options);
+        log.info(`Registering Enveloping relayer at ${options.relayUrl}`);
+        log.info('Options received:', options);
         const response = await this.httpClient.getPingResponse(
             options.relayUrl
         );
@@ -61,10 +62,10 @@ export class Register extends CommandClient {
             relayAddress
         );
 
-        console.log('Current stake info:');
-        console.log('Relayer owner: ', owner);
-        console.log('Current unstake delay: ', unstakeDelay);
-        console.log('current stake=', fromWei(stake, 'ether'));
+        log.info('Current stake info:');
+        log.info('Relayer owner: ', owner);
+        log.info('Current unstake delay: ', unstakeDelay);
+        log.info('current stake=', fromWei(stake, 'ether'));
 
         if (
             owner !== constants.ZERO_ADDRESS &&
@@ -79,10 +80,10 @@ export class Register extends CommandClient {
             toBN(unstakeDelay).gte(toBN(options.unstakeDelay)) &&
             toBN(stake).gte(toBN(options.stake.toString()))
         ) {
-            console.log('Relayer already staked');
+            log.info('Relayer already staked');
         } else {
             const stakeValue = toBN(options.stake.toString()).sub(toBN(stake));
-            console.log(
+            log.info(
                 `Staking relayer ${fromWei(stakeValue, 'ether')} RBTC`,
                 stake === '0'
                     ? ''
@@ -103,15 +104,15 @@ export class Register extends CommandClient {
         }
 
         if (isSameAddress(owner, options.from)) {
-            console.log('Relayer already authorized');
+            log.info('Relayer already authorized');
         }
 
         const bal = await this.contractInteractor.getBalance(relayAddress);
 
         if (toBN(bal).gt(toBN(options.funds.toString()))) {
-            console.log('Relayer already funded');
+            log.info('Relayer already funded');
         } else {
-            console.log('Funding relayer');
+            log.info('Funding relayer');
 
             const _fundTx = await this.web3.eth.sendTransaction({
                 from: options.from,
@@ -130,13 +131,13 @@ export class Register extends CommandClient {
         }
 
         await this.waitForRelay(options.relayUrl);
-        console.log('Executed Transactions', transactions);
+        log.info('Executed Transactions', transactions);
     }
 }
 
 export async function executeRegister(registerOptions?: RegisterOptions) {
     const parameters: any = getParams();
-    console.log('Parsed parameters', parameters);
+    log.info('Parsed parameters', parameters);
     const serverConfiguration: ServerConfigParams = parseServerConfig(
         parameters.config
     );
@@ -174,8 +175,8 @@ export async function executeRegister(registerOptions?: RegisterOptions) {
 
 executeRegister()
     .then(() => {
-        console.log('Registration is done!');
+        log.info('Registration is done!');
     })
     .catch((error) => {
-        console.log('Error registering relay server', error);
+        log.info('Error registering relay server', error);
     });

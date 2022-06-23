@@ -105,7 +105,7 @@ export class RelayServer extends EventEmitter {
             toBN(this.config.workerMinBalance)
         );
         this.printServerAddresses();
-        log.setLevel(this.config.logLevel);
+
         log.warn('RelayServer version', VERSION);
         log.info('Using server configuration:\n', this.config);
     }
@@ -123,8 +123,7 @@ export class RelayServer extends EventEmitter {
         return this.customReplenish;
     }
 
-    async pingHandler(verifier?: string): Promise<PingResponse> {
-        console.debug('Ping handler Verifier', verifier);
+    async pingHandler(): Promise<PingResponse> {
         return {
             relayWorkerAddress: this.workerAddress,
             relayManagerAddress: this.managerAddress,
@@ -736,7 +735,7 @@ latestBlock timestamp   | ${latestBlock.timestamp}
     }
 
     async getWorkerBalance(workerIndex: number): Promise<BN> {
-        console.debug('getWorkerBalance: workerIndex', workerIndex);
+        log.debug('getWorkerBalance: workerIndex', workerIndex);
         return toBN(
             await this.contractInteractor.getBalance(
                 this.workerAddress,
@@ -749,7 +748,7 @@ latestBlock timestamp   | ${latestBlock.timestamp}
         currentBlock: number,
         hubEventsSinceLastScan: EventData[]
     ): Promise<boolean> {
-        console.debug(
+        log.debug(
             '_shouldRegisterAgain: hubEventsSinceLastScan',
             hubEventsSinceLastScan
         );
@@ -833,7 +832,7 @@ latestBlock timestamp   | ${latestBlock.timestamp}
 
     async _handleTransactionRelayedEvent(event: EventData): Promise<void> {
         // Here put anything that needs to be performed after a Transaction gets relayed
-        console.debug('_handleTransactionRelayedEvent: event', event);
+        log.debug('_handleTransactionRelayedEvent: event', event);
     }
 
     async _handleTransactionRejectedByRecipientEvent(
@@ -925,10 +924,7 @@ latestBlock timestamp   | ${latestBlock.timestamp}
         blockNumber: number,
         workerIndex: number
     ): Promise<Map<PrefixedHexString, SignedTransactionDetails>> {
-        console.debug(
-            '_boostStuckTransactionsForWorker: workerIndex',
-            workerIndex
-        );
+        log.debug('_boostStuckTransactionsForWorker: workerIndex', workerIndex);
         const signer = this.workerAddress;
         return await this.transactionManager.boostUnderpricedPendingTransactionsForSigner(
             signer,

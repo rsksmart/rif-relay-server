@@ -3,6 +3,7 @@ import fs from 'fs';
 import ow from 'ow';
 import { toHex } from 'web3-utils';
 import { PrefixedHexString, Transaction } from 'ethereumjs-tx';
+import log from 'loglevel';
 
 export const KEYSTORE_FILENAME = 'keystore';
 
@@ -52,7 +53,7 @@ export class KeyManager {
                 ) {
                     throw e;
                 } else {
-                    console.error(e);
+                    log.error(e);
                 }
             }
         } else {

@@ -14,6 +14,8 @@ import sourceMapSupport from 'source-map-support';
 //@ts-ignore
 sourceMapSupport.install({ errorFormatterForce: true });
 import { LogLevelNumbers } from 'loglevel';
+import log from 'loglevel';
+import 'dotenv/config';
 
 // TODO: is there a way to merge the typescript definition ServerConfigParams with the runtime checking ConfigParamTypes ?
 export interface ServerConfigParams {
@@ -197,7 +199,7 @@ export function parseServerConfig(args: string[], env: any): any {
     }
     // @ts-ignore
     delete argv._;
-    let configFile = {};
+    let configFile: Partial<ServerConfigParams> = {};
     const configFileName = argv.config as string;
     if (configFileName != null) {
         if (!fs.existsSync(configFileName)) {
@@ -205,7 +207,12 @@ export function parseServerConfig(args: string[], env: any): any {
         }
         configFile = JSON.parse(fs.readFileSync(configFileName, 'utf8'));
     }
-    const config = { ...configFile, ...argv };
+
+    const config = {
+        ...configFile,
+        ...argv,
+        logLevel: configFile.logLevel || env.LOG_LEVEL
+    };
     return entriesToObj(Object.entries(config).map(explicitType));
 }
 
@@ -213,7 +220,7 @@ export function parseServerConfig(args: string[], env: any): any {
 export async function resolveServerConfig(
     config: Partial<ServerConfigParams>,
     web3provider: any
-): Promise<Partial<ServerConfigParams>> {
+): Promise<ServerConfigParams> {
     const contractInteractor = new ContractInteractor(
         web3provider,
         configure({ relayHubAddress: config.relayHubAddress })
@@ -255,7 +262,7 @@ export async function resolveServerConfig(
             `Invalid param relayHubId ${relayHubId} @ ${version}: not an address:`
         );
 
-        console.log(
+        log.info(
             `Using RelayHub ID:${relayHubId} version:${version} address:${value} . created at: ${new Date(
                 time * 1000
             ).toString()}`

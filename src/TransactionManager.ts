@@ -136,7 +136,7 @@ data         | 0x${transaction.data.toString('hex')}
                     e.message
                 );
             } else {
-                console.error(e);
+                log.error(e);
             }
         }
         return this.config.defaultGasLimit;

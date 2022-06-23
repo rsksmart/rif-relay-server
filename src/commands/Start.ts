@@ -16,7 +16,7 @@ import {
 import log from 'loglevel';
 
 function error(err: string): void {
-    console.error(err);
+    log.error(err);
     process.exit(1);
 }
 
@@ -24,13 +24,14 @@ async function run(): Promise<void> {
     let config: ServerConfigParams;
     let web3provider;
     let trustedVerifiers: string[] = [];
-    console.log('Starting Enveloping Relay Server process...\n');
+    log.info('Starting Enveloping Relay Server process...\n');
     try {
         const conf = await parseServerConfig(
             process.argv.slice(2),
             process.env
         );
-        console.log(conf);
+        log.setLevel(conf.logLevel);
+        log.info(conf);
         if (conf.rskNodeUrl == null) {
             error('missing rskNodeUrl');
         }
@@ -44,10 +45,7 @@ async function run(): Promise<void> {
 
         web3provider = new Web3.providers.HttpProvider(conf.rskNodeUrl);
         log.debug('runServer() - web3Provider done');
-        config = (await resolveServerConfig(
-            conf,
-            web3provider
-        )) as ServerConfigParams;
+        config = await resolveServerConfig(conf, web3provider);
         log.debug('runServer() - config done');
         if (trustedVerifiers.length > 0) {
             config.trustedVerifiers = trustedVerifiers;
@@ -56,7 +54,7 @@ async function run(): Promise<void> {
         if (e instanceof Error) {
             error(e.message);
         } else {
-            console.error(e);
+            log.error(e);
         }
     }
     const { devMode, workdir } = config;

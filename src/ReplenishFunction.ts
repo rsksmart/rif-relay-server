@@ -4,6 +4,7 @@ import { defaultEnvironment } from '@rsksmart/rif-relay-common';
 import { RelayServer } from './RelayServer';
 import { ServerAction } from './StoredTransaction';
 import { SendTransactionDetails } from './TransactionManager';
+import log from 'loglevel';
 
 export async function replenishStrategy(
     relayServer: RelayServer,
@@ -57,7 +58,7 @@ async function defaultReplenishFunction(
         const refill = toBN(
             relayServer.config.workerTargetBalance.toString()
         ).sub(relayServer.workerBalanceRequired.currentValue);
-        console.log(
+        log.info(
             `== replenishServer: mgr balance=${managerEthBalance.toString()}
         \n${
             relayServer.workerBalanceRequired.description
@@ -71,7 +72,7 @@ async function defaultReplenishFunction(
                 )
             )
         ) {
-            console.log('Replenishing worker balance by manager rbtc balance');
+            log.info('Replenishing worker balance by manager rbtc balance');
             const details: SendTransactionDetails = {
                 signer: relayServer.managerAddress,
                 serverAction: ServerAction.VALUE_TRANSFER,
@@ -86,7 +87,7 @@ async function defaultReplenishFunction(
         } else {
             const message = `== replenishServer: can't replenish: mgr balance too low ${managerEthBalance.toString()} refill=${refill.toString()}`;
             relayServer.emit('fundingNeeded', message);
-            console.log(message);
+            log.info(message);
         }
     }
     return transactionHashes;
