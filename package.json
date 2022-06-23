@@ -4,6 +4,7 @@
   "description": "This project contains all the server code for the rif relay system.",
   "main": "dist/index.js",
   "scripts": {
+    "build": "scripts/dist",
     "dist": "scripts/dist",
     "lint": "eslint . --ext .ts",
     "prepare": "./scripts/prepare",
