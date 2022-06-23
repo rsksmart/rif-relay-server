@@ -2,4 +2,4 @@
 
 rm -rf dist
 
-npm run build
+npx tsc
