@@ -1,8 +1,7 @@
 # Deployment information
 
 * **Note**: Information for deploying the `rif-relay-server` and a `relaying-services-sdk-dapp` to a server, not meant to be used locally.
-* Server must have all the files referenced here and 
-should have an RSK node installed and running locally. 
+* Server must have all the files referenced here and connected to a non-public RSK node (configured to work with RIF Relay).
 * `Dockerfile` and `docker-compose.yml` files should be on the root of the repository.
 * [`rif-relay-sample-dapp`](https://github.com/rsksmart/rif-relay-sample-dapp) should be cloned in the same directory as docker-compose.yml
 
