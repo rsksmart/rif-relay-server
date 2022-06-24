@@ -5,7 +5,6 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "scripts/build",
-    "dist": "scripts/dist",
     "lint": "eslint . --ext .ts",
     "prepare": "./scripts/prepare",
     "lint:fix": "eslint . --ext .ts --fix",

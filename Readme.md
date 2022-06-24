@@ -184,7 +184,7 @@ In order to run the server without having to rebuild every time a change is made
 
 ### Generating a new distributable version
 
-1. Run the `npm run dist` command to generate the `dist` folder with the distributable version inside.
+1. Run the `npm run build` command to generate the `dist` folder with the distributable version inside.
 2. Bump the version on the `package.json` file (not strictly needed).
 3. Commit and push any changes, including the version bump.
 
