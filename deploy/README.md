@@ -1,6 +1,6 @@
 # Deployment information
 
-* **Note**: Information for deploying the `rif-relay-server` and a `relaying-services-sdk-dapp` to a server, not meant to be used locally.
+* **Note**: This information is for deploying `rif-relay-server` and `relaying-services-sdk-dapp` to a server, and not meant to be used locally.
 * Server must have all the files referenced here and 
 should have an RSK node installed and running locally. 
 * `Dockerfile` and `docker-compose.yml` files should be on the root of the repository.
