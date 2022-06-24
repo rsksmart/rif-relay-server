@@ -14,7 +14,7 @@ should be running their own RSK node.
  - /home/user/workspace/enveloping/environment/workers
 ```
 * Run the [server registration script](https://github.com/rsksmart/rif-relay-server#server-registration) after executing `docker-compose up` and server is started.
-* rif-relay-contracts addresses that are located on server-config.json should be deployed and "founded" on the local rsk node.
+* rif-relay-contracts addresses that are located in `server-config.json` should be deployed and funded on the server's rsk node.
 
 ## Build and deploy
 ```
