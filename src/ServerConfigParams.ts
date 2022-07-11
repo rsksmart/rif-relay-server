@@ -210,8 +210,7 @@ export function parseServerConfig(args: string[], env: any): any {
 
     const config = {
         ...configFile,
-        ...argv,
-        logLevel: configFile.logLevel || env.LOG_LEVEL
+        ...argv
     };
     return entriesToObj(Object.entries(config).map(explicitType));
 }
