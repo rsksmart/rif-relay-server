@@ -46,6 +46,7 @@ import {
 import { toChecksumAddress } from 'ethereumjs-util';
 import Timeout = NodeJS.Timeout;
 import EventEmitter from 'events';
+import { getGas, getRBTCWeiFromRifWei } from './Conversions';
 
 const VERSION = '2.0.1';
 
@@ -277,6 +278,45 @@ export class RelayServer extends EventEmitter {
             throw new Error(message);
         }
 
+        const { maxPossibleGas } = await this.getMaxPossibleGas(
+            req,
+            isDeployRequest
+        );
+
+        try {
+            if (this.isDeployRequest(req)) {
+                await (
+                    verifierContract as IDeployVerifierInstance
+                ).contract.methods
+                    .verifyRelayedCall(
+                        (req as DeployTransactionRequest).relayRequest,
+                        req.metadata.signature
+                    )
+                    .call({ from: this.workerAddress }, 'pending');
+            } else {
+                await (
+                    verifierContract as IRelayVerifierInstance
+                ).contract.methods
+                    .verifyRelayedCall(
+                        (req as RelayTransactionRequest).relayRequest,
+                        req.metadata.signature
+                    )
+                    .call({ from: this.workerAddress }, 'pending');
+            }
+        } catch (e) {
+            const error = e as Error;
+            throw new Error(
+                `Verification by verifier failed: ${error.message}`
+            );
+        }
+
+        return { maxPossibleGas };
+    }
+
+    async getMaxPossibleGas(
+        req: RelayTransactionRequest | DeployTransactionRequest,
+        isDeployRequest: boolean
+    ) {
         let maxPossibleGas: BN;
 
         if (isDeployRequest) {
@@ -334,32 +374,39 @@ export class RelayServer extends EventEmitter {
                 )
             );
         }
-
-        try {
-            if (this.isDeployRequest(req)) {
-                await (
-                    verifierContract as IDeployVerifierInstance
-                ).contract.methods
-                    .verifyRelayedCall(
-                        (req as DeployTransactionRequest).relayRequest,
-                        req.metadata.signature
-                    )
-                    .call({ from: this.workerAddress }, 'pending');
-            } else {
-                await (
-                    verifierContract as IRelayVerifierInstance
-                ).contract.methods
-                    .verifyRelayedCall(
-                        (req as RelayTransactionRequest).relayRequest,
-                        req.metadata.signature
-                    )
-                    .call({ from: this.workerAddress }, 'pending');
-            }
-        } catch (e) {
-            const error = e as Error;
-            throw new Error(
-                `Verification by verifier failed: ${error.message}`
+        log.debug(
+            'RequestFees - allowForSponsoredTx ',
+            this.config.allowForSponsoredTx
+        );
+        if (!this.config.allowForSponsoredTx) {
+            // we need to convert tokenAmount back into RBTC and compare its value with maxPossibleGas
+            // if the value is lower than maxPossibleGas, we should throw an error
+            // TODO: we may need add some percentage fee at some point.
+            const tokenAmountInGas = getGas(
+                getRBTCWeiFromRifWei(
+                    toBN(req.relayRequest.request.tokenAmount)
+                ),
+                toBN(req.relayRequest.relayData.gasPrice)
             );
+            const isTokenAmountAcceptable =
+                tokenAmountInGas.gte(maxPossibleGas);
+            log.debug(
+                'RequestFees - isTokenAmountAcceptable? ',
+                isTokenAmountAcceptable
+            );
+            if (!isTokenAmountAcceptable) {
+                log.warn(
+                    'TokenAmount in gas agreed by the user',
+                    tokenAmountInGas.toString()
+                );
+                log.warn(
+                    'MaxPossibleGas required by the transaction',
+                    maxPossibleGas.toString()
+                );
+                throw new Error(
+                    'User agreed to spend lower than what the transaction may require.'
+                );
+            }
         }
 
         return { maxPossibleGas };
