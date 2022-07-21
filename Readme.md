@@ -20,7 +20,7 @@ This project works as a dependency as well as a stand-alone project.
   - [**Enabling postinstall scripts**](#enabling-postinstall-scripts)
   - [**Husky and linters**](#husky-and-linters)
   - [**Generating a new distributable version**](#generating-a-new-distributable-version)
-    - [**For GitHub**](#for-github) 
+    - [**For GitHub**](#for-github)
     - [**For NPM**](#for-npm)
     - [**For direct use (no publishing)**](#for-direct-use-no-publishing)
 
@@ -29,7 +29,7 @@ This project works as a dependency as well as a stand-alone project.
 ### Pre-requisites
 
 - Node version 12.18
-- RSKj Running Node. 
+- RSKj Running Node.
   - **Note: To work properly with this server in Regtest, please use the RSKj configuration that can be found [here](https://github.com/rsksmart/rif-relay/blob/master/rsknode/node.conf).**
 - [RIF Relay Contracts](https://github.com/anarancio/rif-relay-contracts) deployed
 
@@ -41,10 +41,10 @@ Just run `npm install` to install all dependencies.
 
 ### Server execution
 
-You can use this repository directly to start your server. 
+You can use this repository directly to start your server.
 
 To start the relay server, you need to configure the `server-config.json` file, which has this structure:
-   
+
 ```json
 {
   "url": "localhost",
@@ -62,6 +62,7 @@ To start the relay server, you need to configure the `server-config.json` file, 
 ```
 
 Where:
+
 - **url**: is the URL where the relay server will be deployed, it could be localhost or the IP of the host machine.
 - **port**: the port where the relay server will be hosted.
 - **relayHubAddress**: is the relay hub contract address, you can retrieve this from the contract summary.
@@ -78,15 +79,16 @@ Afterwards, run the following command:
 
 ```bash
 npm run start -- -c "<PATH>"
-``` 
+```
 
 The long options command is also available on Linux:
 
 ```bash
 npm run start -- --config_file="<PATH>"
-``` 
+```
 
 where:
+
 - **CONFIG_FILE**: an optional path to an alternative configuration file. If not specified, the server will be started using server-config.json.
 
 The command shows its usage with the `-h` parameter:
@@ -99,14 +101,14 @@ You can browse the `getAddr` endpoint (e.g. by doing `curl` to `http://localhost
 
 ```json
 {
-    "relayWorkerAddress": "0xe722143177fe9c7c58057dc3d98d87f6c414dc95",
-    "relayManagerAddress": "0xe0820002dfaa69cbf8add6a738171e8eb0a5ee54",
-    "relayHubAddress": "0x38bebd507aBC3D76B10d61f5C95668e1240D087F",
-    "minGasPrice": "6000000000",
-    "chainId": "31",
-    "networkId": "31",
-    "ready": false,
-    "version": "2.0.1"
+  "relayWorkerAddress": "0xe722143177fe9c7c58057dc3d98d87f6c414dc95",
+  "relayManagerAddress": "0xe0820002dfaa69cbf8add6a738171e8eb0a5ee54",
+  "relayHubAddress": "0x38bebd507aBC3D76B10d61f5C95668e1240D087F",
+  "minGasPrice": "6000000000",
+  "chainId": "31",
+  "networkId": "31",
+  "ready": false,
+  "version": "2.0.1"
 }
 ```
 
@@ -120,15 +122,16 @@ Run the following command:
 
 ```bash
 npm run register -- -f "<FUNDS>" -s "<STAKE>" -a "<ACCOUNT>" -m "<MNEMONIC>" -c "<PATH>"
-``` 
+```
 
 The long options command is also available on Linux:
 
 ```bash
 npm run register -- --funds="<FUNDS>" --stake="<STAKE>" --account="<ACCOUNT>" --mnemonic="<MNEMONIC>" --config_file="<PATH>"
-``` 
+```
 
 where:
+
 - **FUNDS**: an optional amount of funds to set up (by default 10)
 - **STAKE**: an optional the amount of stake to set up (by default 20)
 - **ACCOUNT**: an optional account to use for funding and staking (it requires the mnemonic parameter)
@@ -151,9 +154,10 @@ Relayer state: READY
 
 You can use this dependency once you have it installed on your project. There are multiple ways to do this:
 
-### Use a release version 
+### Use a release version
 
 Install with:
+
 ```bash
 npm i --save @rsksmart/rif-relay-server
 ```
@@ -173,14 +177,16 @@ We use husky to check linters and code styles on commits, if you commit your
 changes and the commit fails on lint or prettier checks you can use these command
 to check and fix the errors before trying to commit again:
 
-* `npm run lint`: to check linter bugs
-* `npm run lint:fix`: to fix linter bugs
-* `npm run prettier`: to check codestyles errors
-* `npm run prettier:fix`: to fix codestyles errors
+- `npm run lint`: to check linter bugs
+- `npm run lint:fix`: to fix linter bugs
+- `npm run prettier`: to check codestyles errors
+- `npm run prettier:fix`: to fix codestyles errors
 
 ## ts-node
+
 In order to run the server without having to rebuild every time a change is made, use the following command:
-* `npm run debug`: run the server with ts-node
+
+- `npm run debug`: run the server with ts-node
 
 ### Generating a new distributable version
 
