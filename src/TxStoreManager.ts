@@ -1,10 +1,11 @@
-import AsyncNedb from 'nedb-async';
-import log from 'loglevel';
-import ow from 'ow';
-import { PrefixedHexString } from 'ethereumjs-tx';
 import { isSameAddress } from '@rsksmart/rif-relay-common';
+import { PrefixedHexString } from 'ethereumjs-tx';
+import log from 'loglevel';
+import AsyncNedb from 'nedb-async';
+import ow from 'ow';
 import { ServerAction, StoredTransaction } from './StoredTransaction';
 
+// FIXME: replace hardcoded values with config or env vars
 export const TXSTORE_FILENAME = 'txstore.db';
 
 export class TxStoreManager {

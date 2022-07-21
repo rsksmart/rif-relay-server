@@ -1,21 +1,20 @@
-import parseArgs from 'minimist';
-import * as fs from 'fs';
-import {
-    VersionRegistry,
-    ContractInteractor,
-    constants
-} from '@rsksmart/rif-relay-common';
 import { configure } from '@rsksmart/rif-relay-client';
+import {
+    constants,
+    ContractInteractor,
+    VersionRegistry
+} from '@rsksmart/rif-relay-common';
+import * as fs from 'fs';
+import parseArgs from 'minimist';
 import { KeyManager } from './KeyManager';
 import { TxStoreManager } from './TxStoreManager';
 
 //@ts-ignore
-import sourceMapSupport from 'source-map-support';
-//@ts-ignore
-sourceMapSupport.install({ errorFormatterForce: true });
-import { LogLevelNumbers } from 'loglevel';
-import log from 'loglevel';
 import 'dotenv/config';
+import log, { LogLevelNumbers } from 'loglevel';
+// import sourceMapSupport from 'source-map-support';
+//@ts-ignore
+// sourceMapSupport.install({ errorFormatterForce: true });
 
 // TODO: is there a way to merge the typescript definition ServerConfigParams with the runtime checking ConfigParamTypes ?
 export interface ServerConfigParams {
@@ -54,10 +53,14 @@ export interface ServerConfigParams {
     maxGasPrice: string;
     defaultGasLimit: number;
     estimateGasFactor: number;
-    // revenue-sharing fields
-    // if set to false, the server will reject all the transactions
-    // that require less than the estimated gas.
-    allowForSponsoredTx: boolean;
+    /**
+     * (Dis)Allows revenue sharing feature and sets the fee value (%) that the server will take from all transactions.
+     * This fee will be added to the estimated gas and required in the transaction amount.
+     * @option 0 - disables revenue sharing
+     * @option !0 - absolute value of the fee percentage to be added to gas
+     * @note the type has to be a string as the fee could be as small as 1e-19 which would lose preciion if used as number
+     */
+    sponsoredTxFee: string;
 }
 
 export interface ServerDependencies {
@@ -102,7 +105,7 @@ const serverDefaultConfiguration: ServerConfigParams = {
     defaultGasLimit: 500000,
     maxGasPrice: (100e9).toString(),
     estimateGasFactor: 1.2,
-    allowForSponsoredTx: true
+    sponsoredTxFee: '0'
 };
 
 const ConfigParamsTypes = {
@@ -135,7 +138,7 @@ const ConfigParamsTypes = {
     relayVerifierAddress: 'string',
     deployVerifierAddress: 'string',
 
-    allowForSponsoredTx: 'boolean'
+    sponsoredTxFee: 'string'
 } as any;
 
 // by default: no waiting period - use VersionRegistry entries immediately.

@@ -1,55 +1,53 @@
+import {
+    address2topic,
+    AmountRequired,
+    constants,
+    ContractInteractor,
+    DeployRequest,
+    DeployTransactionRequest,
+    DeployTransactionRequestShape,
+    getLatestEventData,
+    PingResponse,
+    randomInRange,
+    RelayRequest,
+    RelayTransactionRequest,
+    RelayTransactionRequestShape,
+    sleep,
+    TokenResponse,
+    TransactionRejectedByRecipient,
+    TransactionRelayed,
+    VerifierResponse,
+    VersionsManager
+} from '@rsksmart/rif-relay-common';
+import {
+    IDeployVerifierInstance,
+    IRelayHubInstance,
+    IRelayVerifierInstance
+} from '@rsksmart/rif-relay-contracts/types/truffle-contracts';
 import chalk from 'chalk';
+import { PrefixedHexString } from 'ethereumjs-tx';
+import { toChecksumAddress } from 'ethereumjs-util';
+import EventEmitter from 'events';
 import log from 'loglevel';
 import ow from 'ow';
 import { EventData } from 'web3-eth-contract';
-import { PrefixedHexString } from 'ethereumjs-tx';
 import { toBN } from 'web3-utils';
-import {
-    IRelayVerifierInstance,
-    IRelayHubInstance,
-    IDeployVerifierInstance
-} from '@rsksmart/rif-relay-contracts/types/truffle-contracts';
-import {
-    ContractInteractor,
-    TransactionRejectedByRecipient,
-    TransactionRelayed,
-    PingResponse,
-    VersionsManager,
-    AmountRequired,
-    address2topic,
-    getLatestEventData,
-    randomInRange,
-    sleep,
-    constants,
-    DeployRequest,
-    RelayRequest,
-    TokenResponse,
-    VerifierResponse,
-    DeployTransactionRequest,
-    DeployTransactionRequestShape,
-    RelayTransactionRequest,
-    RelayTransactionRequestShape,
-    TypedDeployRequestData,
-    TypedRequestData
-} from '@rsksmart/rif-relay-common';
-import { replenishStrategy } from './ReplenishFunction';
+import { getGas, getRBTCWeiFromRifWei } from './Conversions';
 import { RegistrationManager } from './RegistrationManager';
+import { replenishStrategy } from './ReplenishFunction';
+import {
+    configureServer,
+    ServerConfigParams,
+    ServerDependencies
+} from './ServerConfigParams';
+import { ServerAction } from './StoredTransaction';
 import {
     SendTransactionDetails,
     SignedTransactionDetails,
     TransactionManager
 } from './TransactionManager';
-import { ServerAction } from './StoredTransaction';
 import { TxStoreManager } from './TxStoreManager';
-import {
-    configureServer,
-    ServerDependencies,
-    ServerConfigParams
-} from './ServerConfigParams';
-import { toChecksumAddress } from 'ethereumjs-util';
 import Timeout = NodeJS.Timeout;
-import EventEmitter from 'events';
-import { getGas, getRBTCWeiFromRifWei } from './Conversions';
 
 const VERSION = '2.0.1';
 
@@ -377,11 +375,9 @@ export class RelayServer extends EventEmitter {
                 )
             );
         }
-        log.debug(
-            'RequestFees - allowForSponsoredTx ',
-            this.config.allowForSponsoredTx
-        );
-        if (!this.config.allowForSponsoredTx) {
+        const sponsoredTxFee = toBN(this.config.sponsoredTxFee);
+        log.debug('RequestFees - sponsoredTxFee ', this.config.sponsoredTxFee);
+        if (!sponsoredTxFee.gt(toBN(0))) {
             // we need to convert tokenAmount back into RBTC and compare its value with maxPossibleGas
             // if the value is lower than maxPossibleGas, we should throw an error
             // TODO: we may need add some percentage fee at some point.
@@ -391,8 +387,9 @@ export class RelayServer extends EventEmitter {
                 ),
                 toBN(req.relayRequest.relayData.gasPrice)
             );
-            const isTokenAmountAcceptable =
-                tokenAmountInGas.gte(maxPossibleGas);
+            const isTokenAmountAcceptable = tokenAmountInGas.gte(
+                maxPossibleGas.add(sponsoredTxFee)
+            );
             log.debug(
                 'RequestFees - isTokenAmountAcceptable? ',
                 isTokenAmountAcceptable
