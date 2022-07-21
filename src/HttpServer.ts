@@ -36,7 +36,11 @@ export class HttpServer {
     start(): void {
         if (this.serverInstance === undefined) {
             this.serverInstance = this.app.listen(this.port, () => {
-                log.info('Listening on port', this.port);
+                // We need to be sure that this line is always printed
+                // because the tests wait for it to be logged.
+                const args = ['Listening on port', this.port];
+                console.log(...args);
+                log.info(...args);
                 this.startBackend();
             });
         }
