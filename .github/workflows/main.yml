@@ -15,6 +15,3 @@ jobs:
 
       - name: Check Linter bugs
         run: npm run lint
-
-      - name: Check Codestyles errors
-        run: npm run prettier

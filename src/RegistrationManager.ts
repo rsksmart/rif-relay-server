@@ -10,7 +10,7 @@ import {
   RelayWorkersAdded,
   StakeAdded,
   StakeUnlocked,
-  StakeWithdrawn,
+  StakeWithdrawn
 } from '@rsksmart/rif-relay-common';
 import { RelayManagerData } from '@rsksmart/rif-relay-contracts';
 import chalk from 'chalk';
@@ -23,7 +23,7 @@ import { ServerConfigParams } from './ServerConfigParams';
 import { ServerAction } from './StoredTransaction';
 import {
   SendTransactionDetails,
-  TransactionManager,
+  TransactionManager
 } from './TransactionManager';
 import { TxStoreManager } from './TxStoreManager';
 
@@ -83,12 +83,12 @@ export class RegistrationManager {
     };
     this.balanceRequired = new AmountRequired(
       'Balance',
-      toBN(config.managerMinBalance) as BN,
+      toBN(config.managerMinBalance),
       listener
     );
     this.stakeRequired = new AmountRequired(
       'Stake',
-      toBN(config.managerMinStake) as BN,
+      toBN(config.managerMinStake),
       listener
     );
 
@@ -293,15 +293,15 @@ export class RegistrationManager {
     const currentBalance = await this.contractInteractor.getBalance(
       this.managerAddress
     );
-    this.balanceRequired.currentValue = toBN(currentBalance) as BN;
+    this.balanceRequired.currentValue = toBN(currentBalance);
   }
 
   async refreshStake(): Promise<void> {
     const stakeInfo = await this.contractInteractor.getStakeInfo(
       this.managerAddress
     );
-    const stake = toBN(stakeInfo.stake) as BN;
-    if (stake.eq(toBN(0) as BN)) {
+    const stake = toBN(stakeInfo.stake);
+    if (stake.eq(toBN(0))) {
       return;
     }
 

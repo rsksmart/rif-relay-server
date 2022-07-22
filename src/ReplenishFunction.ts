@@ -40,7 +40,7 @@ async function defaultReplenishFunction(
     await relayServer.getWorkerBalance(workerIndex);
   if (
     managerEthBalance.gte(
-      toBN(relayServer.config.managerTargetBalance.toString()) as BN
+      toBN(relayServer.config.managerTargetBalance.toString())
     ) &&
     relayServer.workerBalanceRequired.isSatisfied
   ) {
@@ -67,7 +67,7 @@ async function defaultReplenishFunction(
 
     if (
       refill.lt(
-        managerEthBalance.sub(toBN(relayServer.config.managerMinBalance) as BN)
+        managerEthBalance.sub(toBN(relayServer.config.managerMinBalance))
       )
     ) {
       log.info('Replenishing worker balance by manager rbtc balance');

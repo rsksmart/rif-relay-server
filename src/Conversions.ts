@@ -1,4 +1,9 @@
+import BigNumber from 'bignumber.js';
 import { fromWei, toBN, toWei } from 'web3-utils';
+
+export const RBTC_CHAIN_DECIMALS = 18; // FIXME: should this be configurable?
+export const MAX_ETH_GAS_BLOCK_SIZE = 30_000_000;
+
 /**
  * FIXME: Hard-coded values: for testing purposes only!
  This is specific for the tRIF token.
@@ -13,12 +18,19 @@ export function getRBTCWeiFromRifWei(trifWei: BN): BN {
   const costInTrif = parseFloat(fromWei(trifWei)); // FIXME: this is performed with potentially wrong decimals (unit defaults to 'ether', see unitMap in ethjs-unit/lib)
   const costInRBTC = costInTrif * tRifPriceInRBTC; // FIXME: float is not big enough to perfom calculations upon
   const costInRBTCFixed = costInRBTC.toFixed(rifTokenDecimals);
-  const costInWei = toWei(costInRBTCFixed);
-  return toBN(costInWei) as BN;
+  const costInWei: string = toWei(costInRBTCFixed);
+  return toBN(costInWei);
 }
 
 // FIXME: getGasAmount?
 export function getGas(cost: BN, gasPrice: BN): BN {
-  console.log('GET GAS AMOUNT!!!');  
   return cost.div(gasPrice);
 }
+
+export const getPrecision = (precision?: number): BigNumber => new BigNumber(10).pow(precision ?? RBTC_CHAIN_DECIMALS);
+
+export const normaliseFraction = (
+{ fraction, precision }: { fraction: BigNumber | string | number; precision?: number; }): BigNumber => getPrecision(precision).multipliedBy(fraction).integerValue(BigNumber.ROUND_CEIL);
+
+export const fractionToBN = (
+  { fraction, precision }: { fraction: BigNumber | string | number; precision?: number; }): BN => toBN(normaliseFraction({ fraction, precision }).toString());

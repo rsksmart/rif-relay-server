@@ -2,7 +2,7 @@ import { configure } from '@rsksmart/rif-relay-client';
 import {
   constants,
   ContractInteractor,
-  VersionRegistry,
+  VersionRegistry
 } from '@rsksmart/rif-relay-common';
 import * as fs from 'fs';
 import parseArgs from 'minimist';
@@ -60,9 +60,11 @@ export interface ServerConfigParams {
    * This fee will be added to the estimated gas and required in the transaction amount.
    * @option 0 - disables revenue sharing
    * @option !0 - absolute value of the fee percentage to be added to gas
-   * @note the type has to be a string as the fee could be as small as 1e-19 which would lose preciion if used as number
+   * @note the percentage is represented as a string of a fraction (1 = 100%) to allow for very low or high percentages
+   * @note the minus sign is ommitted if used
+   * @note fractions exceeding the number of decimals of that of the native currency will be rounded up
    */
-  sponsoredTxFee: string;
+  workerFeePercentage: string;
 }
 
 export interface ServerDependencies {
@@ -108,7 +110,7 @@ export const serverDefaultConfiguration: ServerConfigParams = {
   defaultGasLimit: 500000,
   maxGasPrice: (100e9).toString(),
   estimateGasFactor: 1.2,
-  sponsoredTxFee: '0',
+  workerFeePercentage: '0',
 };
 
 const ConfigParamsTypes = {
@@ -141,7 +143,7 @@ const ConfigParamsTypes = {
   relayVerifierAddress: 'string',
   deployVerifierAddress: 'string',
 
-  sponsoredTxFee: 'string',
+  workerFeePercentage: 'string',
 } as any;
 
 // by default: no waiting period - use VersionRegistry entries immediately.

@@ -2,7 +2,7 @@ import { configure } from '@rsksmart/rif-relay-client';
 import {
   constants,
   EnvelopingConfig,
-  isSameAddress,
+  isSameAddress
 } from '@rsksmart/rif-relay-common';
 import { TransactionReceipt } from 'web3-core';
 import { fromWei, toBN } from 'web3-utils';
@@ -73,12 +73,12 @@ export class Register extends CommandClient {
 
     if (
       toBN(unstakeDelay).gte(toBN(options.unstakeDelay)) &&
-      toBN(stake).gte(toBN(options.stake.toString()) as BN)
+      toBN(stake).gte(toBN(options.stake.toString()))
     ) {
       log.info('Relayer already staked');
     } else {
-      const stakeValue = (toBN(options.stake.toString()) as BN).sub(
-        toBN(stake) as BN
+      const stakeValue = (toBN(options.stake.toString())).sub(
+        toBN(stake)
       );
       log.info(
         `Staking relayer ${fromWei(stakeValue, 'ether')} RBTC`,

@@ -21,10 +21,17 @@
       "./node_modules/@types",
       "./types"
     ],
-    "types": ["node", "mocha", "truffle-contracts"],
+    "types": [
+      "node",
+      "mocha",
+      "truffle-contracts"
+    ],
     "lib": ["es2018", "dom", "webworker", "esnext"],
     "sourceMap": true
   },
-  "include": ["**/*.ts", "src/**/*"],
+  "include": [
+    "**/*.ts",
+    "src/**/*"
+  ],
   "exclude": ["dist", "node_modules", "build"]
 }
