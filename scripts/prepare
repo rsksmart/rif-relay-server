@@ -1,5 +1,7 @@
 #!/bin/bash
 
+patch-package
+
 husky install
 
 npm run build

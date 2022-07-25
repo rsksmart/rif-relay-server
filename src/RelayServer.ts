@@ -20,16 +20,15 @@ import {
     getLatestEventData,
     randomInRange,
     sleep,
-    constants,
-    DeployRequest,
-    RelayRequest,
     TokenResponse,
     VerifierResponse,
     DeployTransactionRequest,
     DeployTransactionRequestShape,
     RelayTransactionRequest,
-    RelayTransactionRequestShape
+    RelayTransactionRequestShape,
+    constants
 } from '@rsksmart/rif-relay-common';
+import { DeployRequest, RelayRequest } from '@rsksmart/rif-relay-contracts';
 import { replenishStrategy } from './ReplenishFunction';
 import { RegistrationManager } from './RegistrationManager';
 import {

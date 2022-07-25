@@ -1,8 +1,8 @@
 import { CommandClient } from './helpers/CommandClient';
 import {
-    constants,
     EnvelopingConfig,
-    isSameAddress
+    isSameAddress,
+    constants
 } from '@rsksmart/rif-relay-common';
 import BN from 'bn.js';
 import { fromWei, toBN } from 'web3-utils';
