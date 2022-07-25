@@ -60,8 +60,8 @@ export interface ServerConfigParams {
    * This fee will be added to the estimated gas and required in the transaction amount.
    * @option 0 - disables revenue sharing
    * @option !0 - absolute value of the fee percentage to be added to gas
-   * @note the percentage is represented as a string of a fraction (1 = 100%) to allow for very low or high percentages
-   * @note the minus sign is ommitted if used
+   * @note the percentage is represented as a fraction (1 = 100%) string to allow for very low or high percentages
+   * @note the minus sign is omitted if used
    * @note fractions exceeding the number of decimals of that of the native currency will be rounded up
    */
   workerFeePercentage: string;

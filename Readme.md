@@ -28,7 +28,7 @@ This project works as a dependency as well as a stand-alone project.
 
 ### Pre-requisites
 
-- Node version 12.18
+- Node version 16.x
 - RSKj Running Node.
   - **Note: To work properly with this server in Regtest, please use the RSKj configuration that can be found [here](https://github.com/rsksmart/rif-relay/blob/master/rsknode/node.conf).**
 - [RIF Relay Contracts](https://github.com/anarancio/rif-relay-contracts) deployed
@@ -57,7 +57,8 @@ To start the relay server, you need to configure the `server-config.json` file, 
   "devMode": true,
   "customReplenish": false,
   "logLevel": 1,
-  "workdir": "/home/user/workspace/relay"
+  "workdir": "/home/user/workspace/relay",
+  "workerFeePercentage": "0.01" // 1 = 100%
 }
 ```
 
@@ -74,6 +75,11 @@ Where:
 - **customReplenish**: set if the server uses a custom replenish function or not.
 - **logLevel**: is the log level for the relay server.
 - **workdir**: is the absolute path to the folder where the server will store the database and all its data.
+- **workerFeePercentage**: allows revenue sharing feature and sets the fee value (%) that the worker will take from all transactions.
+   - the fee will be added to the estimated gas and required in the transaction amount.
+   - the percentage is represented as a fraction (1 = 100%) string to allow for very low or high percentages
+   - the minus sign is omitted if used
+   - fractions exceeding the number of decimals of that of the native currency will be rounded up
 
 Afterwards, run the following command:
 
@@ -171,6 +177,15 @@ Clone this repository inside your project's root folder and use the `npm link` m
 Make your modifications and then run `npm run build` to validate them.
 When you are done with your changes, you can publish them by creating a distributable version.
 
+### Testing
+The relay server scripts define three testing strategies:
+
+1. `test:unit` - runs one-off unit tests within the `./test/unit/` directory
+2. `test:integration` - runs one-off integration tests within the `./test/integration` directory
+3. `tdd` - runs unit tests in watch mode. Watches all **ts** files in the project
+
+In addition, the `TRACE_LOG=true` environment variable may be used to use the trace log level in the tests `;]`. This will print a lot of logs from the codebase.
+
 ### Husky and linters
 
 We use husky to check linters and code styles on commits, if you commit your
@@ -179,8 +194,6 @@ to check and fix the errors before trying to commit again:
 
 - `npm run lint`: to check linter bugs
 - `npm run lint:fix`: to fix linter bugs
-- `npm run prettier`: to check codestyles errors
-- `npm run prettier:fix`: to fix codestyles errors
 
 ## ts-node
 

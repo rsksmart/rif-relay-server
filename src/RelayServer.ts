@@ -357,7 +357,7 @@ export class RelayServer extends EventEmitter {
         const { workerFeePercentage } = this.config;
         log.debug(`RelayServer - workerFeePercentage: ${workerFeePercentage}`);
 
-        const sponsoredTxFee: BigNumber = normaliseFraction({ fraction: workerFeePercentage });
+        const sponsoredTxFee: BigNumber = normaliseFraction({ fraction: workerFeePercentage }).absoluteValue();
         if (sponsoredTxFee.isGreaterThan(0)) {
             // we need to convert tokenAmount back into RBTC and compare its value with maxPossibleGas
             // if the value is lower than maxPossibleGas, we should throw an error

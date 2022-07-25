@@ -202,5 +202,31 @@ describe('RelayServer', () => {
 
             expect(actualGasPrice.eq(expectedGas)).to.be.true;
         });
+
+        it('should use absolute value to allow for accidental minus sign', async () => {
+            const estimatedGas: BigNumber = conversions.normaliseFraction({ fraction: 3, precision: 7 }); // 3e7 gas is ethereum total block size gas limit
+            setMaxGas(estimatedGas.toNumber());
+            const workerFeePercentage: ServerConfigParams['workerFeePercentage'] = '-0.0003';
+
+            const workerFee: BigNumber = conversions.normaliseFraction({
+                fraction: conversions.normaliseFraction({ fraction: workerFeePercentage }).absoluteValue().multipliedBy(estimatedGas),
+                precision: -conversions.RBTC_CHAIN_DECIMALS
+            });
+            const expectedGas: BigNumber = estimatedGas.plus(workerFee);
+            const fakeGetGas: SinonSpy = Sinon.fake.returns(toBN(expectedGas.toString()));
+
+            const server = new RelayServer({
+                workerFeePercentage
+            }, mockDependencies);
+            Sinon.replace(conversions, 'getGas', fakeGetGas);
+            fakeRelayTransactionRequest.relayRequest.request.tokenAmount = expectedGas.toString();
+
+            const actualGasPrice = new BigNumber((await server.getMaxPossibleGas(
+                fakeRelayTransactionRequest,
+                false
+            )).toString());
+
+            expect(actualGasPrice.eq(expectedGas)).to.be.true;
+        });
     });
 });
