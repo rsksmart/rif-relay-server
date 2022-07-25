@@ -1,57 +1,56 @@
+import {
+    address2topic,
+    AmountRequired,
+    constants,
+    ContractInteractor,
+    DeployRequest,
+    DeployTransactionRequest,
+    DeployTransactionRequestShape,
+    getLatestEventData,
+    PingResponse,
+    randomInRange,
+    RelayRequest,
+    RelayTransactionRequest,
+    RelayTransactionRequestShape,
+    sleep,
+    TokenResponse,
+    TransactionRejectedByRecipient,
+    TransactionRelayed,
+    VerifierResponse,
+    VersionsManager
+} from '@rsksmart/rif-relay-common';
+import {
+    IDeployVerifierInstance,
+    IRelayHubInstance,
+    IRelayVerifierInstance
+} from '@rsksmart/rif-relay-contracts/types/truffle-contracts';
+import BigNumber from 'bignumber.js';
 import chalk from 'chalk';
+import { PrefixedHexString } from 'ethereumjs-tx';
+import { toChecksumAddress } from 'ethereumjs-util';
+import EventEmitter from 'events';
 import log from 'loglevel';
 import ow from 'ow';
 import { EventData } from 'web3-eth-contract';
-import { PrefixedHexString } from 'ethereumjs-tx';
 import { toBN } from 'web3-utils';
-import {
-    IRelayVerifierInstance,
-    IRelayHubInstance,
-    IDeployVerifierInstance
-} from '@rsksmart/rif-relay-contracts/types/truffle-contracts';
-import {
-    ContractInteractor,
-    TransactionRejectedByRecipient,
-    TransactionRelayed,
-    PingResponse,
-    VersionsManager,
-    AmountRequired,
-    address2topic,
-    getLatestEventData,
-    randomInRange,
-    sleep,
-    constants,
-    DeployRequest,
-    RelayRequest,
-    TokenResponse,
-    VerifierResponse,
-    DeployTransactionRequest,
-    DeployTransactionRequestShape,
-    RelayTransactionRequest,
-    RelayTransactionRequestShape,
-    TypedDeployRequestData,
-    TypedRequestData
-} from '@rsksmart/rif-relay-common';
-import { replenishStrategy } from './ReplenishFunction';
+import { fractionToBN, getGas, getRBTCWeiFromRifWei, normaliseFraction, RBTC_CHAIN_DECIMALS } from './Conversions';
 import { RegistrationManager } from './RegistrationManager';
+import { replenishStrategy } from './ReplenishFunction';
+import {
+    configureServer,
+    ServerConfigParams,
+    ServerDependencies
+} from './ServerConfigParams';
+import { ServerAction } from './StoredTransaction';
 import {
     SendTransactionDetails,
     SignedTransactionDetails,
     TransactionManager
 } from './TransactionManager';
-import { ServerAction } from './StoredTransaction';
 import { TxStoreManager } from './TxStoreManager';
-import {
-    configureServer,
-    ServerDependencies,
-    ServerConfigParams
-} from './ServerConfigParams';
-import { toChecksumAddress } from 'ethereumjs-util';
 import Timeout = NodeJS.Timeout;
-import EventEmitter from 'events';
-import { getGas, getRBTCWeiFromRifWei } from './Conversions';
 
-const VERSION = '2.0.1';
+const VERSION = '2.0.1'; // @note do we need to keep this? Would have thougt that the package version is enough.
 
 export class RelayServer extends EventEmitter {
     lastScannedBlock = 0;
@@ -94,10 +93,7 @@ export class RelayServer extends EventEmitter {
         this.config = configureServer(config);
         this.contractInteractor = dependencies.contractInteractor;
         this.txStoreManager = dependencies.txStoreManager;
-        this.transactionManager = new TransactionManager(
-            dependencies,
-            this.config
-        );
+        this.transactionManager = new TransactionManager(dependencies, this.config);
         this.managerAddress =
             this.transactionManager.managerKeyManager.getAddress(0);
         this.workerAddress =
@@ -135,7 +131,7 @@ export class RelayServer extends EventEmitter {
             chainId: this.chainId.toString(),
             networkId: this.networkId.toString(),
             ready: this.isReady() ?? false,
-            version: VERSION
+            version: VERSION,
         };
     }
 
@@ -157,8 +153,7 @@ export class RelayServer extends EventEmitter {
         for (const verifier of verifiersToQuery) {
             const tokenHandlerInstance =
                 await this.contractInteractor.createTokenHandler(verifier);
-            const acceptedTokens =
-                await tokenHandlerInstance.getAcceptedTokens();
+            const acceptedTokens = await tokenHandlerInstance.getAcceptedTokens();
             res[toChecksumAddress(verifier)] = acceptedTokens;
         }
 
@@ -167,7 +162,7 @@ export class RelayServer extends EventEmitter {
 
     async verifierHandler(): Promise<VerifierResponse> {
         return {
-            trustedVerifiers: Array.from(this.trustedVerifiers) as string[]
+            trustedVerifiers: Array.from(this.trustedVerifiers) as string[],
         };
     }
 
@@ -189,9 +184,7 @@ export class RelayServer extends EventEmitter {
         }
     }
 
-    validateInput(
-        req: RelayTransactionRequest | DeployTransactionRequest
-    ): void {
+    validateInput(req: RelayTransactionRequest | DeployTransactionRequest): void {
         // Check that the relayHub is the correct one
         if (
             req.metadata.relayHubAddress.toLowerCase() !==
@@ -232,9 +225,7 @@ export class RelayServer extends EventEmitter {
 
     async validateMaxNonce(relayMaxNonce: number): Promise<void> {
         // Check that max nonce is valid
-        const nonce = await this.transactionManager.pollNonce(
-            this.workerAddress
-        );
+        const nonce = await this.transactionManager.pollNonce(this.workerAddress);
         if (nonce > relayMaxNonce) {
             throw new Error(
                 `Unacceptable relayMaxNonce: ${relayMaxNonce}. current nonce: ${nonce}`
@@ -256,15 +247,13 @@ export class RelayServer extends EventEmitter {
 
         try {
             if (isDeployRequest) {
-                verifierContract =
-                    await this.contractInteractor._createDeployVerifier(
-                        verifier
-                    );
+                verifierContract = await this.contractInteractor._createDeployVerifier(
+                    verifier
+                );
             } else {
-                verifierContract =
-                    await this.contractInteractor._createRelayVerifier(
-                        verifier
-                    );
+                verifierContract = await this.contractInteractor._createRelayVerifier(
+                    verifier
+                );
             }
         } catch (e) {
             const error = e as Error;
@@ -281,25 +270,18 @@ export class RelayServer extends EventEmitter {
             throw new Error(message);
         }
 
-        const maxPossibleGas = await this.getMaxPossibleGas(
-            req,
-            isDeployRequest
-        );
+        const maxPossibleGas = await this.getMaxPossibleGas(req, isDeployRequest);
 
         try {
             if (this.isDeployRequest(req)) {
-                await (
-                    verifierContract as IDeployVerifierInstance
-                ).contract.methods
+                await (verifierContract as IDeployVerifierInstance).contract.methods
                     .verifyRelayedCall(
                         (req as DeployTransactionRequest).relayRequest,
                         req.metadata.signature
                     )
                     .call({ from: this.workerAddress }, 'pending');
             } else {
-                await (
-                    verifierContract as IRelayVerifierInstance
-                ).contract.methods
+                await (verifierContract as IRelayVerifierInstance).contract.methods
                     .verifyRelayedCall(
                         (req as RelayTransactionRequest).relayRequest,
                         req.metadata.signature
@@ -308,9 +290,7 @@ export class RelayServer extends EventEmitter {
             }
         } catch (e) {
             const error = e as Error;
-            throw new Error(
-                `Verification by verifier failed: ${error.message}`
-            );
+            throw new Error(`Verification by verifier failed: ${error.message}`);
         }
 
         return { maxPossibleGas };
@@ -319,7 +299,7 @@ export class RelayServer extends EventEmitter {
     async getMaxPossibleGas(
         req: RelayTransactionRequest | DeployTransactionRequest,
         isDeployRequest: boolean
-    ) {
+    ): Promise<BN> {
         let maxPossibleGas: BN;
 
         if (isDeployRequest) {
@@ -348,18 +328,14 @@ export class RelayServer extends EventEmitter {
             // and not the current hardcoded deviation
 
             const estimatedDestinationGasCost: number =
-                await this.contractInteractor.estimateDestinationContractCallGas(
-                    {
-                        from: relayReq.relayRequest.relayData.callForwarder,
-                        to: relayReq.relayRequest.request.to,
-                        gasPrice: relayReq.relayRequest.relayData.gasPrice,
-                        data: relayReq.relayRequest.request.data
-                    }
-                );
+                await this.contractInteractor.estimateDestinationContractCallGas({
+                    from: relayReq.relayRequest.relayData.callForwarder,
+                    to: relayReq.relayRequest.request.to,
+                    gasPrice: relayReq.relayRequest.relayData.gasPrice,
+                    data: relayReq.relayRequest.request.data,
+                });
 
-            const gasFromRequest = toBN(
-                relayReq.relayRequest.request.gas
-            ).toNumber();
+            const gasFromRequest = toBN(relayReq.relayRequest.request.gas).toNumber();
             const gasFromRequestMaxAgreed = Math.ceil(
                 gasFromRequest * (1 + constants.MAX_ESTIMATED_GAS_DEVIATION)
             );
@@ -377,40 +353,50 @@ export class RelayServer extends EventEmitter {
                 )
             );
         }
-        log.debug(
-            'RequestFees - allowForSponsoredTx ',
-            this.config.allowForSponsoredTx
-        );
-        if (!this.config.allowForSponsoredTx) {
+
+        const { workerFeePercentage } = this.config;
+        log.debug(`RelayServer - workerFeePercentage: ${workerFeePercentage}`);
+
+        const sponsoredTxFee: BigNumber = normaliseFraction({ fraction: workerFeePercentage }).absoluteValue();
+        if (sponsoredTxFee.isGreaterThan(0)) {
             // we need to convert tokenAmount back into RBTC and compare its value with maxPossibleGas
             // if the value is lower than maxPossibleGas, we should throw an error
-            // TODO: we may need add some percentage fee at some point.
             const tokenAmountInGas = getGas(
-                getRBTCWeiFromRifWei(
-                    toBN(req.relayRequest.request.tokenAmount)
-                ),
+                getRBTCWeiFromRifWei(toBN(req.relayRequest.request.tokenAmount)),
                 toBN(req.relayRequest.relayData.gasPrice)
             );
-            const isTokenAmountAcceptable =
-                tokenAmountInGas.gte(maxPossibleGas);
+
+            const gasAsBigNumber: BigNumber = new BigNumber(maxPossibleGas.toString());
+            const feeValueInWei: BigNumber = gasAsBigNumber.multipliedBy(sponsoredTxFee);
+            const feeValue: BN = fractionToBN({
+                fraction: feeValueInWei,
+                precision: -RBTC_CHAIN_DECIMALS
+            });
+            const gasWithFees: BN = maxPossibleGas.add(feeValue);
+            const isTokenAmountAcceptable = tokenAmountInGas.gte(gasWithFees);
+
             log.debug(
                 'RequestFees - isTokenAmountAcceptable? ',
                 isTokenAmountAcceptable
             );
+
             if (!isTokenAmountAcceptable) {
                 log.warn(
                     'TokenAmount in gas agreed by the user',
                     tokenAmountInGas.toString()
                 );
                 log.warn(
-                    'MaxPossibleGas required by the transaction',
-                    maxPossibleGas.toString()
+                    'MaxPossibleGas including fees required by the transaction',
+                    gasWithFees.toString()
                 );
                 throw new Error(
-                    'User agreed to spend lower than what the transaction may require.'
+                    'User agreed to spend lower than what the transaction may require.' // @note should we extract strings to some constants file to make em more reusable? (eg for tests)
                 );
             }
+            maxPossibleGas = gasWithFees;
         }
+        log.debug(`RequestFees - total max possible gas: ${maxPossibleGas}`);
+
         return maxPossibleGas;
     }
 
@@ -426,15 +412,13 @@ export class RelayServer extends EventEmitter {
                 {
                     from: this.workerAddress,
                     gasPrice: req.relayRequest.relayData.gasPrice,
-                    gas: maxPossibleGas.toString()
+                    gas: maxPossibleGas.toString(),
                 },
                 'pending'
             );
         } catch (e) {
             throw new Error(
-                `relayCall (local call) reverted in server: ${
-                    (e as Error).message
-                }`
+                `relayCall (local call) reverted in server: ${(e as Error).message}`
             );
         }
     }
@@ -469,13 +453,13 @@ export class RelayServer extends EventEmitter {
 
         const method = isDeploy
             ? this.relayHubContract.contract.methods.deployCall(
-                  req.relayRequest as DeployRequest,
-                  req.metadata.signature
-              )
+                req.relayRequest as DeployRequest,
+                req.metadata.signature
+            )
             : this.relayHubContract.contract.methods.relayCall(
-                  req.relayRequest as RelayRequest,
-                  req.metadata.signature
-              );
+                req.relayRequest as RelayRequest,
+                req.metadata.signature
+            );
 
         // Call relayCall as a view function to see if we'll get paid for relaying this tx
         await this.validateViewCallSucceeds(method, req, maxPossibleGas);
@@ -487,11 +471,9 @@ export class RelayServer extends EventEmitter {
             destination: req.metadata.relayHubAddress,
             gasLimit: maxPossibleGas.toNumber(),
             creationBlockNumber: currentBlock,
-            gasPrice: req.relayRequest.relayData.gasPrice
+            gasPrice: req.relayRequest.relayData.gasPrice,
         };
-        const txDetails = await this.transactionManager.sendTransaction(
-            details
-        );
+        const txDetails = await this.transactionManager.sendTransaction(details);
         // after sending a transaction is a good time to check the worker's balance, and replenish it.
         await this.replenishServer(0, currentBlock);
         return txDetails;
@@ -503,11 +485,7 @@ export class RelayServer extends EventEmitter {
         if (!this.config.devMode) {
             workerTimeout = setTimeout(() => {
                 const timedOut = Date.now() - now;
-                log.warn(
-                    chalk.bgRedBright(
-                        `Relay state: Timed-out after ${timedOut}`
-                    )
-                );
+                log.warn(chalk.bgRedBright(`Relay state: Timed-out after ${timedOut}`));
 
                 this.lastSuccessfulRounds = 0;
             }, this.config.readyTimeout);
@@ -524,9 +502,7 @@ export class RelayServer extends EventEmitter {
                 .catch((e) => {
                     this.emit('error', e);
                     const error = e as Error;
-                    log.error(
-                        `error in worker: ${error.message} ${error.stack}`
-                    );
+                    log.error(`error in worker: ${error.message} ${error.stack}`);
                     this.lastSuccessfulRounds = 0;
                     reject(error);
                 })
@@ -557,9 +533,7 @@ export class RelayServer extends EventEmitter {
 
     async _workerSemaphore(blockNumber: number): Promise<void> {
         if (this._workerSemaphoreOn) {
-            log.warn(
-                'Different worker is not finished yet, skipping this block'
-            );
+            log.warn('Different worker is not finished yet, skipping this block');
             return;
         }
         this._workerSemaphoreOn = true;
@@ -599,13 +573,9 @@ export class RelayServer extends EventEmitter {
         }
         if (
             this.config.relayVerifierAddress !== constants.ZERO_ADDRESS &&
-            !this.trustedVerifiers.has(
-                this.config.relayVerifierAddress.toLowerCase()
-            )
+            !this.trustedVerifiers.has(this.config.relayVerifierAddress.toLowerCase())
         ) {
-            this.trustedVerifiers.add(
-                this.config.relayVerifierAddress.toLowerCase()
-            );
+            this.trustedVerifiers.add(this.config.relayVerifierAddress.toLowerCase());
         }
         if (
             this.config.deployVerifierAddress !== constants.ZERO_ADDRESS &&
@@ -654,11 +624,11 @@ export class RelayServer extends EventEmitter {
         log.debug(`Relay Server - networkId: ${this.networkId}`);
 
         /* TODO CHECK against RSK ChainId
-    if (this.config.devMode && (this.chainId < 1000 || this.networkId < 1000)) {
-      log.error('Don\'t use real network\'s chainId & networkId while in devMode.')
-      process.exit(-1)
-    }
-    */
+        if (this.config.devMode && (this.chainId < 1000 || this.networkId < 1000)) {
+          log.error('Don\'t use real network\'s chainId & networkId while in devMode.')
+          process.exit(-1)
+        }
+        */
 
         const latestBlock = await this.contractInteractor.getBlock('latest');
         log.info(`Current network info:
@@ -721,8 +691,7 @@ latestBlock timestamp   | ${latestBlock.timestamp}
         currentBlockNumber: number
     ): Promise<PrefixedHexString[]> {
         let transactionHashes: PrefixedHexString[] = [];
-        const hubEventsSinceLastScan =
-            await this.getAllHubEventsSinceLastScan();
+        const hubEventsSinceLastScan = await this.getAllHubEventsSinceLastScan();
         await this._updateLatestTxBlockNumber(hubEventsSinceLastScan);
         const shouldRegisterAgain = await this._shouldRegisterAgain(
             currentBlockNumber,
@@ -746,10 +715,7 @@ latestBlock timestamp   | ${latestBlock.timestamp}
             this.setReadyState(false);
             return transactionHashes;
         }
-        await this.handlePastHubEvents(
-            currentBlockNumber,
-            hubEventsSinceLastScan
-        );
+        await this.handlePastHubEvents(currentBlockNumber, hubEventsSinceLastScan);
         const workerIndex = 0;
         transactionHashes = transactionHashes.concat(
             await this.replenishServer(workerIndex, currentBlockNumber)
@@ -762,8 +728,7 @@ latestBlock timestamp   | ${latestBlock.timestamp}
         this.setReadyState(true);
         if (
             this.alerted &&
-            this.alertedBlock + this.config.alertedBlockDelay <
-                currentBlockNumber
+            this.alertedBlock + this.config.alertedBlockDelay < currentBlockNumber
         ) {
             log.warn(
                 `Relay exited alerted state. Alerted block: ${this.alertedBlock}. Current block number: ${currentBlockNumber}`
@@ -775,20 +740,14 @@ latestBlock timestamp   | ${latestBlock.timestamp}
 
     async getManagerBalance(): Promise<BN> {
         return toBN(
-            await this.contractInteractor.getBalance(
-                this.managerAddress,
-                'pending'
-            )
+            await this.contractInteractor.getBalance(this.managerAddress, 'pending')
         );
     }
 
     async getWorkerBalance(workerIndex: number): Promise<BN> {
         log.debug('getWorkerBalance: workerIndex', workerIndex);
         return toBN(
-            await this.contractInteractor.getBalance(
-                this.workerAddress,
-                'pending'
-            )
+            await this.contractInteractor.getBalance(this.workerAddress, 'pending')
         );
     }
 
@@ -801,12 +760,8 @@ latestBlock timestamp   | ${latestBlock.timestamp}
             hubEventsSinceLastScan
         );
         const isPendingActivityTransaction =
-            (await this.txStoreManager.isActionPending(
-                ServerAction.RELAY_CALL
-            )) ||
-            (await this.txStoreManager.isActionPending(
-                ServerAction.REGISTER_SERVER
-            ));
+            (await this.txStoreManager.isActionPending(ServerAction.RELAY_CALL)) ||
+            (await this.txStoreManager.isActionPending(ServerAction.REGISTER_SERVER));
         if (
             this.config.registrationBlockRate === 0 ||
             isPendingActivityTransaction
@@ -818,8 +773,7 @@ latestBlock timestamp   | ${latestBlock.timestamp}
         }
         const latestTxBlockNumber = this._getLatestTxBlockNumber();
         const registrationExpired =
-            currentBlock - latestTxBlockNumber >=
-            this.config.registrationBlockRate;
+            currentBlock - latestTxBlockNumber >= this.config.registrationBlockRate;
         if (!registrationExpired) {
             log.debug(
                 `_shouldRegisterAgain registrationExpired=${registrationExpired} currentBlock=${currentBlock} latestTxBlockNumber=${latestTxBlockNumber} registrationBlockRate=${this.config.registrationBlockRate}`
@@ -831,7 +785,7 @@ latestBlock timestamp   | ${latestBlock.timestamp}
     _shouldRefreshState(currentBlock: number): boolean {
         return (
             currentBlock - this.lastRefreshBlock >=
-                this.config.refreshStateTimeoutBlocks || !this.isReady()
+            this.config.refreshStateTimeoutBlocks || !this.isReady()
         );
     }
 
@@ -842,19 +796,14 @@ latestBlock timestamp   | ${latestBlock.timestamp}
         for (const event of hubEventsSinceLastScan) {
             switch (event.event) {
                 case TransactionRejectedByRecipient:
-                    log.debug(
-                        'handle TransactionRejectedByRecipient event',
-                        event
-                    );
+                    log.debug('handle TransactionRejectedByRecipient event', event);
                     await this._handleTransactionRejectedByRecipientEvent(
                         currentBlockNumber
                     );
                     break;
                 case TransactionRelayed:
                     log.debug(
-                        `handle TransactionRelayed event: ${JSON.stringify(
-                            event
-                        )}`
+                        `handle TransactionRelayed event: ${JSON.stringify(event)}`
                     );
                     await this._handleTransactionRelayedEvent(event);
                     break;
@@ -866,7 +815,7 @@ latestBlock timestamp   | ${latestBlock.timestamp}
         const topics = [address2topic(this.managerAddress)];
         const options = {
             fromBlock: this.lastScannedBlock + 1,
-            toBlock: 'latest'
+            toBlock: 'latest',
         };
         const events = await this.contractInteractor.getPastEventsForHub(
             topics,
@@ -907,8 +856,7 @@ latestBlock timestamp   | ${latestBlock.timestamp}
             );
         }
         if (this.lastMinedActiveTransaction == null) {
-            this.lastMinedActiveTransaction =
-                await this._queryLatestActiveEvent();
+            this.lastMinedActiveTransaction = await this._queryLatestActiveEvent();
             log.debug(
                 `queried node for last active server event, found in block ${this.lastMinedActiveTransaction?.blockNumber}`
             );
@@ -920,7 +868,7 @@ latestBlock timestamp   | ${latestBlock.timestamp}
             await this.contractInteractor.getPastEventsForHub(
                 [address2topic(this.managerAddress)],
                 {
-                    fromBlock: 1
+                    fromBlock: 1,
                 }
             );
         return getLatestEventData(events);
@@ -945,14 +893,8 @@ latestBlock timestamp   | ${latestBlock.timestamp}
         }
         for (const workerIndex of [0]) {
             const workerBoostedTransactions =
-                await this._boostStuckTransactionsForWorker(
-                    blockNumber,
-                    workerIndex
-                );
-            for (const [
-                txHash,
-                boostedTxDetails
-            ] of workerBoostedTransactions) {
+                await this._boostStuckTransactionsForWorker(blockNumber, workerIndex);
+            for (const [txHash, boostedTxDetails] of workerBoostedTransactions) {
                 transactionDetails.set(txHash, boostedTxDetails);
             }
         }
@@ -994,13 +936,9 @@ latestBlock timestamp   | ${latestBlock.timestamp}
     setReadyState(isReady: boolean): void {
         if (this.isReady() !== isReady) {
             if (isReady) {
-                if (
-                    this.lastSuccessfulRounds <
-                    this.config.successfulRoundsForReady
-                ) {
+                if (this.lastSuccessfulRounds < this.config.successfulRoundsForReady) {
                     const roundsUntilReady =
-                        this.config.successfulRoundsForReady -
-                        this.lastSuccessfulRounds;
+                        this.config.successfulRoundsForReady - this.lastSuccessfulRounds;
                     log.warn(
                         chalk.yellow(
                             `Relayer state: almost READY (in ${roundsUntilReady} rounds)`

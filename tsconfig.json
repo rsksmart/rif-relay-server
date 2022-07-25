@@ -23,23 +23,15 @@
     ],
     "types": [
       "node",
+      "mocha",
       "truffle-contracts"
     ],
-    "lib": [
-      "es2018",
-      "dom",
-      "webworker",
-      "esnext"
-    ],
+    "lib": ["es2018", "dom", "webworker", "esnext"],
     "sourceMap": true
   },
   "include": [
     "**/*.ts",
     "src/**/*"
   ],
-  "exclude": [
-    "dist",
-    "node_modules",
-    "build"
-  ]
+  "exclude": ["dist", "node_modules", "build"]
 }
