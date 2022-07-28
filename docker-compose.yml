@@ -4,22 +4,13 @@ services:
     rif-relay:
         build:
             context: .
-        # entrypoint: sh -c 'node dist/commands/Start.js --config server-config.testnet.json'
-        entrypoint: sh -c 'node dist/commands/Start.js --config server-config.docker.json'
+        entrypoint: sh -c 'node dist/commands/Start.js --config server-config.testnet.json'
         ports:
             - '8090:8090'
         volumes:
             - './environment:/srv/app/environment'
         networks:
             - rif-relay
-    # relay-dapp:
-    #     build:
-    #         context: ./rif-relay-sample-dapp
-    #     entrypoint: sh -c 'npm start'
-    #     ports:
-    #         - '3000:3000'
-    #     networks:
-    #         - rif-relay
 
 networks:
     rif-relay:

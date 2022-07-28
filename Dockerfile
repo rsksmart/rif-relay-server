@@ -19,5 +19,3 @@ COPY --chown=node:node server-config*.json ./
 COPY --chown=node:node dist ./dist/
 COPY --chown=node:node scripts ./scripts/
 EXPOSE 8090
-
-
