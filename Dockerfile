@@ -1,12 +1,13 @@
 # Compiler container
-FROM node:12-alpine AS compiler
+FROM node:16-alpine AS compiler
 RUN apk add --no-cache build-base git bash
 WORKDIR /usr/src/app
 COPY package.json ./
-RUN npm i --cache /tmp/1
+COPY package-lock.json ./
+RUN npm i --cache /tmp/1 --no-audit
 COPY . ./
 # Runtime container
-FROM node:12-alpine
+FROM node:16-alpine
 RUN apk add --no-cache bash
 RUN mkdir -p /srv/app && chown node:node /srv/app \
  && mkdir -p /srv/data && chown node:node /srv/data
