@@ -1,0 +1,13 @@
+{
+    "url": "http://localhost:8090",
+    "port": 8090,
+    "relayHubAddress": "0xE0825f57Dd05Ef62FF731c27222A86E104CC4Cad",
+    "relayVerifierAddress": "0x5159345aaB821172e795d56274D0f5FDFdC6aBD9",
+    "deployVerifierAddress": "0x1eD614cd3443EFd9c70F04b6d777aed947A4b0c4",
+    "gasPriceFactor": 1,
+    "rskNodeUrl": "http://host.docker.internal:4444",
+    "devMode": true,
+    "customReplenish": false,
+    "logLevel": 1,
+    "workdir": "/srv/app/environment"
+}
