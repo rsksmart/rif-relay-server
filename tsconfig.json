@@ -17,17 +17,15 @@
     "skipLibCheck": true,
     "outDir": "dist",
     "typeRoots": [
-      "./node_modules/@rsksmart/rif-relay-contracts/types",
-      "./node_modules/@types",
-      "./types"
+      "./node_modules/@types"
     ],
     "types": [
       "node",
-      "truffle-contracts"
+      "mocha",
+      "chai"
     ],
     "lib": [
       "es2018",
-      "dom",
       "webworker",
       "esnext"
     ],
@@ -40,6 +38,7 @@
   "exclude": [
     "dist",
     "node_modules",
-    "build"
+    "build",
+    "test"
   ]
 }
