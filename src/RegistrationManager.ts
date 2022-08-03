@@ -1,8 +1,3 @@
-import log from 'loglevel';
-import { EventData, PastEventOptions } from 'web3-eth-contract';
-import { EventEmitter } from 'events';
-import { PrefixedHexString } from 'ethereumjs-tx';
-import { toBN, toHex } from 'web3-utils';
 import {
     address2topic,
     AmountRequired,
@@ -18,14 +13,19 @@ import {
     StakeWithdrawn
 } from '@rsksmart/rif-relay-common';
 import { RelayManagerData } from '@rsksmart/rif-relay-contracts';
+import chalk from 'chalk';
+import { PrefixedHexString } from 'ethereumjs-tx';
+import { EventEmitter } from 'events';
+import log from 'loglevel';
+import { EventData, PastEventOptions } from 'web3-eth-contract';
+import { toBN, toHex } from 'web3-utils';
 import { ServerConfigParams } from './ServerConfigParams';
+import { ServerAction } from './StoredTransaction';
 import {
     SendTransactionDetails,
     TransactionManager
 } from './TransactionManager';
 import { TxStoreManager } from './TxStoreManager';
-import { ServerAction } from './StoredTransaction';
-import chalk from 'chalk';
 
 export interface RelayServerRegistryInfo {
     url: string;

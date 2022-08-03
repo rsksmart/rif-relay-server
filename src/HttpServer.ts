@@ -1,11 +1,11 @@
-import express, { Express, Request, Response } from 'express';
-import jsonrpc from 'jsonrpc-lite';
 import bodyParser from 'body-parser';
 import cors from 'cors';
-import { RelayServer } from './RelayServer';
+import express, { Express, Request, Response } from 'express';
 import { Server } from 'http';
+import jsonrpc from 'jsonrpc-lite';
 import log from 'loglevel';
 import configureDocumentation from './DocConfiguration';
+import { RelayServer } from './RelayServer';
 
 export class HttpServer {
     app: Express;

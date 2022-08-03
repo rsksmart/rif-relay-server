@@ -1,54 +1,69 @@
+import {
+    address2topic,
+    AmountRequired,
+    constants,
+    ContractInteractor,
+    DeployTransactionRequest,
+    DeployTransactionRequestShape,
+    getLatestEventData,
+    PingResponse,
+    randomInRange,
+    RelayTransactionRequest,
+    RelayTransactionRequestShape,
+    sleep,
+    TokenResponse,
+    TransactionRejectedByRecipient,
+    TransactionRelayed,
+    VerifierResponse,
+    VersionsManager
+} from '@rsksmart/rif-relay-common';
+import { DeployRequest, RelayRequest } from '@rsksmart/rif-relay-contracts';
+import {
+    IDeployVerifierInstance,
+    IRelayHubInstance,
+    IRelayVerifierInstance
+} from '@rsksmart/rif-relay-contracts/types/truffle-contracts';
+import BigNumber from 'bignumber.js';
 import chalk from 'chalk';
+import { PrefixedHexString } from 'ethereumjs-tx';
+import { toChecksumAddress } from 'ethereumjs-util';
+import EventEmitter from 'events';
 import log from 'loglevel';
 import ow from 'ow';
 import { EventData } from 'web3-eth-contract';
-import { PrefixedHexString } from 'ethereumjs-tx';
 import { toBN } from 'web3-utils';
-import {
-    IRelayVerifierInstance,
-    IRelayHubInstance,
-    IDeployVerifierInstance
-} from '@rsksmart/rif-relay-contracts/types/truffle-contracts';
-import {
-    ContractInteractor,
-    TransactionRejectedByRecipient,
-    TransactionRelayed,
-    PingResponse,
-    VersionsManager,
-    AmountRequired,
-    address2topic,
-    getLatestEventData,
-    randomInRange,
-    sleep,
-    TokenResponse,
-    VerifierResponse,
-    DeployTransactionRequest,
-    DeployTransactionRequestShape,
-    RelayTransactionRequest,
-    RelayTransactionRequestShape,
-    constants
-} from '@rsksmart/rif-relay-common';
-import { DeployRequest, RelayRequest } from '@rsksmart/rif-relay-contracts';
-import { replenishStrategy } from './ReplenishFunction';
+import { getXRateFor, SUPPORTED_TOKENS, toNativeWeiFrom } from './Conversions';
+import { INSUFFICIENT_TOKEN_AMOUNT } from './definitions/errorMessages.const';
+import Token from './definitions/token.type';
 import { RegistrationManager } from './RegistrationManager';
+import { replenishStrategy } from './ReplenishFunction';
+import {
+    configureServer,
+    ServerConfigParams,
+    ServerDependencies
+} from './ServerConfigParams';
+import { ServerAction } from './StoredTransaction';
 import {
     SendTransactionDetails,
     SignedTransactionDetails,
     TransactionManager
 } from './TransactionManager';
-import { ServerAction } from './StoredTransaction';
 import { TxStoreManager } from './TxStoreManager';
-import {
-    configureServer,
-    ServerDependencies,
-    ServerConfigParams
-} from './ServerConfigParams';
-import { toChecksumAddress } from 'ethereumjs-util';
 import Timeout = NodeJS.Timeout;
-import EventEmitter from 'events';
-import { getGas, getRBTCWeiFromRifWei } from './Conversions';
 
 const VERSION = '2.0.1';
+
+const calculateFeeValue = (
+    feePercentage: string,
+    maxPossibleGas: string
+): BN => {
+    const percentage = new BigNumber(feePercentage);
+    if (!percentage || percentage.isZero()) {
+        return toBN(0);
+    }
+
+    return toBN(percentage.multipliedBy(maxPossibleGas).toFixed(0));
+};
 
 export class RelayServer extends EventEmitter {
     lastScannedBlock = 0;
@@ -278,7 +293,7 @@ export class RelayServer extends EventEmitter {
             throw new Error(message);
         }
 
-        const { maxPossibleGas } = await this.getMaxPossibleGas(
+        const maxPossibleGas = await this.getMaxPossibleGas(
             req,
             isDeployRequest
         );
@@ -316,8 +331,13 @@ export class RelayServer extends EventEmitter {
     async getMaxPossibleGas(
         req: RelayTransactionRequest | DeployTransactionRequest,
         isDeployRequest: boolean
-    ) {
+    ): Promise<BN> {
         let maxPossibleGas: BN;
+
+        log.debug(
+            'RequestFees - request data:',
+            JSON.stringify(req, undefined, 4)
+        );
 
         if (isDeployRequest) {
             const deployReq = req as DeployTransactionRequest;
@@ -374,42 +394,57 @@ export class RelayServer extends EventEmitter {
                 )
             );
         }
-        log.debug(
-            'RequestFees - allowForSponsoredTx ',
-            this.config.allowForSponsoredTx
-        );
-        if (!this.config.allowForSponsoredTx) {
-            // we need to convert tokenAmount back into RBTC and compare its value with maxPossibleGas
-            // if the value is lower than maxPossibleGas, we should throw an error
-            // TODO: we may need add some percentage fee at some point.
-            const tokenAmountInGas = getGas(
-                getRBTCWeiFromRifWei(
-                    toBN(req.relayRequest.request.tokenAmount)
-                ),
-                toBN(req.relayRequest.relayData.gasPrice)
-            );
-            const isTokenAmountAcceptable =
-                tokenAmountInGas.gte(maxPossibleGas);
-            log.debug(
-                'RequestFees - isTokenAmountAcceptable? ',
-                isTokenAmountAcceptable
-            );
-            if (!isTokenAmountAcceptable) {
-                log.warn(
-                    'TokenAmount in gas agreed by the user',
-                    tokenAmountInGas.toString()
-                );
-                log.warn(
-                    'MaxPossibleGas required by the transaction',
-                    maxPossibleGas.toString()
-                );
-                throw new Error(
-                    'User agreed to spend lower than what the transaction may require.'
-                );
-            }
-        }
 
-        return { maxPossibleGas };
+        const { feePercentage } = this.config;
+        log.debug(`RelayServer - feePercentage: ${feePercentage}`);
+
+        const feeValue: BN = calculateFeeValue(
+            feePercentage,
+            maxPossibleGas.toString()
+        );
+
+        maxPossibleGas = maxPossibleGas.add(feeValue);
+
+        const tokenAmount: BigNumber = new BigNumber(
+            req.relayRequest.request.tokenAmount
+        );
+        const gasPrice = new BigNumber(req.relayRequest.relayData.gasPrice);
+
+        const token: Token = SUPPORTED_TOKENS.find(
+            ({ name }) => name === 'tRIF'
+        ); // FIXME: the hardcoded value should be removed once tokens are configurable and token added to the request params
+        const xRate: BigNumber = await getXRateFor(token); //TODO: replace by price feeder service
+
+        const tokenAmountInNative: BigNumber = await toNativeWeiFrom({
+            ...token,
+            amount: tokenAmount,
+            xRate
+        });
+
+        const tokenAmountInGas: BigNumber =
+            tokenAmountInNative.dividedBy(gasPrice);
+        const isTokenAmountAcceptable: boolean =
+            tokenAmountInGas.isGreaterThanOrEqualTo(maxPossibleGas.toString());
+
+        log.debug(
+            'RequestFees - isTokenAmountAcceptable? ',
+            isTokenAmountAcceptable
+        );
+
+        if (!isTokenAmountAcceptable) {
+            log.warn(
+                'TokenAmount in gas agreed by the user',
+                tokenAmountInGas.toString()
+            );
+            log.warn(
+                'MaxPossibleGas including fees required by the transaction',
+                maxPossibleGas.toString()
+            );
+            throw new Error(INSUFFICIENT_TOKEN_AMOUNT);
+        }
+        log.debug(`RequestFees - total max possible gas: ${maxPossibleGas}`);
+
+        return maxPossibleGas;
     }
 
     async validateViewCallSucceeds(
@@ -652,11 +687,11 @@ export class RelayServer extends EventEmitter {
         log.debug(`Relay Server - networkId: ${this.networkId}`);
 
         /* TODO CHECK against RSK ChainId
-    if (this.config.devMode && (this.chainId < 1000 || this.networkId < 1000)) {
-      log.error('Don\'t use real network\'s chainId & networkId while in devMode.')
-      process.exit(-1)
-    }
-    */
+        if (this.config.devMode && (this.chainId < 1000 || this.networkId < 1000)) {
+          log.error('Don\'t use real network\'s chainId & networkId while in devMode.')
+          process.exit(-1)
+        }
+        */
 
         const latestBlock = await this.contractInteractor.getBlock('latest');
         log.info(`Current network info:
