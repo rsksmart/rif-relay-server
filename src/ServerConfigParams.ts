@@ -56,10 +56,16 @@ export interface ServerConfigParams {
     defaultGasLimit: number;
     estimateGasFactor: number;
     /**
-     * (Dis)Allows revenue sharing feature and sets the fee value (%) that the server will take from all transactions.
+     * Forces relay users to pay for transaction gas
+     * @option false - The smart wallet of the relay user will be charged for the transaction
+     * @option true - The relay worker will pay transaction gas.
+     */
+    disableSponsoredTx: boolean;
+
+    /**
+     * Sets the fee value (%) that the server will take from all transactions.
      * This fee will be added to the estimated gas and required in the transaction amount.
-     * @option 0 - disables revenue sharing
-     * @option !0 - absolute value of the fee percentage to be added to gas
+     * @option n : {n ∈ ℝ} - absolute value of the fee percentage to be added to gas
      * @note the percentage is represented as a fraction (1 = 100%) string to allow for very low or high percentages
      * @note the minus sign is omitted if used
      * @note fractions exceeding the number of decimals of that of the native currency will be rounded up
@@ -110,6 +116,7 @@ export const serverDefaultConfiguration: ServerConfigParams = {
     defaultGasLimit: 500000,
     maxGasPrice: (100e9).toString(),
     estimateGasFactor: 1.2,
+    disableSponsoredTx: false,
     feePercentage: '0'
 };
 
@@ -143,6 +150,7 @@ const ConfigParamsTypes = {
     relayVerifierAddress: 'string',
     deployVerifierAddress: 'string',
 
+    disableSponsoredTx: 'boolean',
     feePercentage: 'string'
 } as any;
 

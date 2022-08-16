@@ -15,17 +15,25 @@ describe('ServerConfigParams', () => {
             expect(actualConfig).to.deep.equal(expectedConfig);
         });
 
-        describe('sponsoredTxFee', () => {
-            it('should be a equal to given value', () => {
-                const expectedFee: ServerConfigParams['feePercentage'] = '0.5';
-                const { feePercentage: actualFee } = configureServer({
-                    feePercentage: expectedFee
-                });
-
-                expect(actualFee, 'Is equal to given number').to.equal(
-                    expectedFee
-                );
+        it('should set disableSponsoredTx', () => {
+            const expectedValue: ServerConfigParams['disableSponsoredTx'] =
+                true;
+            const { disableSponsoredTx: actualValue } = configureServer({
+                disableSponsoredTx: expectedValue
             });
+
+            expect(actualValue, 'Is equal to given number').to.equal(
+                expectedValue
+            );
+        });
+
+        it('should set sponsoredTxFee', () => {
+            const expectedFee: ServerConfigParams['feePercentage'] = '0.5';
+            const { feePercentage: actualFee } = configureServer({
+                feePercentage: expectedFee
+            });
+
+            expect(actualFee, 'Is equal to given number').to.equal(expectedFee);
         });
     });
 });

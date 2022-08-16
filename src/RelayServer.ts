@@ -58,7 +58,7 @@ const calculateFeeValue = (
     maxPossibleGas: string
 ): BN => {
     const percentage = new BigNumber(feePercentage);
-    if (!percentage || percentage.isZero()) {
+    if (percentage.isZero()) {
         return toBN(0);
     }
 
@@ -395,54 +395,61 @@ export class RelayServer extends EventEmitter {
             );
         }
 
-        const { feePercentage } = this.config;
-        log.debug(`RelayServer - feePercentage: ${feePercentage}`);
+        const { feePercentage, disableSponsoredTx } = this.config;
 
-        const feeValue: BN = calculateFeeValue(
-            feePercentage,
-            maxPossibleGas.toString()
-        );
+        if (disableSponsoredTx) {
+            log.debug(`RelayServer - feePercentage: ${feePercentage}`);
 
-        maxPossibleGas = maxPossibleGas.add(feeValue);
-
-        const tokenAmount: BigNumber = new BigNumber(
-            req.relayRequest.request.tokenAmount
-        );
-        const gasPrice = new BigNumber(req.relayRequest.relayData.gasPrice);
-
-        const token: Token = SUPPORTED_TOKENS.find(
-            ({ name }) => name === 'tRIF'
-        ); // FIXME: the hardcoded value should be removed once tokens are configurable and token added to the request params
-        const xRate: BigNumber = await getXRateFor(token); //TODO: replace by price feeder service
-
-        const tokenAmountInNative: BigNumber = await toNativeWeiFrom({
-            ...token,
-            amount: tokenAmount,
-            xRate
-        });
-
-        const tokenAmountInGas: BigNumber =
-            tokenAmountInNative.dividedBy(gasPrice);
-        const isTokenAmountAcceptable: boolean =
-            tokenAmountInGas.isGreaterThanOrEqualTo(maxPossibleGas.toString());
-
-        log.debug(
-            'RequestFees - isTokenAmountAcceptable? ',
-            isTokenAmountAcceptable
-        );
-
-        if (!isTokenAmountAcceptable) {
-            log.warn(
-                'TokenAmount in gas agreed by the user',
-                tokenAmountInGas.toString()
-            );
-            log.warn(
-                'MaxPossibleGas including fees required by the transaction',
+            const feeValue: BN = calculateFeeValue(
+                feePercentage,
                 maxPossibleGas.toString()
             );
-            throw new Error(INSUFFICIENT_TOKEN_AMOUNT);
+
+            maxPossibleGas = maxPossibleGas.add(feeValue);
+
+            const tokenAmount: BigNumber = new BigNumber(
+                req.relayRequest.request.tokenAmount
+            );
+            const gasPrice = new BigNumber(req.relayRequest.relayData.gasPrice);
+
+            const token: Token = SUPPORTED_TOKENS.find(
+                ({ name }) => name === 'tRIF'
+            ); // FIXME: the hardcoded value should be removed once tokens are configurable and token added to the request params
+            const xRate: BigNumber = await getXRateFor(token); //TODO: replace by price feeder service
+
+            const tokenAmountInNative: BigNumber = await toNativeWeiFrom({
+                ...token,
+                amount: tokenAmount,
+                xRate
+            });
+
+            const tokenAmountInGas: BigNumber =
+                tokenAmountInNative.dividedBy(gasPrice);
+            const isTokenAmountAcceptable: boolean =
+                tokenAmountInGas.isGreaterThanOrEqualTo(
+                    maxPossibleGas.toString()
+                );
+
+            log.debug(
+                'RequestFees - isTokenAmountAcceptable? ',
+                isTokenAmountAcceptable
+            );
+
+            if (!isTokenAmountAcceptable) {
+                log.warn(
+                    'TokenAmount in gas agreed by the user',
+                    tokenAmountInGas.toString()
+                );
+                log.warn(
+                    'MaxPossibleGas including fees required by the transaction',
+                    maxPossibleGas.toString()
+                );
+                throw new Error(INSUFFICIENT_TOKEN_AMOUNT);
+            }
+            log.debug(
+                `RequestFees - total max possible gas: ${maxPossibleGas}`
+            );
         }
-        log.debug(`RequestFees - total max possible gas: ${maxPossibleGas}`);
 
         return maxPossibleGas;
     }

@@ -23,7 +23,7 @@ export const SUPPORTED_TOKENS: readonly Token[] = [
  * @returns BigNumber
  */
 export const getPrecision = (
-    precision: number = RBTC_CHAIN_DECIMALS,
+    precision: BigNumber | string | number = RBTC_CHAIN_DECIMALS,
     base = 10
 ): BigNumber => new BigNumber(base).pow(precision);
 
@@ -44,10 +44,14 @@ export type ToPrecisionParams = {
 export const toPrecision = ({
     value,
     precision
-}: ToPrecisionParams): BigNumber =>
-    new BigNumber(value)[
-        new BigNumber(precision).isNegative() ? 'dividedBy' : 'multipliedBy'
-    ](getPrecision(Math.abs(precision)));
+}: ToPrecisionParams): BigNumber => {
+    const bigValue = new BigNumber(value);
+    const bigPrecision = new BigNumber(precision);
+    const precisionMultiplier = getPrecision(bigPrecision.absoluteValue());
+    const operation = bigPrecision.isNegative() ? 'dividedBy' : 'multipliedBy';
+
+    return bigValue[operation](precisionMultiplier);
+};
 
 /**
  * Converts to BN.js format after changing precision

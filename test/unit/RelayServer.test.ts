@@ -120,7 +120,12 @@ describe('RelayServer', () => {
             );
             Sinon.replace(conversions, 'toNativeWeiFrom', fakeToNativeWeiFrom);
 
-            const server = new RelayServer({}, mockDependencies);
+            const server = new RelayServer(
+                {
+                    disableSponsoredTx: true
+                },
+                mockDependencies
+            );
             fakeRelayTransactionRequest.relayRequest.request.tokenAmount =
                 exampleTokenAmount.toString();
             await server.getMaxPossibleGas(fakeRelayTransactionRequest, false);
@@ -131,7 +136,7 @@ describe('RelayServer', () => {
             ).to.have.been.calledOnceWith(expectedParams);
         });
 
-        it('should return estimated max gas as is if sponsoredTxFee = 0', async () => {
+        it('should return estimated max gas as is, if disableSponsoredTx is false', async () => {
             const expectedGasEstimation = toBN(3);
             fakeMaxGasEstimation(expectedGasEstimation.toNumber());
             const server = new RelayServer({}, mockDependencies);
@@ -156,7 +161,8 @@ describe('RelayServer', () => {
 
             const server = new RelayServer(
                 {
-                    feePercentage: '0.25'
+                    feePercentage: '0.25',
+                    disableSponsoredTx: true
                 },
                 mockDependencies
             );
@@ -166,6 +172,24 @@ describe('RelayServer', () => {
             await expect(
                 server.getMaxPossibleGas(fakeRelayTransactionRequest, false)
             ).to.eventually.have.rejectedWith(INSUFFICIENT_TOKEN_AMOUNT);
+        });
+
+        it(`should not throw \`${INSUFFICIENT_TOKEN_AMOUNT}\` if tokenAmount < gas + gas * fee, but disableSponsoredTx is false`, async () => {
+            fakeMaxGasEstimation(50);
+            const payedTokens = '10';
+
+            const server = new RelayServer(
+                {
+                    feePercentage: '0.25'
+                },
+                mockDependencies
+            );
+            fakeRelayTransactionRequest.relayRequest.request.tokenAmount =
+                payedTokens;
+
+            await expect(
+                server.getMaxPossibleGas(fakeRelayTransactionRequest, false)
+            ).to.not.eventually.have.rejectedWith(INSUFFICIENT_TOKEN_AMOUNT);
         });
 
         it(`should not throw \`${INSUFFICIENT_TOKEN_AMOUNT}\` if tokenAmount >= gas + gas * fee`, async () => {
@@ -183,7 +207,8 @@ describe('RelayServer', () => {
 
             const server = new RelayServer(
                 {
-                    feePercentage
+                    feePercentage,
+                    disableSponsoredTx: true
                 },
                 mockDependencies
             );
@@ -208,7 +233,8 @@ describe('RelayServer', () => {
 
             const server = new RelayServer(
                 {
-                    feePercentage
+                    feePercentage,
+                    disableSponsoredTx: true
                 },
                 mockDependencies
             );
