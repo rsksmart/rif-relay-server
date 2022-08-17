@@ -130,7 +130,8 @@ export class RelayServer extends EventEmitter {
     printServerAddresses(): void {
         log.info(`Server manager address  | ${this.managerAddress}`);
         log.info(`Server worker  address  | ${this.workerAddress}`);
-        if(this.collectorAddress) log.info(`Collector address       | ${this.collectorAddress}`);
+        if (this.collectorAddress)
+            log.info(`Collector address       | ${this.collectorAddress}`);
     }
 
     getMinGasPrice(): number {
@@ -151,7 +152,7 @@ export class RelayServer extends EventEmitter {
             networkId: this.networkId.toString(),
             ready: this.isReady() ?? false,
             version: VERSION,
-            collectorAddress: this.collectorAddress,
+            collectorAddress: this.collectorAddress
         };
     }
 
@@ -220,8 +221,9 @@ export class RelayServer extends EventEmitter {
 
         // Check the feeReceiver (todo: once migrated to multiple relays, check if exists)
         if (
-            [this.collectorAddress, this.workerAddress]
-                .includes(req.relayRequest.relayData.feesReceiver.toLowerCase())
+            [this.collectorAddress, this.workerAddress].includes(
+                req.relayRequest.relayData.feesReceiver.toLowerCase()
+            )
         ) {
             throw new Error(
                 `Wrong fee receiver address: ${req.relayRequest.relayData.feesReceiver}\n`
@@ -348,7 +350,8 @@ export class RelayServer extends EventEmitter {
             // Actual Maximum gas needed to send to the deploy request tx
             maxPossibleGas = toBN(
                 await this.contractInteractor.walletFactoryEstimateGasOfDeployCall(
-                    deployReq, this.workerAddress
+                    deployReq,
+                    this.workerAddress
                 )
             );
 
@@ -394,7 +397,8 @@ export class RelayServer extends EventEmitter {
             // Actual maximum gas needed to  send the relay transaction
             maxPossibleGas = toBN(
                 await this.contractInteractor.estimateRelayTransactionMaxPossibleGasWithTransactionRequest(
-                    relayReq, this.workerAddress
+                    relayReq,
+                    this.workerAddress
                 )
             );
         }
