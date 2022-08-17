@@ -41,6 +41,7 @@ export interface ServerConfigParams {
     logLevel: LogLevelNumbers;
     deployVerifierAddress: string;
     relayVerifierAddress: string;
+    collectorAddress: string;
     workerMinBalance: number;
     workerTargetBalance: number;
     managerMinBalance: number;
@@ -89,6 +90,7 @@ export const serverDefaultConfiguration: ServerConfigParams = {
     relayHubAddress: constants.ZERO_ADDRESS,
     relayVerifierAddress: constants.ZERO_ADDRESS,
     deployVerifierAddress: constants.ZERO_ADDRESS,
+    collectorAddress: constants.ZERO_ADDRESS,
     trustedVerifiers: [],
     gasPriceFactor: 1,
     registrationBlockRate: 0,
@@ -149,6 +151,7 @@ const ConfigParamsTypes = {
     trustedVerifiers: 'string',
     relayVerifierAddress: 'string',
     deployVerifierAddress: 'string',
+    collectorAddress: 'string',
 
     disableSponsoredTx: 'boolean',
     feePercentage: 'string'
@@ -307,6 +310,14 @@ export async function resolveServerConfig(
     ) {
         error(`RelayHub: no contract at address ${config.relayHubAddress}`);
     }
+
+    if(config.collectorAddress){
+        const isCollectorDeployed = await contractInteractor.isContractDeployed(config.collectorAddress);
+        if (!isCollectorDeployed) {
+            error(`Collector: no contract at address ${config.relayHubAddress}`);
+        }    
+    }
+
     if (config.url == null) error('missing param: url');
     if (config.workdir == null) error('missing param: workdir');
     return { ...serverDefaultConfiguration, ...config };
