@@ -1,10 +1,10 @@
-import { PrefixedHexString } from 'ethereumjs-tx/dist/types';
-import { toBN, toHex } from 'web3-utils';
 import { defaultEnvironment } from '@rsksmart/rif-relay-common';
+import { PrefixedHexString } from 'ethereumjs-tx/dist/types';
+import log from 'loglevel';
+import { toBN, toHex } from 'web3-utils';
 import { RelayServer } from './RelayServer';
 import { ServerAction } from './StoredTransaction';
 import { SendTransactionDetails } from './TransactionManager';
-import log from 'loglevel';
 
 export async function replenishStrategy(
     relayServer: RelayServer,

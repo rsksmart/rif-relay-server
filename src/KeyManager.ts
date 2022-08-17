@@ -1,12 +1,13 @@
+import { PrefixedHexString, Transaction } from 'ethereumjs-tx';
 import Wallet, { hdkey as EthereumHDKey } from 'ethereumjs-wallet';
 import fs from 'fs';
+import log from 'loglevel';
 import ow from 'ow';
 import { toHex } from 'web3-utils';
-import { PrefixedHexString, Transaction } from 'ethereumjs-tx';
-import log from 'loglevel';
 
 export const KEYSTORE_FILENAME = 'keystore';
 
+// @note the PrefixedHexString can be typed better to enforce the prefix rule (currently it's just a string)
 export class KeyManager {
     private readonly hdkey: any;
     private _privateKeys: Record<PrefixedHexString, Buffer> = {};

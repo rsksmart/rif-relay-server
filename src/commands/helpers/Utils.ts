@@ -1,8 +1,9 @@
+import * as fs from 'fs';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import { ServerConfigParams } from '../../ServerConfigParams';
-import * as fs from 'fs';
 
+// FIXME: can be replaced with node config
 export function getParams(): any {
     return yargs(hideBin(process.argv)).argv;
 }

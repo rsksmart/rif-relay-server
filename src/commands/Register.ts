@@ -1,18 +1,17 @@
-import { CommandClient } from './helpers/CommandClient';
+import { configure } from '@rsksmart/rif-relay-client';
 import {
     EnvelopingConfig,
     isSameAddress,
     constants
 } from '@rsksmart/rif-relay-common';
-import BN from 'bn.js';
-import { fromWei, toBN } from 'web3-utils';
 import { TransactionReceipt } from 'web3-core';
+import { fromWei, toBN } from 'web3-utils';
+import { CommandClient } from './helpers/CommandClient';
 import { getParams, parseServerConfig } from './helpers/Utils';
-import { configure } from '@rsksmart/rif-relay-client';
 // @ts-ignore
 import { ether } from '@openzeppelin/test-helpers';
-import { ServerConfigParams } from '../ServerConfigParams';
 import log from 'loglevel';
+import { ServerConfigParams } from '../ServerConfigParams';
 
 export interface RegisterOptions {
     hub: string;

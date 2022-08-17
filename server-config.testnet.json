@@ -8,6 +8,7 @@
     "rskNodeUrl": "http://172.17.0.1:4444",
     "devMode": true,
     "customReplenish": false,
+    "feePercentage": "0",
     "logLevel": 1,
     "workdir": "/srv/app/environment"
 }

@@ -6,5 +6,5 @@ if [ -d "$HOME/.nvm" ]; then
   [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 fi
 
-npm run lint
+npm run lint:fix
 npm run prettier:fix
