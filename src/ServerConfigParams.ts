@@ -317,7 +317,7 @@ export async function resolveServerConfig(
         );
         if (!isCollectorDeployed) {
             error(
-                `Collector: no contract at address ${config.relayHubAddress}`
+                `Collector: no contract at address ${config.collectorAddress}`
             );
         }
     }

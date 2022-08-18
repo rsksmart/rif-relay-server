@@ -11,5 +11,5 @@
     "customReplenish": false,
     "feePercentage": "0",
     "logLevel": 1,
-    "workdir": "/users/christos/workspace/enveloping/environment"
+    "workdir": "/home/user/workspace/enveloping/environment"
 }
