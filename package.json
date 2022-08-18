@@ -23,8 +23,8 @@
   "license": "MIT",
   "dependencies": {
     "@rsksmart/rif-relay-client": "https://github.com/rsksmart/rif-relay-client#PP-94/revenue-sharing-model",
-    "@rsksmart/rif-relay-common": "https://github.com/rsksmart/rif-relay-client#PP-127/no-collector-field",
-    "@rsksmart/rif-relay-contracts": "https://github.com/rsksmart/rif-relay-contracts#PP-94/revenue-sharing-model",
+    "@rsksmart/rif-relay-common": "https://github.com/rsksmart/rif-relay-common#PP-127/no-collector-field",
+    "@rsksmart/rif-relay-contracts": "https://github.com/rsksmart/rif-relay-contracts#PP-94/optional-collector",
     "@truffle/abi-utils": "~0.2.3",
     "@truffle/hdwallet-provider": "1.6.0",
     "@trufflesuite/web3-provider-engine": "15.0.13-1",
