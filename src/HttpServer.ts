@@ -65,31 +65,30 @@ export class HttpServer {
     }
 
     // TODO: use this when changing to jsonrpc
-    async rootHandler(req: any, res: any): Promise<void> {
+    async rootHandler(req: Request, res: Response): Promise<void> {
         let status;
+        let id = -1;
         try {
-            let res;
-            // @ts-ignore
-            const func = this.backend[req.body.method];
-            if (func != null) {
-                res = (await func.apply(this.backend, [req.body.params])) ?? {
-                    code: 200
-                };
-            } else {
-                // @ts-ignore
-                // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-                throw Error(
-                    `Implementation of method ${req.body.params} not found on backend!`
-                );
+            if (
+                !Object.prototype.hasOwnProperty.call(req.body, 'id') ||
+                !Object.prototype.hasOwnProperty.call(req.body, 'method')
+            ) {
+                throw Error('Missing properties');
             }
-            status = jsonrpc.success(req.body.id, res);
+            id = req.body.id;
+            const result = (await this.processRootHandler(
+                req.body.method,
+                req.body.params
+            )) ?? { code: 200 };
+            status = jsonrpc.success(id, result);
         } catch (e) {
             if (e instanceof Error) {
                 let stack = e.stack.toString();
                 // remove anything after 'rootHandler'
                 stack = stack.replace(/(rootHandler.*)[\s\S]*/, '$1');
+                stack = stack.replace(/(processRootHandler.*)[\s\S]*/, '$1');
                 status = jsonrpc.error(
-                    req.body.id,
+                    id,
                     new jsonrpc.JsonRpcError(stack, -125)
                 );
             } else {
@@ -97,6 +96,31 @@ export class HttpServer {
             }
         }
         res.send(status);
+    }
+
+    async processRootHandler(method: string, params: any) {
+        switch (method) {
+            case 'getMinGasPrice':
+                return await this.backend.getMinGasPrice();
+            case 'isCustomReplenish':
+                return await this.backend.isCustomReplenish();
+            case 'getManagerBalance':
+                return await this.backend.getManagerBalance();
+            case 'getWorkerBalance':
+                // @ts-ignore
+                return await this.backend.getWorkerBalance(...params);
+            case 'getAllHubEventsSinceLastScan':
+                return await this.backend.getAllHubEventsSinceLastScan();
+            case 'isTrustedVerifier':
+                // @ts-ignore
+                return await this.backend.isTrustedVerifier(...params);
+            case 'isReady':
+                return await this.backend.isReady();
+            default:
+                throw Error(
+                    `Implementation of method ${method} not available on backend!`
+                );
+        }
     }
 
     /**
