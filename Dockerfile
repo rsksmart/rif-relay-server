@@ -4,8 +4,8 @@ RUN apk add --no-cache build-base git bash
 WORKDIR /usr/src/app
 COPY package.json ./
 COPY package-lock.json ./
-RUN npm i --cache /tmp/1 --no-audit
-COPY . ./
+RUN npm i --cache /tmp/1 --no-audit --ignore-scripts
+
 # Runtime container
 FROM node:16-alpine
 RUN apk add --no-cache bash

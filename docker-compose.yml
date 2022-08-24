@@ -2,16 +2,17 @@ version: '3'
 
 services:
     rif-relay:
+        container_name: rif-relay-server
         build:
             context: .
-        entrypoint: sh -c 'node dist/commands/Start.js --config server-config.testnet.json'
-        ports:
-            - '8090:8090'
+        entrypoint: sh -c 'node dist/commands/Start.js --config server-config.json'
         volumes:
             - './environment:/srv/app/environment'
+        ports:
+            - '8090:8090'
         networks:
-            - rif-relay
+            - rif-relay-testing
 
 networks:
-    rif-relay:
-        driver: bridge
+    rif-relay-testing:
+        external: true
