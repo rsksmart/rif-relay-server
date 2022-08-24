@@ -55,12 +55,12 @@ describe('HttpServer', () => {
         });
 
         it('should fail if method does not exist', async () => {
-            const fakeMethod = 'fakeMethod';
+            const method = 'method';
             const error = new Error(
-                `Implementation of method ${fakeMethod} not available on backend!`
+                `Implementation of method ${method} not available on backend!`
             );
             await assert.isRejected(
-                httpServer.processRootHandler(fakeMethod, []),
+                httpServer.processRootHandler(method, []),
                 error.message
             );
         });
@@ -72,7 +72,7 @@ describe('HttpServer', () => {
         it('should fail if method does not exist', async () => {
             bodyRequest = {
                 id: 1,
-                method: 'fakeMethod',
+                method: 'method',
                 params: []
             };
             const response = await request(httpServer.app)
