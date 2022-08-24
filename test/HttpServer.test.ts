@@ -17,7 +17,7 @@ use(chaiAsPromised);
 use(chaiHttp);
 
 describe('HttpServer', () => {
-    const fakeServerConfig: Partial<ServerConfigParams> = {
+    const serverConfig: Partial<ServerConfigParams> = {
         url: 'http://localhost:8090'
     };
     const port = 8095;
@@ -40,7 +40,7 @@ describe('HttpServer', () => {
             contractInteractor: fakeContractInteractor,
             txStoreManager: fakeStoreManager
         };
-        relayServer = new RelayServer(fakeServerConfig, mockDependencies);
+        relayServer = new RelayServer(serverConfig, mockDependencies);
         httpServer = new HttpServer(port, relayServer);
     });
 
@@ -67,10 +67,10 @@ describe('HttpServer', () => {
     });
 
     describe('rootHandler', () => {
-        let fakeRequest: RootHandlerRequest;
+        let bodyRequest: RootHandlerRequest['body'];
 
         it('should fail if method does not exist', async () => {
-            fakeRequest = {
+            bodyRequest = {
                 id: 1,
                 method: 'fakeMethod',
                 params: []
@@ -78,7 +78,7 @@ describe('HttpServer', () => {
             const response = await request(httpServer.app)
                 .post('/')
                 .type('application/json')
-                .send(fakeRequest);
+                .send(bodyRequest);
             expect(
                 response.body,
                 'Response should include error'
@@ -98,7 +98,7 @@ describe('HttpServer', () => {
         });
 
         it('should respond with json', async () => {
-            fakeRequest = {
+            bodyRequest = {
                 id: 1,
                 method: 'getMinGasPrice',
                 params: []
@@ -106,7 +106,7 @@ describe('HttpServer', () => {
             const response = await request(httpServer.app)
                 .post('/')
                 .type('application/json')
-                .send(fakeRequest);
+                .send(bodyRequest);
             expect(
                 response.body,
                 'Response should include result'
@@ -117,7 +117,7 @@ describe('HttpServer', () => {
             stub(relayServer, 'validateMaxNonce').returns(
                 Promise.resolve(undefined)
             );
-            fakeRequest = {
+            bodyRequest = {
                 id: 1,
                 method: 'validateMaxNonce',
                 params: [1]
@@ -125,7 +125,7 @@ describe('HttpServer', () => {
             const response = await request(httpServer.app)
                 .post('/')
                 .type('application/json')
-                .send(fakeRequest);
+                .send(bodyRequest);
             expect(
                 response.body,
                 'Response should include result'

@@ -2,24 +2,26 @@ import express, { Express, Request, Response } from 'express';
 import jsonrpc from 'jsonrpc-lite';
 import bodyParser from 'body-parser';
 import cors from 'cors';
-import { RelayServer } from './RelayServer';
 import { Server } from 'http';
 import log from 'loglevel';
 import configureDocumentation from './DocConfiguration';
+import { RootHandlerRequest } from './types/HttpServer';
+import { RelayServer } from './RelayServer';
+
+const AVAILABLE_METHODS = [
+    'getMinGasPrice',
+    'isCustomReplenish',
+    'getManagerBalance',
+    'getWorkerBalance',
+    'getAllHubEventsSinceLastScan',
+    'isTrustedVerifier',
+    'isReady',
+    'validateMaxNonce'
+];
 
 export class HttpServer {
     app: Express;
     private serverInstance?: Server;
-    private readonly AVAILABLE_METHODS = [
-        'getMinGasPrice',
-        'isCustomReplenish',
-        'getManagerBalance',
-        'getWorkerBalance',
-        'getAllHubEventsSinceLastScan',
-        'isTrustedVerifier',
-        'isReady',
-        'validateMaxNonce'
-    ];
 
     constructor(private readonly port: number, readonly backend: RelayServer) {
         this.app = express();
@@ -75,7 +77,10 @@ export class HttpServer {
     }
 
     // TODO: use this when changing to jsonrpc
-    async rootHandler({ body }: Request, res: Response): Promise<void> {
+    async rootHandler(
+        { body }: RootHandlerRequest,
+        res: Response
+    ): Promise<void> {
         let status;
         let id = -1;
         try {
@@ -106,7 +111,7 @@ export class HttpServer {
     }
 
     async processRootHandler(method: string, params: any) {
-        if (this.AVAILABLE_METHODS.includes(method)) {
+        if (AVAILABLE_METHODS.includes(method)) {
             // @ts-ignore
             const functionToCall = this.backend[method];
             return functionToCall.apply(this.backend, params);
