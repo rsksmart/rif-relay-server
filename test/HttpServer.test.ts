@@ -28,7 +28,7 @@ describe('HttpServer', () => {
     beforeEach(() => {
         const fakeKeyManager: SinonStubbedInstance<KeyManager> =
             createStubInstance(KeyManager, {
-                getAddress: 'fakeAddress'
+                getAddress: 'address'
             });
         const fakeContractInteractor: SinonStubbedInstance<ContractInteractor> =
             createStubInstance(ContractInteractor);
