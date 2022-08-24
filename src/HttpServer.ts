@@ -10,6 +10,16 @@ import configureDocumentation from './DocConfiguration';
 export class HttpServer {
     app: Express;
     private serverInstance?: Server;
+    readonly AVAILABLE_METHODS = [
+        'getMinGasPrice',
+        'isCustomReplenish',
+        'getManagerBalance',
+        'getWorkerBalance',
+        'getAllHubEventsSinceLastScan',
+        'isTrustedVerifier',
+        'isReady',
+        'validateMaxNonce'
+    ];
 
     constructor(private readonly port: number, readonly backend: RelayServer) {
         this.app = express();
@@ -65,20 +75,17 @@ export class HttpServer {
     }
 
     // TODO: use this when changing to jsonrpc
-    async rootHandler(req: Request, res: Response): Promise<void> {
+    async rootHandler({ body }: Request, res: Response): Promise<void> {
         let status;
         let id = -1;
         try {
-            if (
-                !Object.prototype.hasOwnProperty.call(req.body, 'id') ||
-                !Object.prototype.hasOwnProperty.call(req.body, 'method')
-            ) {
+            if (!body.id || !body.method) {
                 throw Error('Missing properties');
             }
-            id = req.body.id;
+            id = body.id;
             const result = (await this.processRootHandler(
-                req.body.method,
-                req.body.params
+                body.method,
+                body.params
             )) ?? { code: 200 };
             status = jsonrpc.success(id, result);
         } catch (e) {
@@ -99,27 +106,14 @@ export class HttpServer {
     }
 
     async processRootHandler(method: string, params: any) {
-        switch (method) {
-            case 'getMinGasPrice':
-                return await this.backend.getMinGasPrice();
-            case 'isCustomReplenish':
-                return await this.backend.isCustomReplenish();
-            case 'getManagerBalance':
-                return await this.backend.getManagerBalance();
-            case 'getWorkerBalance':
-                // @ts-ignore
-                return await this.backend.getWorkerBalance(...params);
-            case 'getAllHubEventsSinceLastScan':
-                return await this.backend.getAllHubEventsSinceLastScan();
-            case 'isTrustedVerifier':
-                // @ts-ignore
-                return await this.backend.isTrustedVerifier(...params);
-            case 'isReady':
-                return await this.backend.isReady();
-            default:
-                throw Error(
-                    `Implementation of method ${method} not available on backend!`
-                );
+        if (this.AVAILABLE_METHODS.includes(method)) {
+            // @ts-ignore
+            const functionToCall = this.backend[method];
+            return functionToCall.apply(this.backend, params);
+        } else {
+            throw Error(
+                `Implementation of method ${method} not available on backend!`
+            );
         }
     }
 
