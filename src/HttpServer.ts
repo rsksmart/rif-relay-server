@@ -10,7 +10,7 @@ import configureDocumentation from './DocConfiguration';
 export class HttpServer {
     app: Express;
     private serverInstance?: Server;
-    readonly AVAILABLE_METHODS = [
+    private readonly AVAILABLE_METHODS = [
         'getMinGasPrice',
         'isCustomReplenish',
         'getManagerBalance',
