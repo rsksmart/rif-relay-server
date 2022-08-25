@@ -72,7 +72,7 @@ export class RelayServer extends EventEmitter {
     lastSuccessfulRounds = Number.MAX_SAFE_INTEGER;
     readonly managerAddress: PrefixedHexString;
     readonly workerAddress: PrefixedHexString;
-    readonly collectorAddress: PrefixedHexString;
+    readonly feesReceiver: PrefixedHexString;
     gasPrice = 0;
     _workerSemaphoreOn = false;
     alerted = false;
@@ -115,7 +115,7 @@ export class RelayServer extends EventEmitter {
             this.transactionManager.managerKeyManager.getAddress(0);
         this.workerAddress =
             this.transactionManager.workersKeyManager.getAddress(0);
-        this.collectorAddress = config.collectorAddress;
+        this.feesReceiver = config.feesReceiver;
         this.customReplenish = this.config.customReplenish;
         this.workerBalanceRequired = new AmountRequired(
             'Worker Balance',
@@ -130,8 +130,8 @@ export class RelayServer extends EventEmitter {
     printServerAddresses(): void {
         log.info(`Server manager address  | ${this.managerAddress}`);
         log.info(`Server worker  address  | ${this.workerAddress}`);
-        if (this.collectorAddress)
-            log.info(`Collector address       | ${this.collectorAddress}`);
+        if (this.feesReceiver)
+            log.info(`Fees receiver       | ${this.feesReceiver}`);
     }
 
     getMinGasPrice(): number {
@@ -152,7 +152,7 @@ export class RelayServer extends EventEmitter {
             networkId: this.networkId.toString(),
             ready: this.isReady() ?? false,
             version: VERSION,
-            collectorAddress: this.collectorAddress
+            feesReceiver: this.feesReceiver
         };
     }
 
@@ -219,14 +219,14 @@ export class RelayServer extends EventEmitter {
             );
         }
 
-        // Check the feeReceiver (todo: once migrated to multiple relays, check if exists)
+        // Check the feesReceiver (todo: once migrated to multiple relays, check if exists)
         if (
-            ![this.collectorAddress, this.workerAddress].includes(
+            ![this.feesReceiver, this.workerAddress].includes(
                 req.relayRequest.relayData.feesReceiver.toLowerCase()
             )
         ) {
             throw new Error(
-                `Wrong fee receiver address: ${req.relayRequest.relayData.feesReceiver}\n`
+                `Wrong fees receiver address: ${req.relayRequest.relayData.feesReceiver}\n`
             );
         }
 
