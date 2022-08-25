@@ -312,9 +312,8 @@ export async function resolveServerConfig(
     }
 
     if (config.feesReceiver) {
-        const isFeesReceiverDeployed = await contractInteractor.isContractDeployed(
-            config.feesReceiver
-        );
+        const isFeesReceiverDeployed =
+            await contractInteractor.isContractDeployed(config.feesReceiver);
         if (!isFeesReceiverDeployed) {
             error(
                 `FeesReceiver: no contract at address ${config.feesReceiver}`
