@@ -8,7 +8,21 @@ import configureDocumentation from './DocConfiguration';
 import { RootHandlerRequest } from './types/HttpServer';
 import { RelayServer } from './RelayServer';
 
-const AVAILABLE_METHODS = [
+export type WhitelistedRelayMethods = Pick<
+    RelayServer,
+    | 'getMinGasPrice'
+    | 'isCustomReplenish'
+    | 'getManagerBalance'
+    | 'getWorkerBalance'
+    | 'getAllHubEventsSinceLastScan'
+    | 'isTrustedVerifier'
+    | 'isReady'
+    | 'validateMaxNonce'
+>;
+
+export type WhitelistedRelayMethod = keyof WhitelistedRelayMethods;
+
+export const AVAILABLE_METHODS: Array<WhitelistedRelayMethod> = [
     'getMinGasPrice',
     'isCustomReplenish',
     'getManagerBalance',
@@ -110,16 +124,19 @@ export class HttpServer {
         res.send(status);
     }
 
-    async processRootHandler(method: string, params: any) {
-        if (AVAILABLE_METHODS.includes(method)) {
-            // @ts-ignore
-            const functionToCall = this.backend[method];
-            return functionToCall.apply(this.backend, params);
-        } else {
+    async processRootHandler(
+        method: WhitelistedRelayMethod,
+        params: Parameters<RelayServer[WhitelistedRelayMethod]>
+    ) {
+        if (!AVAILABLE_METHODS.includes(method)) {
             throw Error(
                 `Implementation of method ${method} not available on backend!`
             );
         }
+
+        const relayMethod = this.backend[method];
+
+        return relayMethod(params as never);
     }
 
     /**

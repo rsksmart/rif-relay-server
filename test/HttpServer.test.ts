@@ -9,7 +9,8 @@ import {
     ServerDependencies,
     TxStoreManager,
     KeyManager,
-    ServerConfigParams
+    ServerConfigParams,
+    WhitelistedRelayMethod
 } from '../src';
 import { RootHandlerRequest } from '../src/types/HttpServer';
 
@@ -60,7 +61,10 @@ describe('HttpServer', () => {
                 `Implementation of method ${method} not available on backend!`
             );
             await assert.isRejected(
-                httpServer.processRootHandler(method, []),
+                httpServer.processRootHandler(
+                    method as WhitelistedRelayMethod,
+                    []
+                ),
                 error.message
             );
         });
