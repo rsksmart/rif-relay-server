@@ -1,12 +1,19 @@
 import express, { Express, Request, Response } from 'express';
-import jsonrpc from 'jsonrpc-lite';
+import jsonrpc, { Defined } from 'jsonrpc-lite';
 import bodyParser from 'body-parser';
 import cors from 'cors';
 import { Server } from 'http';
 import log from 'loglevel';
 import configureDocumentation from './DocConfiguration';
-import { RootHandlerRequest } from './types/HttpServer';
 import { RelayServer } from './RelayServer';
+
+export type RootHandlerRequest = Request & {
+    body?: {
+        id: number;
+        method: string;
+        params: Array<unknown>;
+    };
+};
 
 export type WhitelistedRelayMethods = Pick<
     RelayServer,
@@ -33,6 +40,9 @@ export const AVAILABLE_METHODS: Array<WhitelistedRelayMethod> = [
     'validateMaxNonce'
 ];
 
+type AvailableRelayMethods = RelayServer[WhitelistedRelayMethod];
+
+type AvailableRelayMethodParameters = Parameters<AvailableRelayMethods>;
 export class HttpServer {
     app: Express;
     private serverInstance?: Server;
@@ -99,14 +109,16 @@ export class HttpServer {
         let id = -1;
         try {
             if (!body.id || !body.method) {
-                throw Error('Missing properties');
+                throw Error(
+                    'Body request requires id and method to be executed'
+                );
             }
             id = body.id;
             const result = (await this.processRootHandler(
                 body.method,
                 body.params
             )) ?? { code: 200 };
-            status = jsonrpc.success(id, result);
+            status = jsonrpc.success(id, result as Defined);
         } catch (e) {
             if (e instanceof Error) {
                 let stack = e.stack.toString();
@@ -126,7 +138,7 @@ export class HttpServer {
 
     async processRootHandler(
         method: WhitelistedRelayMethod,
-        params: Parameters<RelayServer[WhitelistedRelayMethod]>
+        params: AvailableRelayMethodParameters
     ) {
         if (!AVAILABLE_METHODS.includes(method)) {
             throw Error(
@@ -134,9 +146,11 @@ export class HttpServer {
             );
         }
 
-        const relayMethod = this.backend[method];
-
-        return relayMethod(params as never);
+        return (
+            this.backend[method] as (
+                ...args: AvailableRelayMethodParameters[number][]
+            ) => ReturnType<AvailableRelayMethods>
+        )(...params);
     }
 
     /**

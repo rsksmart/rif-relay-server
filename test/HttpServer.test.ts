@@ -1,53 +1,42 @@
-import { stub, createStubInstance, SinonStubbedInstance } from 'sinon';
-import { use, assert, request, expect } from 'chai';
+import {
+    stub,
+    spy,
+    createStubInstance,
+    SinonStubbedInstance,
+    SinonSpy
+} from 'sinon';
+import { use, assert } from 'chai';
 import chaiAsPromised from 'chai-as-promised';
-import chaiHttp from 'chai-http';
-import { ContractInteractor } from '@rsksmart/rif-relay-common';
+import { Request, Response } from 'express';
 import {
     RelayServer,
     HttpServer,
-    ServerDependencies,
-    TxStoreManager,
-    KeyManager,
     ServerConfigParams,
+    RootHandlerRequest,
     WhitelistedRelayMethod
 } from '../src';
-import { RootHandlerRequest } from '../src/types/HttpServer';
+import jsonrpc from 'jsonrpc-lite';
 
 use(chaiAsPromised);
-use(chaiHttp);
 
 describe('HttpServer', () => {
-    const serverConfig: Partial<ServerConfigParams> = {
-        url: 'http://localhost:8090'
-    };
-    const port = 8095;
     const gasPrice = 5;
     let httpServer: HttpServer;
-    let relayServer: RelayServer;
 
     beforeEach(() => {
-        const fakeKeyManager: SinonStubbedInstance<KeyManager> =
-            createStubInstance(KeyManager, {
-                getAddress: 'address'
-            });
-        const fakeContractInteractor: SinonStubbedInstance<ContractInteractor> =
-            createStubInstance(ContractInteractor);
-        const fakeStoreManager: SinonStubbedInstance<TxStoreManager> =
-            createStubInstance(TxStoreManager);
-        const mockDependencies: ServerDependencies = {
-            managerKeyManager: fakeKeyManager,
-            workersKeyManager: fakeKeyManager,
-            contractInteractor: fakeContractInteractor,
-            txStoreManager: fakeStoreManager
-        };
-        relayServer = new RelayServer(serverConfig, mockDependencies);
-        httpServer = new HttpServer(port, relayServer);
+        const port = 8095;
+        const fakeRelayServer = createStubInstance(RelayServer, {
+            getMinGasPrice: gasPrice,
+            validateMaxNonce: Promise.resolve()
+        });
+        fakeRelayServer.config = {
+            url: 'http://localhost:8090'
+        } as ServerConfigParams;
+        httpServer = new HttpServer(port, fakeRelayServer);
     });
 
     describe('processRootHandler', () => {
         it('should process method from relay server', async () => {
-            stub(relayServer, 'getMinGasPrice').returns(gasPrice);
             const result = await httpServer.processRootHandler(
                 'getMinGasPrice',
                 []
@@ -56,85 +45,96 @@ describe('HttpServer', () => {
         });
 
         it('should fail if method does not exist', async () => {
-            const method = 'method';
+            const method = 'method' as WhitelistedRelayMethod;
             const error = new Error(
                 `Implementation of method ${method} not available on backend!`
             );
             await assert.isRejected(
-                httpServer.processRootHandler(
-                    method as WhitelistedRelayMethod,
-                    []
-                ),
+                httpServer.processRootHandler(method, []),
                 error.message
             );
         });
     });
 
     describe('rootHandler', () => {
+        let jsonrpcSpy: SinonSpy;
+        const fakeResponseExpress: SinonStubbedInstance<Partial<Response>> = {
+            send: stub()
+        };
+        let fakeRequestExpress: SinonStubbedInstance<Partial<Request>>;
         let bodyRequest: RootHandlerRequest['body'];
 
+        afterEach(() => {
+            jsonrpcSpy.restore();
+        });
+
         it('should fail if method does not exist', async () => {
+            jsonrpcSpy = spy(jsonrpc, 'error');
             bodyRequest = {
                 id: 1,
                 method: 'method',
                 params: []
             };
-            const response = await request(httpServer.app)
-                .post('/')
-                .type('application/json')
-                .send(bodyRequest);
-            expect(
-                response.body,
-                'Response should include error'
-            ).to.include.keys('error');
+            fakeRequestExpress = {
+                body: bodyRequest
+            };
+            await httpServer.rootHandler(
+                fakeRequestExpress as Request,
+                fakeResponseExpress as Response
+            );
+            assert.isTrue(
+                jsonrpcSpy.calledOnceWith(bodyRequest.id),
+                'Responded with different id'
+            );
         });
 
-        it('should fail if no id or method in the request is provided', async () => {
-            const response = await request(httpServer.app).post('/');
-            expect(
-                response.body,
-                'Response should include error'
-            ).to.include.keys('error', 'id');
-            expect(
-                response.body.error.message,
-                'Response should include error'
-            ).to.includes('Missing properties');
+        it('should fail if no id or method is provided in the request', async () => {
+            jsonrpcSpy = spy(jsonrpc, 'error');
+            fakeRequestExpress = {};
+            await httpServer.rootHandler(
+                fakeRequestExpress as Request,
+                fakeResponseExpress as Response
+            );
+            assert.isTrue(
+                jsonrpcSpy.calledOnceWith(-1),
+                'Responded with id different from -1'
+            );
         });
 
-        it('should respond with json', async () => {
+        it('should response with proper id and method result', async () => {
+            jsonrpcSpy = spy(jsonrpc, 'success');
             bodyRequest = {
                 id: 1,
                 method: 'getMinGasPrice',
                 params: []
             };
-            const response = await request(httpServer.app)
-                .post('/')
-                .type('application/json')
-                .send(bodyRequest);
-            expect(
-                response.body,
-                'Response should include result'
-            ).to.include.keys('result');
+            fakeRequestExpress = {
+                body: bodyRequest
+            };
+            await httpServer.rootHandler(
+                fakeRequestExpress as Request,
+                fakeResponseExpress as Response
+            );
+            assert.isTrue(jsonrpcSpy.calledOnceWith(bodyRequest.id, gasPrice));
         });
 
-        it('should respond with code 200', async () => {
-            stub(relayServer, 'validateMaxNonce').returns(
-                Promise.resolve(undefined)
-            );
+        it('should response with proper id and code 200 if method returns null', async () => {
+            jsonrpcSpy = spy(jsonrpc, 'success');
             bodyRequest = {
                 id: 1,
                 method: 'validateMaxNonce',
-                params: [1]
+                params: []
             };
-            const response = await request(httpServer.app)
-                .post('/')
-                .type('application/json')
-                .send(bodyRequest);
-            expect(
-                response.body,
-                'Response should include result'
-            ).to.include.keys('result');
-            assert.equal(response.body.result.code, 200);
+            fakeRequestExpress = {
+                body: bodyRequest
+            };
+            await httpServer.rootHandler(
+                fakeRequestExpress as Request,
+                fakeResponseExpress as Response
+            );
+            assert.isTrue(
+                jsonrpcSpy.calledOnceWith(bodyRequest.id, { code: 200 })
+            );
         });
     });
 });
