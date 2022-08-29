@@ -101,7 +101,7 @@ describe('HttpServer', () => {
             );
         });
 
-        it('should response with proper id and method result', async () => {
+        it('should return a response with proper id and method result', async () => {
             jsonrpcSpy = spy(jsonrpc, 'success');
             bodyRequest = {
                 id: 1,
