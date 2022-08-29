@@ -1,12 +1,48 @@
 import express, { Express, Request, Response } from 'express';
-import jsonrpc from 'jsonrpc-lite';
+import jsonrpc, { Defined } from 'jsonrpc-lite';
 import bodyParser from 'body-parser';
 import cors from 'cors';
-import { RelayServer } from './RelayServer';
 import { Server } from 'http';
 import log from 'loglevel';
 import configureDocumentation from './DocConfiguration';
+import { RelayServer } from './RelayServer';
 
+export type RootHandlerRequest = Request & {
+    body?: {
+        id: number;
+        method: string;
+        params: Array<unknown>;
+    };
+};
+
+export type WhitelistedRelayMethods = Pick<
+    RelayServer,
+    | 'getMinGasPrice'
+    | 'isCustomReplenish'
+    | 'getManagerBalance'
+    | 'getWorkerBalance'
+    | 'getAllHubEventsSinceLastScan'
+    | 'isTrustedVerifier'
+    | 'isReady'
+    | 'validateMaxNonce'
+>;
+
+export type WhitelistedRelayMethod = keyof WhitelistedRelayMethods;
+
+export const AVAILABLE_METHODS: Array<WhitelistedRelayMethod> = [
+    'getMinGasPrice',
+    'isCustomReplenish',
+    'getManagerBalance',
+    'getWorkerBalance',
+    'getAllHubEventsSinceLastScan',
+    'isTrustedVerifier',
+    'isReady',
+    'validateMaxNonce'
+];
+
+type AvailableRelayMethods = RelayServer[WhitelistedRelayMethod];
+
+type AvailableRelayMethodParameters = Parameters<AvailableRelayMethods>;
 export class HttpServer {
     app: Express;
     private serverInstance?: Server;
@@ -65,31 +101,32 @@ export class HttpServer {
     }
 
     // TODO: use this when changing to jsonrpc
-    async rootHandler(req: any, res: any): Promise<void> {
+    async rootHandler(
+        { body }: RootHandlerRequest,
+        res: Response
+    ): Promise<void> {
         let status;
+        let id = -1;
         try {
-            let res;
-            // @ts-ignore
-            const func = this.backend[req.body.method];
-            if (func != null) {
-                res = (await func.apply(this.backend, [req.body.params])) ?? {
-                    code: 200
-                };
-            } else {
-                // @ts-ignore
-                // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+            if (!body.id || !body.method) {
                 throw Error(
-                    `Implementation of method ${req.body.params} not found on backend!`
+                    'Body request requires id and method to be executed'
                 );
             }
-            status = jsonrpc.success(req.body.id, res);
+            id = body.id;
+            const result = (await this.processRootHandler(
+                body.method,
+                body.params
+            )) ?? { code: 200 };
+            status = jsonrpc.success(id, result as Defined);
         } catch (e) {
             if (e instanceof Error) {
                 let stack = e.stack.toString();
                 // remove anything after 'rootHandler'
                 stack = stack.replace(/(rootHandler.*)[\s\S]*/, '$1');
+                stack = stack.replace(/(processRootHandler.*)[\s\S]*/, '$1');
                 status = jsonrpc.error(
-                    req.body.id,
+                    id,
                     new jsonrpc.JsonRpcError(stack, -125)
                 );
             } else {
@@ -97,6 +134,23 @@ export class HttpServer {
             }
         }
         res.send(status);
+    }
+
+    async processRootHandler(
+        method: WhitelistedRelayMethod,
+        params: AvailableRelayMethodParameters
+    ) {
+        if (!AVAILABLE_METHODS.includes(method)) {
+            throw Error(
+                `Implementation of method ${method} not available on backend!`
+            );
+        }
+
+        return (
+            this.backend[method] as (
+                ...args: AvailableRelayMethodParameters[number][]
+            ) => ReturnType<AvailableRelayMethods>
+        )(...params);
     }
 
     /**
