@@ -118,7 +118,7 @@ describe('HttpServer', () => {
             assert.isTrue(jsonrpcSpy.calledOnceWith(bodyRequest.id, gasPrice));
         });
 
-        it('should response with proper id and code 200 if method returns null', async () => {
+        it('should return a response with proper id and code 200 if method returns null', async () => {
             jsonrpcSpy = spy(jsonrpc, 'success');
             bodyRequest = {
                 id: 1,
