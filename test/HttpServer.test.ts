@@ -24,14 +24,15 @@ describe('HttpServer', () => {
     let httpServer: HttpServer;
 
     beforeEach(() => {
+        const expectedConfig: ServerConfigParams = {
+            url: 'http://localhost:8090'
+        } as ServerConfigParams;
         const port = 8095;
         const fakeRelayServer = createStubInstance(RelayServer, {
             getMinGasPrice: gasPrice,
             validateMaxNonce: Promise.resolve()
         });
-        fakeRelayServer.config = {
-            url: 'http://localhost:8090'
-        } as ServerConfigParams;
+        fakeRelayServer.config = expectedConfig;
         httpServer = new HttpServer(port, fakeRelayServer);
     });
 
