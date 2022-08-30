@@ -5,11 +5,11 @@
     "relayVerifierAddress": "0x5159345aaB821172e795d56274D0f5FDFdC6aBD9",
     "deployVerifierAddress": "0x1eD614cd3443EFd9c70F04b6d777aed947A4b0c4",
     "gasPriceFactor": 1,
-    "rskNodeUrl": "http://127.0.0.1:4444",
+    "rskNodeUrl": "http://rskj:4444",
     "devMode": true,
     "customReplenish": false,
     "feePercentage": "0",
     "disableSponsoredTx": true,
     "logLevel": 1,
-    "workdir": "/Users/borja/iovlabs/projects/rif-relay-revenue/environment"
+    "workdir": "/home/user/workspace/enveloping/environment"
 }
