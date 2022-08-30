@@ -12,6 +12,7 @@ This project works as a dependency as well as a stand-alone project.
 - [**System usage**](#system-usage)
   - [**Server execution**](#server-execution)
   - [**Server registration**](#server-registration)
+- [**Execute using Docker**](#execute-as-a-docker-container)
 - [**Library usage**](#library-usage)
   - [**Use a release version**](#use-a-release-version)
   - [**Use the repo distributable**](#use-the-repo-distributable)
@@ -146,6 +147,29 @@ After this you will be seeing several log entries indicating how everything is t
 ```
 Relayer state: READY
 ```
+
+## Execute as a Docker container
+
+You can run the server as a Docker container. Docker and Docker compose should be installed and an RSK Node should be running.
+First execute 
+
+```bash
+npm i
+```
+
+After modifying the config-file as indicated [here](#server-execution), an additional modification should be made in the same file as follows:
+
+```json
+"rskNodeUrl": "http://host.docker.internal:4444",
+```
+
+Edit your local hosts file to make host.docker.internal resolve as 127.0.0.1. Then run 
+
+```bash
+docker-compose build && docker-compose up
+```
+
+After that, continue with the [server registration](#server-registration).
 
 ## Library usage
 

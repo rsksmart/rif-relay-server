@@ -6,13 +6,7 @@ services:
         build:
             context: .
         entrypoint: sh -c 'node dist/commands/Start.js --config server-config.json'
-        volumes:
-            - './environment:/srv/app/environment'
         ports:
             - '8090:8090'
-        networks:
-            - rif-relay-testing
-
-networks:
-    rif-relay-testing:
-        external: true
+        volumes:
+            - './environment:/srv/app/environment'

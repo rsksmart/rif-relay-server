@@ -2,9 +2,7 @@
 FROM node:16-alpine AS compiler
 RUN apk add --no-cache build-base git bash
 WORKDIR /usr/src/app
-COPY package.json ./
-COPY package-lock.json ./
-RUN npm i --cache /tmp/1 --no-audit --ignore-scripts
+COPY / ./
 
 # Runtime container
 FROM node:16-alpine
