@@ -46,6 +46,8 @@ describe('RelayServer', () => {
         fakeWorkersKeyManager.getAddress.returns('fake_address');
 
         fakeContractInteractor = createStubInstance(ContractInteractor);
+        fakeContractInteractor.relayHubInstance.address =
+            'fake_relay_hub_address';
 
         fakeTxStoreManager = createStubInstance(TxStoreManager);
 
@@ -81,28 +83,25 @@ describe('RelayServer', () => {
         });
 
         it('should set feesReceiver as collector contract if specified', () => {
-
             const config = {
                 feesReceiver: '0x9957A338858bc941dA9D0ED2ACBCa4F16116B836'
             };
 
-            const server = new RelayServer(
-                config,
-                mockDependencies
-            );
+            const server = new RelayServer(config, mockDependencies);
 
-            expect(server.feesReceiver, 'Sets feesReceiver as collector contract')
-                .to.equal(config.feesReceiver);
+            expect(
+                server.feesReceiver,
+                'Sets feesReceiver as collector contract'
+            ).to.equal(config.feesReceiver);
         });
 
         it('should set feesReceiver as relay worker if not specified', () => {
-            const server = new RelayServer(
-                {},
-                mockDependencies
-            );
+            const server = new RelayServer({}, mockDependencies);
 
-            expect(server.feesReceiver, 'Sets feesReceiver as relay worker')
-                .to.equal('fake_address');
+            expect(
+                server.feesReceiver,
+                'Sets feesReceiver as relay worker'
+            ).to.equal('fake_address');
         });
     });
 
@@ -278,6 +277,38 @@ describe('RelayServer', () => {
 
             expect(actualMaxGasEstimation.isEqualTo(expectedMaxGasEstimation))
                 .to.be.true;
+        });
+    });
+
+    describe('validateInput', () => {
+        const fakeRelayTransactionRequest: RelayTransactionRequest = {
+            relayRequest: {
+                relayData: {
+                    feesReceiver: 'fakeFeesReceiver'
+                } as RelayData,
+                request: {
+                    to: 'fake_address',
+                    data: 'fake_data'
+                } as ForwardRequest
+            },
+            metadata: {
+                relayHubAddress: 'fake_relay_hub_address'
+            } as RelayMetadata
+        };
+
+        it('should throw error if feesReceiver on request is not the same as server', () => {
+            const fakeFeesReceiver = 'fake_different_relay_hub_address';
+
+            const server = new RelayServer(
+                {
+                    feesReceiver: fakeFeesReceiver
+                },
+                mockDependencies
+            );
+
+            expect(server.validateInput(fakeRelayTransactionRequest)).to.throw(
+                `Wrong fees receiver address: ${fakeFeesReceiver}\n`
+            );
         });
     });
 });
