@@ -32,9 +32,9 @@ import log from 'loglevel';
 import ow from 'ow';
 import { EventData } from 'web3-eth-contract';
 import { toBN } from 'web3-utils';
-import { getXRateFor, SUPPORTED_TOKENS, toNativeWeiFrom } from './Conversions';
+import { getXRateFor, toNativeWeiFrom } from './Conversions';
 import { INSUFFICIENT_TOKEN_AMOUNT } from './definitions/errorMessages.const';
-import Token from './definitions/token.type';
+import ExchangeToken from './definitions/token.type';
 import { RegistrationManager } from './RegistrationManager';
 import { replenishStrategy } from './ReplenishFunction';
 import {
@@ -412,10 +412,9 @@ export class RelayServer extends EventEmitter {
             );
             const gasPrice = new BigNumber(req.relayRequest.relayData.gasPrice);
 
-            const token: Token = SUPPORTED_TOKENS.find(
-                ({ name }) => name === 'tRIF'
-            ); // FIXME: the hardcoded value should be removed once tokens are configurable and token added to the request params
-            const xRate: BigNumber = await getXRateFor(token); //TODO: replace by price feeder service
+            const token: ExchangeToken = await this.contractInteractor.getERC20Token(req.relayRequest.request.tokenContract);
+            
+            const xRate: BigNumber = await getXRateFor(token);
 
             const tokenAmountInNative: BigNumber = await toNativeWeiFrom({
                 ...token,

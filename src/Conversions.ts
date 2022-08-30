@@ -1,20 +1,16 @@
 import BigNumber from 'bignumber.js';
 import BN from 'bn.js';
 import { toBN } from 'web3-utils';
-import Token from './definitions/token.type';
+import ExchangeToken from './definitions/token.type';
+import { CoinBase, RelayPricer } from '@rsksmart/rif-relay-client';
 
-export const RBTC_IN_RIF = '0.000005739'; // FIXME: get rid of this nonsense
+export const TARGET_CURRENCY = 'RBTC';
 
 export const RBTC_CHAIN_DECIMALS = 18; // FIXME: should this be configurable?
 export const MAX_ETH_GAS_BLOCK_SIZE = 30_000_000;
 
-export const SUPPORTED_TOKENS: readonly Token[] = [
-    {
-        name: 'tRIF',
-        decimals: 18,
-        contractAddress: '0xMAKE_ME_A_HAPPY_TOKEN_PLEASE'
-    }
-]; // FIXME: make me configurable
+const coinbase = new CoinBase();
+const relayPricer = new RelayPricer(coinbase);
 
 /**
  * Multiplies base to power of precision
@@ -67,12 +63,13 @@ export const toBNWithPrecision = ({
 
 /**
  * Retreives exchange rate for given token
- * @param token Token object containing token name (TODO: other req params for price feeders)
+ * @param token Token object containing token name
  * @returns BigNumber representation of the exchange rate
  */
-export const getXRateFor = async ({ name }: Token): Promise<BigNumber> =>
+export const getXRateFor = async ({ symbol }: ExchangeToken): Promise<BigNumber> =>
     new Promise((resolve) => {
-        resolve(name && new BigNumber(RBTC_IN_RIF)); // FIXME: implement: use price feeder
+        const exchangeRate = relayPricer.getExchangeRate(symbol, TARGET_CURRENCY);
+        resolve(symbol && exchangeRate);
     });
 
 /**
@@ -84,7 +81,7 @@ export const toNativeWeiFrom = async ({
     amount,
     decimals,
     xRate
-}: Token): Promise<BigNumber> => {
+}: ExchangeToken): Promise<BigNumber> => {
     if (!amount || !xRate || amount.isZero() || xRate.isZero()) {
         return new BigNumber(0);
     }

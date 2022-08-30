@@ -1,3 +1,4 @@
+import { RelayPricer } from '@rsksmart/rif-relay-client';
 import BigNumber from 'bignumber.js';
 import { expect, use } from 'chai';
 import chaiAsPromised from 'chai-as-promised';
@@ -5,27 +6,30 @@ import Sinon from 'sinon';
 import sinonChai from 'sinon-chai';
 import {
     getXRateFor,
-    RBTC_IN_RIF,
     toNativeWeiFrom,
     toPrecision
 } from '../../src/Conversions';
-import Token from '../../src/definitions/token.type';
+import ExchangeToken from '../../src/definitions/token.type';
 
 use(sinonChai);
 use(chaiAsPromised);
 
 describe('Conversions', () => {
+    const xRateRifRbtc = BigNumber('0.00000332344907316948');
+
     afterEach(() => {
         Sinon.restore();
     });
 
     describe('getXRateFor', async () => {
         it('should return exchange rate of given token (from test constants as price feeder needs to be implemented)', async () => {
-            const expectedXRate: BigNumber = new BigNumber(RBTC_IN_RIF);
-            const token: Token = {
+            Sinon.stub(RelayPricer.prototype, 'getExchangeRate').returns(Promise.resolve(xRateRifRbtc));
+            const expectedXRate: BigNumber = xRateRifRbtc;
+            const token: ExchangeToken = {
                 contractAddress: '',
                 decimals: 18,
-                name: 'tRIF'
+                name: 'tRIF',
+                symbol: 'RIF'
             };
 
             const actualXRate: BigNumber = await getXRateFor(token);
@@ -46,12 +50,13 @@ describe('Conversions', () => {
             const tokenAmount: BigNumber =
                 expectedCurrencyAmount.dividedBy(exchangeRate);
 
-            const token: Token = {
+            const token: ExchangeToken = {
                 contractAddress: '',
                 decimals: 18,
                 name: 'tRIF',
                 amount: tokenAmount,
-                xRate: exchangeRate
+                xRate: exchangeRate,
+                symbol: 'RIF'
             };
 
             const actualCurrencyAmount = await toNativeWeiFrom(token);
@@ -64,17 +69,19 @@ describe('Conversions', () => {
 
         it('should convert between different decimal systems', async () => {
             const erc20Decimals = 22;
-            const exchangeRate: BigNumber = new BigNumber(RBTC_IN_RIF);
+
+            const exchangeRate: BigNumber = xRateRifRbtc;
             const tokenAmount: BigNumber = new BigNumber(
                 '3'.padEnd(erc20Decimals, '0')
             );
 
             const nativeWeiDecimals = 18;
 
-            const token: Token = {
+            const token: ExchangeToken = {
                 contractAddress: '',
                 decimals: erc20Decimals,
                 name: 'tRIF_22',
+                symbol: 'RIF_22',
                 amount: tokenAmount,
                 xRate: exchangeRate
             };

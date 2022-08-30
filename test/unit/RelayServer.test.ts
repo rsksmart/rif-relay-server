@@ -1,3 +1,4 @@
+import { RelayPricer } from '@rsksmart/rif-relay-client';
 import {
     ContractInteractor,
     RelayMetadata,
@@ -5,6 +6,7 @@ import {
 } from '@rsksmart/rif-relay-common';
 import { ForwardRequest, RelayData } from '@rsksmart/rif-relay-contracts';
 import BigNumber from 'bignumber.js';
+import BN from 'bn.js';
 import { expect, use } from 'chai';
 import chaiAsPromised from 'chai-as-promised';
 import Sinon, { createStubInstance, SinonStubbedInstance, stub } from 'sinon';
@@ -20,12 +22,18 @@ import {
 } from '../../src';
 import * as conversions from '../../src/Conversions';
 import { INSUFFICIENT_TOKEN_AMOUNT } from '../../src/definitions/errorMessages.const';
-import Token from '../../src/definitions/token.type';
+import ExchangeToken from '../../src/definitions/token.type';
 
 use(sinonChai);
 use(chaiAsPromised);
 
 describe('RelayServer', () => {
+    const token: ExchangeToken = {
+        contractAddress: 'address',
+        name: 'tRif',
+        symbol: 'RIF',
+        decimals: 18
+    };
     let fakeManagerKeyManager: SinonStubbedInstance<KeyManager> & KeyManager;
     let fakeWorkersKeyManager: SinonStubbedInstance<KeyManager> & KeyManager;
     let fakeContractInteractor: SinonStubbedInstance<ContractInteractor> &
@@ -44,8 +52,9 @@ describe('RelayServer', () => {
             getAddress: stub()
         });
         fakeWorkersKeyManager.getAddress.returns('fake_address');
-
-        fakeContractInteractor = createStubInstance(ContractInteractor);
+        fakeContractInteractor = createStubInstance(ContractInteractor, {
+            getERC20Token: Promise.resolve(token)
+        });
 
         fakeTxStoreManager = createStubInstance(TxStoreManager);
 
@@ -101,16 +110,19 @@ describe('RelayServer', () => {
 
         const MAX_POSSIBLE_GAS = new BigNumber(30_000_000);
 
+        const xRateRifRbtc = BigNumber('0.00000332344907316948');
+
         const fakeMaxGasEstimation = (price?: number) =>
             fakeContractInteractor.estimateRelayTransactionMaxPossibleGasWithTransactionRequest.returns(
                 Promise.resolve(price ?? MAX_POSSIBLE_GAS.toNumber())
             ); // 3e7 gas is ethereum total block size gas limit)
 
         it('should call `toNativeWeiFrom` method with `tokenAmount` and exchange rate', async () => {
+            Sinon.stub(RelayPricer.prototype, 'getExchangeRate').returns(Promise.resolve(xRateRifRbtc));
             const tokenAmount = new BigNumber(exampleTokenAmount.toString());
-            const xRate = new BigNumber(conversions.RBTC_IN_RIF);
-            const expectedParams: Token = {
-                ...conversions.SUPPORTED_TOKENS[0],
+            const xRate = xRateRifRbtc;
+            const expectedParams: ExchangeToken = {
+                ...token,
                 amount: tokenAmount,
                 xRate
             };
@@ -221,6 +233,7 @@ describe('RelayServer', () => {
         });
 
         it('should include fee in final max gas estimation', async () => {
+            Sinon.stub(RelayPricer.prototype, 'getExchangeRate').returns(Promise.resolve(xRateRifRbtc));
             fakeMaxGasEstimation();
             const feePercentage: ServerConfigParams['feePercentage'] =
                 '10.0000001';
@@ -240,7 +253,7 @@ describe('RelayServer', () => {
             );
             fakeRelayTransactionRequest.relayRequest.request.tokenAmount =
                 expectedMaxGasEstimation
-                    .dividedBy(conversions.RBTC_IN_RIF)
+                    .dividedBy(xRateRifRbtc)
                     .toString();
             const actualMaxGasEstimation = new BigNumber(
                 (
