@@ -23,7 +23,9 @@ describe('Conversions', () => {
 
     describe('getXRateFor', async () => {
         it('should return exchange rate of given token (from test constants as price feeder needs to be implemented)', async () => {
-            Sinon.stub(RelayPricer.prototype, 'getExchangeRate').returns(Promise.resolve(xRateRifRbtc));
+            Sinon.stub(RelayPricer.prototype, 'getExchangeRate').returns(
+                Promise.resolve(xRateRifRbtc)
+            );
             const expectedXRate: BigNumber = xRateRifRbtc;
             const token: ExchangeToken = {
                 contractAddress: '',

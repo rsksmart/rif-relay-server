@@ -118,7 +118,9 @@ describe('RelayServer', () => {
             ); // 3e7 gas is ethereum total block size gas limit)
 
         it('should call `toNativeWeiFrom` method with `tokenAmount` and exchange rate', async () => {
-            Sinon.stub(RelayPricer.prototype, 'getExchangeRate').returns(Promise.resolve(xRateRifRbtc));
+            Sinon.stub(RelayPricer.prototype, 'getExchangeRate').returns(
+                Promise.resolve(xRateRifRbtc)
+            );
             const tokenAmount = new BigNumber(exampleTokenAmount.toString());
             const xRate = xRateRifRbtc;
             const expectedParams: ExchangeToken = {
@@ -233,7 +235,9 @@ describe('RelayServer', () => {
         });
 
         it('should include fee in final max gas estimation', async () => {
-            Sinon.stub(RelayPricer.prototype, 'getExchangeRate').returns(Promise.resolve(xRateRifRbtc));
+            Sinon.stub(RelayPricer.prototype, 'getExchangeRate').returns(
+                Promise.resolve(xRateRifRbtc)
+            );
             fakeMaxGasEstimation();
             const feePercentage: ServerConfigParams['feePercentage'] =
                 '10.0000001';
@@ -252,9 +256,7 @@ describe('RelayServer', () => {
                 mockDependencies
             );
             fakeRelayTransactionRequest.relayRequest.request.tokenAmount =
-                expectedMaxGasEstimation
-                    .dividedBy(xRateRifRbtc)
-                    .toString();
+                expectedMaxGasEstimation.dividedBy(xRateRifRbtc).toString();
             const actualMaxGasEstimation = new BigNumber(
                 (
                     await server.getMaxPossibleGas(

@@ -66,9 +66,14 @@ export const toBNWithPrecision = ({
  * @param token Token object containing token name
  * @returns BigNumber representation of the exchange rate
  */
-export const getXRateFor = async ({ symbol }: ExchangeToken): Promise<BigNumber> =>
+export const getXRateFor = async ({
+    symbol
+}: ExchangeToken): Promise<BigNumber> =>
     new Promise((resolve) => {
-        const exchangeRate = relayPricer.getExchangeRate(symbol, TARGET_CURRENCY);
+        const exchangeRate = relayPricer.getExchangeRate(
+            symbol,
+            TARGET_CURRENCY
+        );
         resolve(symbol && exchangeRate);
     });
 
