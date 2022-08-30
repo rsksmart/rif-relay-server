@@ -151,12 +151,6 @@ Relayer state: READY
 ## Execute as a Docker container
 
 You can run the server as a Docker container. Docker and Docker compose should be installed and an RSK Node should be running.
-First execute 
-
-```bash
-npm i
-```
-
 After modifying the config-file as indicated [here](#server-execution), an additional modification should be made in the same file as follows:
 
 ```json
