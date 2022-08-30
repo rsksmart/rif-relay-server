@@ -2,7 +2,7 @@
 FROM node:16-alpine AS compiler
 RUN apk add --no-cache build-base git bash
 WORKDIR /usr/src/app
-COPY / ./
+COPY . ./
 
 # Runtime container
 FROM node:16-alpine
