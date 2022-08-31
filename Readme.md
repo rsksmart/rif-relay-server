@@ -153,11 +153,17 @@ Relayer state: READY
 You can run the server as a Docker container. Docker and Docker compose should be installed and an RSK Node should be running.
 After modifying the config-file as indicated [here](#server-execution), an additional modification should be made in the same file as follows:
 
+For Mac users:
 ```json
 "rskNodeUrl": "http://host.docker.internal:4444",
 ```
 
-Edit your local hosts file to make host.docker.internal resolve as 127.0.0.1. Then run 
+For Linux users:
+```json
+"rskNodeUrl": "http://172.17.0.1:4444",
+```
+
+In both cases, edit your local hosts file to make the address above resolve as 127.0.0.1. Then run 
 
 ```bash
 docker-compose build && docker-compose up
