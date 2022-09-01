@@ -412,6 +412,7 @@ export class RelayServer extends EventEmitter {
             );
             const gasPrice = new BigNumber(req.relayRequest.relayData.gasPrice);
 
+            // TODO: store the token information to avoid multiple request
             const token: ExchangeToken =
                 await this.contractInteractor.getERC20Token(
                     req.relayRequest.request.tokenContract,
