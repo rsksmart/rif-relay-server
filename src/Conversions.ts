@@ -2,15 +2,14 @@ import BigNumber from 'bignumber.js';
 import BN from 'bn.js';
 import { toBN } from 'web3-utils';
 import ExchangeToken from './definitions/token.type';
-import { CoinBase, RelayPricer } from '@rsksmart/rif-relay-client';
+import { RelayPricer } from '@rsksmart/rif-relay-client';
 
 export const TARGET_CURRENCY = 'RBTC';
 
 export const RBTC_CHAIN_DECIMALS = 18; // FIXME: should this be configurable?
 export const MAX_ETH_GAS_BLOCK_SIZE = 30_000_000;
 
-const coinbase = new CoinBase();
-const relayPricer = new RelayPricer(coinbase);
+const relayPricer = new RelayPricer();
 
 /**
  * Multiplies base to power of precision

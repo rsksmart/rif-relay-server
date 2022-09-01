@@ -414,7 +414,8 @@ export class RelayServer extends EventEmitter {
 
             const token: ExchangeToken =
                 await this.contractInteractor.getERC20Token(
-                    req.relayRequest.request.tokenContract
+                    req.relayRequest.request.tokenContract,
+                    { symbol: true }
                 );
 
             const xRate: BigNumber = await getXRateFor(token);
