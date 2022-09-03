@@ -159,9 +159,7 @@ describe('HttpServer', () => {
                     '0xb8c646c863ff648b6f75f05cbcd84625521ca802d397e6473ba8f5e00e65f169'
             };
 
-            fakeRelayServer.createRelayTransaction = (
-                req: RelayTransactionRequest | DeployTransactionRequest
-            ) => Promise.resolve(fakeResponseRelayTransaction);
+            fakeRelayServer.createRelayTransaction = () => Promise.resolve(fakeResponseRelayTransaction);
             fakeRequestExpress = {
                 body: {}
             };
@@ -170,15 +168,8 @@ describe('HttpServer', () => {
                 fakeRequestExpress as Request,
                 fakeResponseExpress as Response
             );
-
-            assert.containsAllKeys(fakeResponseExpress.send?.args[0][0], [
-                'signedTx',
-                'transactionHash'
-            ]);
-            assert.deepEqual(
-                fakeResponseExpress.send?.args[0][0],
-                fakeResponseRelayTransaction
-            );
+            
+            fakeResponseExpress.send?.calledOnceWithExactly(fakeResponseRelayTransaction);
         });
     });
 });
