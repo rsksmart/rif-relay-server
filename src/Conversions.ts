@@ -67,14 +67,13 @@ export const toBNWithPrecision = ({
  */
 export const getXRateFor = async ({
     symbol
-}: ExchangeToken): Promise<BigNumber> =>
-    new Promise((resolve) => {
-        const exchangeRate = relayPricer.getExchangeRate(
-            symbol,
-            TARGET_CURRENCY
-        );
-        resolve(symbol && exchangeRate);
-    });
+}: ExchangeToken): Promise<BigNumber> => {
+    const exchangeRate = await relayPricer.getExchangeRate(
+        symbol,
+        TARGET_CURRENCY
+    );
+    return exchangeRate;
+};
 
 /**
  * Converts token amount to native "wei" representation

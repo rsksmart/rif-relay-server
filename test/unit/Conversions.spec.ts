@@ -1,6 +1,6 @@
 import { RelayPricer } from '@rsksmart/rif-relay-client';
 import BigNumber from 'bignumber.js';
-import { expect, use } from 'chai';
+import { expect, use, assert } from 'chai';
 import chaiAsPromised from 'chai-as-promised';
 import Sinon from 'sinon';
 import sinonChai from 'sinon-chai';
@@ -22,7 +22,7 @@ describe('Conversions', () => {
     });
 
     describe('getXRateFor', async () => {
-        it('should return exchange rate of given token (from test constants as price feeder needs to be implemented)', async () => {
+        it('should return exchange rate of given token', async () => {
             Sinon.stub(RelayPricer.prototype, 'getExchangeRate').returns(
                 Promise.resolve(xRateRifRbtc)
             );
@@ -40,6 +40,42 @@ describe('Conversions', () => {
                 actualXRate.isEqualTo(expectedXRate),
                 `${actualXRate} should equal ${expectedXRate}`
             ).to.be.true;
+        });
+
+        it('should fail if token is null', async () => {
+            await assert.isRejected(
+                getXRateFor(null),
+                "Cannot destructure property 'symbol' of 'object null' as it is null."
+            );
+        });
+
+        it('should fail if token is does not have symbol', async () => {
+            const error = Error(
+                'There is no available API for token undefined'
+            );
+            Sinon.stub(RelayPricer.prototype, 'getExchangeRate').returns(
+                Promise.reject(error)
+            );
+            const token: ExchangeToken = {
+                contractAddress: '',
+                decimals: 18,
+                name: ''
+            };
+            await assert.isRejected(getXRateFor(token), error.message);
+        });
+
+        it('should fail if token does not exist', async () => {
+            const error = Error('There is no available API for token NA');
+            Sinon.stub(RelayPricer.prototype, 'getExchangeRate').returns(
+                Promise.reject(error)
+            );
+            const token: ExchangeToken = {
+                contractAddress: '',
+                decimals: 18,
+                name: 'NA',
+                symbol: 'NA'
+            };
+            await assert.isRejected(getXRateFor(token), error.message);
         });
     });
 
