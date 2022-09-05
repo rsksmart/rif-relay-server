@@ -142,10 +142,10 @@ describe('HttpServer', () => {
     });
 
     describe('RelayHandler', () => {
-        const fakeResponseExpress: SinonStubbedInstance<Partial<Response>> = {
+        const fakeResponseExpress: SinonStubbedInstance<Pick<Response, 'send'>> = {
             send: stub()
         };
-        let fakeRequestExpress: SinonStubbedInstance<Partial<Request>>;
+        let fakeRequestExpress: SinonStubbedInstance<Pick<Request, 'body'>>;
 
         it('should return a reponse with signedTx and transactionHash in body', async () => {
             const fakeResponseRelayTransaction: SignedTransactionDetails = {
@@ -163,10 +163,10 @@ describe('HttpServer', () => {
 
             await httpServer.relayHandler(
                 fakeRequestExpress as Request,
-                fakeResponseExpress as Response
+                fakeResponseExpress as unknown as Response
             );
 
-            fakeResponseExpress.send?.calledOnceWithExactly(
+            fakeResponseExpress.send.calledOnceWithExactly(
                 fakeResponseRelayTransaction
             );
         });
