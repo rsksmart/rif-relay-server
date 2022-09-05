@@ -17,10 +17,6 @@ import {
     SignedTransactionDetails
 } from '../src';
 import jsonrpc from 'jsonrpc-lite';
-import {
-    DeployTransactionRequest,
-    RelayTransactionRequest
-} from '@rsksmart/rif-relay-common';
 
 use(chaiAsPromised);
 
@@ -159,7 +155,8 @@ describe('HttpServer', () => {
                     '0xb8c646c863ff648b6f75f05cbcd84625521ca802d397e6473ba8f5e00e65f169'
             };
 
-            fakeRelayServer.createRelayTransaction = () => Promise.resolve(fakeResponseRelayTransaction);
+            fakeRelayServer.createRelayTransaction = () =>
+                Promise.resolve(fakeResponseRelayTransaction);
             fakeRequestExpress = {
                 body: {}
             };
@@ -168,8 +165,10 @@ describe('HttpServer', () => {
                 fakeRequestExpress as Request,
                 fakeResponseExpress as Response
             );
-            
-            fakeResponseExpress.send?.calledOnceWithExactly(fakeResponseRelayTransaction);
+
+            fakeResponseExpress.send?.calledOnceWithExactly(
+                fakeResponseRelayTransaction
+            );
         });
     });
 });
