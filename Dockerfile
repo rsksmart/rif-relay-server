@@ -1,12 +1,12 @@
 # Compiler container
-FROM node:12-alpine AS compiler
+FROM node:16-alpine AS compiler
 RUN apk add --no-cache build-base git bash
 WORKDIR /usr/src/app
-COPY package.json ./
-RUN npm i --cache /tmp/1
 COPY . ./
+RUN npm i --no-audit
+
 # Runtime container
-FROM node:12-alpine
+FROM node:16-alpine
 RUN apk add --no-cache bash
 RUN mkdir -p /srv/app && chown node:node /srv/app \
  && mkdir -p /srv/data && chown node:node /srv/data
@@ -18,3 +18,5 @@ COPY --chown=node:node server-config*.json ./
 COPY --chown=node:node dist ./dist/
 COPY --chown=node:node scripts ./scripts/
 EXPOSE 8090
+
+CMD ["node", "dist/commands/Start.js", "--config", "server-config.json"]
