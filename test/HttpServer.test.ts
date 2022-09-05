@@ -142,7 +142,9 @@ describe('HttpServer', () => {
     });
 
     describe('RelayHandler', () => {
-        const fakeResponseExpress: SinonStubbedInstance<Pick<Response, 'send'>> = {
+        const fakeResponseExpress: SinonStubbedInstance<
+            Pick<Response, 'send'>
+        > = {
             send: stub()
         };
         let fakeRequestExpress: SinonStubbedInstance<Pick<Request, 'body'>>;
