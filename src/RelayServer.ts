@@ -224,7 +224,7 @@ export class RelayServer extends EventEmitter {
 
         // Check the feesReceiver
         if (
-            this.config.feesReceiver.toLowerCase() ===
+            this.config.feesReceiver.toLowerCase() !==
             req.relayRequest.relayData.feesReceiver.toLowerCase()
         ) {
             throw new Error(
