@@ -416,7 +416,7 @@ export class RelayServer extends EventEmitter {
             const token: ExchangeToken =
                 await this.contractInteractor.getERC20Token(
                     req.relayRequest.request.tokenContract,
-                    { symbol: true }
+                    { symbol: true, decimals: true }
                 );
 
             const xRate: BigNumber = await getXRateFor(token);
@@ -429,6 +429,7 @@ export class RelayServer extends EventEmitter {
 
             const tokenAmountInGas: BigNumber =
                 tokenAmountInNative.dividedBy(gasPrice);
+
             const isTokenAmountAcceptable: boolean =
                 tokenAmountInGas.isGreaterThanOrEqualTo(
                     maxPossibleGas.toString()
