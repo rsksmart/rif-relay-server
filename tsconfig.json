@@ -32,7 +32,6 @@
     "sourceMap": true
   },
   "include": [
-    "**/*.ts",
     "src/**/*"
   ],
   "exclude": [
