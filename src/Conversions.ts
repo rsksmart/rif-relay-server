@@ -82,7 +82,7 @@ export const getXRateFor = async ({
  */
 export const toNativeWeiFrom = async ({
     amount,
-    decimals,
+    decimals = 18,
     xRate
 }: ExchangeToken): Promise<BigNumber> => {
     if (!amount || !xRate || amount.isZero() || xRate.isZero()) {
