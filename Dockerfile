@@ -13,9 +13,9 @@ RUN mkdir -p /srv/app && chown node:node /srv/app \
 USER node
 WORKDIR /srv/app
 COPY --from=compiler --chown=node:node /usr/src/app/node_modules ./node_modules/
+COPY --from=compiler --chown=node:node /usr/src/app/dist ./dist/
 COPY --chown=node:node package*.json ./
 COPY --chown=node:node server-config*.json ./
-COPY --chown=node:node dist ./dist/
 COPY --chown=node:node scripts ./scripts/
 EXPOSE 8090
 
