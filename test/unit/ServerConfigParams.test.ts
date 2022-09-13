@@ -7,9 +7,7 @@ import {
     resolveServerConfig
 } from '../../src';
 
-import {
-    ContractInteractor,
-} from '@rsksmart/rif-relay-common';
+import { ContractInteractor } from '@rsksmart/rif-relay-common';
 import promisedChai from 'chai-as-promised';
 use(promisedChai);
 
