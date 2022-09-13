@@ -311,7 +311,7 @@ export async function resolveServerConfig(
         error(`RelayHub: no contract at address ${config.relayHubAddress}`);
     }
 
-    if (config.feesReceiver) {
+    if (config.feesReceiver && config.feesReceiver !== constants.ZERO_ADDRESS) {
         const isFeesReceiverDeployed =
             await contractInteractor.isContractDeployed(config.feesReceiver);
         if (!isFeesReceiverDeployed) {

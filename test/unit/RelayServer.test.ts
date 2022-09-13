@@ -88,6 +88,31 @@ describe('RelayServer', () => {
             expect(fakeWorkersKeyManager.getAddress, 'Calls workers getAddress')
                 .to.have.been.called;
         });
+
+        it('should set feesReceiver as collector contract if specified', () => {
+
+            const config = {
+                feesReceiver: '0x9957A338858bc941dA9D0ED2ACBCa4F16116B836'
+            };
+
+            const server = new RelayServer(
+                config,
+                mockDependencies
+            );
+
+            expect(server.feesReceiver, 'Sets feesReceiver as collector contract')
+                .to.equal(config.feesReceiver);
+        });
+
+        it('should set feesReceiver as relay worker if not specified', () => {
+            const server = new RelayServer(
+                {},
+                mockDependencies
+            );
+
+            expect(server.feesReceiver, 'Sets feesReceiver as relay worker')
+                .to.equal('fake_address');
+        });
     });
 
     describe('getMaxPossibleGas', async () => {
