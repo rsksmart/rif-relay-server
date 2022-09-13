@@ -151,7 +151,7 @@ const ConfigParamsTypes = {
     trustedVerifiers: 'string',
     relayVerifierAddress: 'string',
     deployVerifierAddress: 'string',
-    collectorAddress: 'string',
+    feesReceiver: 'string',
 
     disableSponsoredTx: 'boolean',
     feePercentage: 'string'
