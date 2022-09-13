@@ -41,7 +41,7 @@ export interface ServerConfigParams {
     logLevel: LogLevelNumbers;
     deployVerifierAddress: string;
     relayVerifierAddress: string;
-    collectorAddress: string;
+    feesReceiver: string;
     workerMinBalance: number;
     workerTargetBalance: number;
     managerMinBalance: number;
@@ -90,7 +90,7 @@ export const serverDefaultConfiguration: ServerConfigParams = {
     relayHubAddress: constants.ZERO_ADDRESS,
     relayVerifierAddress: constants.ZERO_ADDRESS,
     deployVerifierAddress: constants.ZERO_ADDRESS,
-    collectorAddress: constants.ZERO_ADDRESS,
+    feesReceiver: constants.ZERO_ADDRESS,
     trustedVerifiers: [],
     gasPriceFactor: 1,
     registrationBlockRate: 0,
@@ -311,13 +311,13 @@ export async function resolveServerConfig(
         error(`RelayHub: no contract at address ${config.relayHubAddress}`);
     }
 
-    if (config.collectorAddress) {
-        const isCollectorDeployed = await contractInteractor.isContractDeployed(
-            config.collectorAddress
+    if (config.feesReceiver) {
+        const isFeesReceiverDeployed = await contractInteractor.isContractDeployed(
+            config.feesReceiver
         );
-        if (!isCollectorDeployed) {
+        if (!isFeesReceiverDeployed) {
             error(
-                `Collector: no contract at address ${config.collectorAddress}`
+                `FeesReceiver: no contract at address ${config.feesReceiver}`
             );
         }
     }

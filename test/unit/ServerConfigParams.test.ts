@@ -9,14 +9,12 @@ import {
 
 import {
     ContractInteractor,
-    VersionRegistry
 } from '@rsksmart/rif-relay-common';
 import promisedChai from 'chai-as-promised';
 use(promisedChai);
 
 describe('ServerConfigParams', () => {
-
-    beforeEach(()=> {
+    beforeEach(() => {
         sinon.restore();
     });
 
@@ -51,10 +49,10 @@ describe('ServerConfigParams', () => {
         });
 
         it('should set collectorContract', () => {
-            const expectedCollector: ServerConfigParams['collectorAddress'] =
+            const expectedCollector: ServerConfigParams['feesReceiver'] =
                 '0x9957A338858bc941dA9D0ED2ACBCa4F16116B836';
-            const { collectorAddress: actualCollector } = configureServer({
-                collectorAddress: expectedCollector
+            const { feesReceiver: actualCollector } = configureServer({
+                feesReceiver: expectedCollector
             });
 
             expect(actualCollector, 'Is equal to given address').to.equal(
@@ -64,12 +62,14 @@ describe('ServerConfigParams', () => {
     });
 
     describe('resolveServerConfig', () => {
-
         it('should fulfill if collectorContract is specified and is deployed', () => {
             sinon.mock(ContractInteractor);
-            sinon.stub(ContractInteractor.prototype, 'isContractDeployed')
-                .onFirstCall().resolves(true)
-                .onSecondCall().resolves(true);
+            sinon
+                .stub(ContractInteractor.prototype, 'isContractDeployed')
+                .onFirstCall()
+                .resolves(true)
+                .onSecondCall()
+                .resolves(true);
 
             const config = configureServer({
                 url: 'https://dev.relay.rifcomputing.net:8090',
@@ -79,7 +79,7 @@ describe('ServerConfigParams', () => {
                     '0x56ccdB6D312307Db7A4847c3Ea8Ce2449e9B79e9',
                 deployVerifierAddress:
                     '0x5C6e96a84271AC19974C3e99d6c4bE4318BfE483',
-                collectorAddress: '0x9957A338858bc941dA9D0ED2ACBCa4F16116B836',
+                feesReceiver: '0x9957A338858bc941dA9D0ED2ACBCa4F16116B836',
                 gasPriceFactor: 1,
                 rskNodeUrl: 'http://172.17.0.1:4444',
                 devMode: true,
@@ -90,14 +90,18 @@ describe('ServerConfigParams', () => {
                 versionRegistryAddress: null
             });
 
-            return expect(resolveServerConfig(config, {})).to.eventually.be.fulfilled;
+            return expect(resolveServerConfig(config, {})).to.eventually.be
+                .fulfilled;
         });
 
         it('should reject if collectorContract is specified but it is not deployed', () => {
             sinon.mock(ContractInteractor);
-            sinon.stub(ContractInteractor.prototype, 'isContractDeployed')
-                .onFirstCall().resolves(true)
-                .onSecondCall().resolves(false);
+            sinon
+                .stub(ContractInteractor.prototype, 'isContractDeployed')
+                .onFirstCall()
+                .resolves(true)
+                .onSecondCall()
+                .resolves(false);
 
             const config = configureServer({
                 url: 'https://dev.relay.rifcomputing.net:8090',
@@ -107,7 +111,7 @@ describe('ServerConfigParams', () => {
                     '0x56ccdB6D312307Db7A4847c3Ea8Ce2449e9B79e9',
                 deployVerifierAddress:
                     '0x5C6e96a84271AC19974C3e99d6c4bE4318BfE483',
-                collectorAddress: '0x9957A338858bc941dA9D0ED2ACBCa4F16116B836',
+                feesReceiver: '0x9957A338858bc941dA9D0ED2ACBCa4F16116B836',
                 gasPriceFactor: 1,
                 rskNodeUrl: 'http://172.17.0.1:4444',
                 devMode: true,
@@ -118,8 +122,9 @@ describe('ServerConfigParams', () => {
                 versionRegistryAddress: null
             });
 
-            return expect(resolveServerConfig(config, {}))
-                .to.be.rejectedWith(`Collector: no contract at address ${config.collectorAddress}`);
+            return expect(resolveServerConfig(config, {})).to.be.rejectedWith(
+                `FeesReceiver: no contract at address ${config.feesReceiver}`
+            );
         });
     });
 });
