@@ -221,7 +221,7 @@ export class RelayServer extends EventEmitter {
 
         // Check the feeReceiver (todo: once migrated to multiple relays, check if exists)
         if (
-            [this.collectorAddress, this.workerAddress].includes(
+            ![this.collectorAddress, this.workerAddress].includes(
                 req.relayRequest.relayData.feesReceiver.toLowerCase()
             )
         ) {

@@ -11,5 +11,5 @@
     "feePercentage": "0",
     "disableSponsoredTx": true,
     "logLevel": 1,
-    "workdir": "/users/christos/workspace/enveloping/environment"
+    "workdir": "/home/user/workspace/enveloping/environment"
 }
