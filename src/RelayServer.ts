@@ -72,6 +72,7 @@ export class RelayServer extends EventEmitter {
     lastSuccessfulRounds = Number.MAX_SAFE_INTEGER;
     readonly managerAddress: PrefixedHexString;
     readonly workerAddress: PrefixedHexString;
+    readonly feesReceiver: PrefixedHexString;
     gasPrice = 0;
     _workerSemaphoreOn = false;
     alerted = false;
@@ -114,6 +115,10 @@ export class RelayServer extends EventEmitter {
             this.transactionManager.managerKeyManager.getAddress(0);
         this.workerAddress =
             this.transactionManager.workersKeyManager.getAddress(0);
+        this.feesReceiver =
+            this.config.feesReceiver === constants.ZERO_ADDRESS
+                ? this.workerAddress
+                : this.config.feesReceiver;
         this.customReplenish = this.config.customReplenish;
         this.workerBalanceRequired = new AmountRequired(
             'Worker Balance',
@@ -128,6 +133,8 @@ export class RelayServer extends EventEmitter {
     printServerAddresses(): void {
         log.info(`Server manager address  | ${this.managerAddress}`);
         log.info(`Server worker  address  | ${this.workerAddress}`);
+        if (this.feesReceiver)
+            log.info(`Fees receiver       | ${this.feesReceiver}`);
     }
 
     getMinGasPrice(): number {
@@ -147,7 +154,8 @@ export class RelayServer extends EventEmitter {
             chainId: this.chainId.toString(),
             networkId: this.networkId.toString(),
             ready: this.isReady() ?? false,
-            version: VERSION
+            version: VERSION,
+            feesReceiver: this.feesReceiver
         };
     }
 
@@ -214,13 +222,13 @@ export class RelayServer extends EventEmitter {
             );
         }
 
-        // Check the relayWorker (todo: once migrated to multiple relays, check if exists)
+        // Check the feesReceiver
         if (
-            req.relayRequest.relayData.relayWorker.toLowerCase() !==
-            this.workerAddress.toLowerCase()
+            this.feesReceiver.toLowerCase() !==
+            req.relayRequest.relayData.feesReceiver.toLowerCase()
         ) {
             throw new Error(
-                `Wrong worker address: ${req.relayRequest.relayData.relayWorker}\n`
+                `Wrong fees receiver address: ${req.relayRequest.relayData.feesReceiver}\n`
             );
         }
 
@@ -344,7 +352,8 @@ export class RelayServer extends EventEmitter {
             // Actual Maximum gas needed to send to the deploy request tx
             maxPossibleGas = toBN(
                 await this.contractInteractor.walletFactoryEstimateGasOfDeployCall(
-                    deployReq
+                    deployReq,
+                    this.workerAddress
                 )
             );
 
@@ -390,7 +399,8 @@ export class RelayServer extends EventEmitter {
             // Actual maximum gas needed to  send the relay transaction
             maxPossibleGas = toBN(
                 await this.contractInteractor.estimateRelayTransactionMaxPossibleGasWithTransactionRequest(
-                    relayReq
+                    relayReq,
+                    this.workerAddress
                 )
             );
         }
