@@ -11,6 +11,14 @@
             "runtimeExecutable": "npm",
             "skipFiles": ["<node_internals>/**"],
             "type": "pwa-node"
+        },
+        {
+            "name": "Launch test via npm mocha",
+            "request": "launch",
+            "runtimeArgs": ["run", "test"],
+            "runtimeExecutable": "npm",
+            "skipFiles": ["<node_internals>/**"],
+            "type": "pwa-node"
         }
     ]
 }
