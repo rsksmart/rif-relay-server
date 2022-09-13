@@ -115,8 +115,10 @@ export class RelayServer extends EventEmitter {
             this.transactionManager.managerKeyManager.getAddress(0);
         this.workerAddress =
             this.transactionManager.workersKeyManager.getAddress(0);
-        this.feesReceiver = (this.config.feesReceiver === constants.ZERO_ADDRESS) 
-            ? this.workerAddress : this.config.feesReceiver;
+        this.feesReceiver =
+            this.config.feesReceiver === constants.ZERO_ADDRESS
+                ? this.workerAddress
+                : this.config.feesReceiver;
         this.customReplenish = this.config.customReplenish;
         this.workerBalanceRequired = new AmountRequired(
             'Worker Balance',
@@ -222,10 +224,9 @@ export class RelayServer extends EventEmitter {
 
         // Check the feesReceiver
         if (
-            this.config.feesReceiver.toLowerCase() === 
+            this.config.feesReceiver.toLowerCase() ===
             req.relayRequest.relayData.feesReceiver.toLowerCase()
-        ) 
-        {
+        ) {
             throw new Error(
                 `Wrong fees receiver address: ${req.relayRequest.relayData.feesReceiver}\n`
             );
