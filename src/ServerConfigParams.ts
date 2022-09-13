@@ -311,11 +311,15 @@ export async function resolveServerConfig(
         error(`RelayHub: no contract at address ${config.relayHubAddress}`);
     }
 
-    if(config.collectorAddress){
-        const isCollectorDeployed = await contractInteractor.isContractDeployed(config.collectorAddress);
+    if (config.collectorAddress) {
+        const isCollectorDeployed = await contractInteractor.isContractDeployed(
+            config.collectorAddress
+        );
         if (!isCollectorDeployed) {
-            error(`Collector: no contract at address ${config.relayHubAddress}`);
-        }    
+            error(
+                `Collector: no contract at address ${config.relayHubAddress}`
+            );
+        }
     }
 
     if (config.url == null) error('missing param: url');
