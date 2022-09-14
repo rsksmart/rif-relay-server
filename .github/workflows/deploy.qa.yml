@@ -1,9 +1,9 @@
 ---
-name: Deploy QA
+name: CD for Rif-Relay-Server
 
 on:
     push:
-        branches: [master, PP-436/update-docker]
+        branches: [master]
 
 jobs:
     deploy-qa:
@@ -30,4 +30,4 @@ jobs:
                       --document-name "AWS-RunRemoteScript" \
                       --instance-ids "${{ secrets.QA_EC2_ID }}" \
                       --region=${{ secrets.QA_AWS_REGION }} \
-                      --parameters '{"sourceType":["GitHub"],"sourceInfo":["{\"owner\":\"rootstock\", \"repository\":\"ask-devops\", \"path\": \"rif-relay/qa/\", \"getOptions\": \"branch:setup-cd-relay\", \"tokenInfo\":\"{{ssm-secure:github-token}}\"}"],"commandLine":["deploy-rifrelay.sh"]}'
+                      --parameters '{"sourceType":["GitHub"],"sourceInfo":["{\"owner\":\"rootstock\", \"repository\":\"ask-devops\", \"path\": \"rif-relay/qa/\", \"tokenInfo\":\"{{ssm-secure:github-token}}\"}"],"commandLine":["deploy-rifrelay.sh"]}'
