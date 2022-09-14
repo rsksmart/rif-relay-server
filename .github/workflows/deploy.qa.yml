@@ -1,5 +1,5 @@
 ---
-name: Deploy RIF-Relay QA
+name: Deploy QA
 
 on:
     push:
@@ -24,7 +24,7 @@ jobs:
                   aws-secret-access-key: ${{ secrets.QA_AWS_SECRET_ACCESS_KEY }}
                   aws-region: ${{ secrets.QA_AWS_REGION }}
 
-            - name: Deploy rif-marketplace-cache develop
+            - name: Deploy rif-relay-server on QA
               run: |
                   aws ssm send-command \
                       --document-name "AWS-RunRemoteScript" \
