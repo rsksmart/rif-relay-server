@@ -9,9 +9,3 @@ services:
             - '8090:8090'
         volumes:
             - './environment:/srv/app/environment'
-        networks:
-            - rif-relay
-
-networks:
-    rif-relay:
-        driver: bridge

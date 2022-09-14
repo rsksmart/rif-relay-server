@@ -19,3 +19,4 @@ COPY package*.json ./
 COPY server-config*.json ./
 COPY scripts ./scripts/
 EXPOSE 8090
+CMD ["node", "dist/commands/Start.js", "--config", "server-config.json"]
