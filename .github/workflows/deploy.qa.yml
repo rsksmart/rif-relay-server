@@ -1,0 +1,33 @@
+---
+name: CD for Rif-Relay-Server
+
+on:
+    push:
+        branches: [master]
+
+jobs:
+    deploy-qa:
+        runs-on: ubuntu-latest
+        environment:
+            name: QA
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v2
+              with:
+                  fetch-depth: 0
+
+            - name: Configure AWS credentials
+              uses: aws-actions/configure-aws-credentials@v1
+              with:
+                  aws-access-key-id: ${{ secrets.QA_AWS_ACCESS_KEY_ID }}
+                  aws-secret-access-key: ${{ secrets.QA_AWS_SECRET_ACCESS_KEY }}
+                  aws-region: ${{ secrets.QA_AWS_REGION }}
+
+            - name: Deploy rif-relay-server on QA
+              run: |
+                  aws ssm send-command \
+                      --document-name "AWS-RunRemoteScript" \
+                      --instance-ids "${{ secrets.QA_EC2_ID }}" \
+                      --region=${{ secrets.QA_AWS_REGION }} \
+                      --parameters '{"sourceType":["GitHub"],"sourceInfo":["{\"owner\":\"rootstock\", \"repository\":\"ask-devops\", \"path\": \"rif-relay/qa/\", \"tokenInfo\":\"{{ssm-secure:github-token}}\"}"],"commandLine":["deploy-rifrelay.sh"]}'

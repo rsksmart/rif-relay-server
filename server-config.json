@@ -12,5 +12,5 @@
     "feePercentage": "0",
     "disableSponsoredTx": true,
     "logLevel": 1,
-    "workdir": "/home/user/workspace/enveloping/environment"
+    "workdir": "/Users/borja/iovlabs/projects/rif-relay/environment"
 }

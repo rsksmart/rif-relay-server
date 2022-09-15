@@ -5,6 +5,7 @@ import {
     RelayTransactionRequest
 } from '@rsksmart/rif-relay-common';
 import { ForwardRequest, RelayData } from '@rsksmart/rif-relay-contracts';
+import { IRelayHubInstance } from '@rsksmart/rif-relay-contracts/types/truffle-contracts';
 import BigNumber from 'bignumber.js';
 import BN from 'bn.js';
 import { expect, use } from 'chai';
@@ -55,6 +56,9 @@ describe('RelayServer', () => {
         fakeContractInteractor = createStubInstance(ContractInteractor, {
             getERC20Token: Promise.resolve(token)
         });
+        fakeContractInteractor.relayHubInstance = {
+            address: 'relayHubAddress'
+        } as IRelayHubInstance;
 
         fakeTxStoreManager = createStubInstance(TxStoreManager);
 
@@ -294,10 +298,12 @@ describe('RelayServer', () => {
     });
 
     describe('validateInput', () => {
+        const fakeRelayHubAddress = 'fake_relay_hub_address';
+        const fakeFeesReceiverAddress = 'fakeFeesReceiver';
         const fakeRelayTransactionRequest: RelayTransactionRequest = {
             relayRequest: {
                 relayData: {
-                    feesReceiver: 'fakeFeesReceiver'
+                    feesReceiver: fakeFeesReceiverAddress
                 } as RelayData,
                 request: {
                     to: 'fake_address',
@@ -305,22 +311,24 @@ describe('RelayServer', () => {
                 } as ForwardRequest
             },
             metadata: {
-                relayHubAddress: 'fake_relay_hub_address'
+                relayHubAddress: fakeRelayHubAddress
             } as RelayMetadata
         };
 
         it('should throw error if feesReceiver on request is not the same as server', () => {
-            const fakeFeesReceiver = 'fake_different_relay_hub_address';
 
             const server = new RelayServer(
                 {
-                    feesReceiver: fakeFeesReceiver
+                    feesReceiver: 'fake_different_relay_hub_address'
                 },
                 mockDependencies
             );
+            server.relayHubContract = {
+                address: fakeRelayHubAddress
+            } as IRelayHubInstance;
 
-            expect(server.validateInput(fakeRelayTransactionRequest)).to.throw(
-                `Wrong fees receiver address: ${fakeFeesReceiver}\n`
+            expect(() => server.validateInput(fakeRelayTransactionRequest)).to.throw(
+                `Wrong fees receiver address: ${fakeFeesReceiverAddress}\n`
             );
         });
     });

@@ -59,7 +59,8 @@
     "yargs": "~17.0.1"
   },
   "devDependencies": {
-    "@openeth/truffle-typings": "^0.0.6",
+    "@0x/subproviders": "6.4.1",
+    "@openeth/truffle-typings": "0.0.6",
     "@openzeppelin/test-helpers": "0.5.10",
     "@types/chai": "^4.3.1",
     "@types/chai-as-promised": "^7.1.5",
@@ -83,6 +84,7 @@
     "eslint": "~7.30.0",
     "husky": "~6.0.0",
     "mocha": "^10.0.0",
+    "pinst": "~2.1.6",
     "prettier": "^2.7.1",
     "sinon": "^14.0.0",
     "sinon-chai": "^3.7.0",
