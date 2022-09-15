@@ -316,7 +316,6 @@ describe('RelayServer', () => {
         };
 
         it('should throw error if feesReceiver on request is not the same as server', () => {
-
             const server = new RelayServer(
                 {
                     feesReceiver: 'fake_different_relay_hub_address'
@@ -327,7 +326,9 @@ describe('RelayServer', () => {
                 address: fakeRelayHubAddress
             } as IRelayHubInstance;
 
-            expect(() => server.validateInput(fakeRelayTransactionRequest)).to.throw(
+            expect(() =>
+                server.validateInput(fakeRelayTransactionRequest)
+            ).to.throw(
                 `Wrong fees receiver address: ${fakeFeesReceiverAddress}\n`
             );
         });
