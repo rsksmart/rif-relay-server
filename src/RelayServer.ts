@@ -222,16 +222,6 @@ export class RelayServer extends EventEmitter {
             );
         }
 
-        // Check the feesReceiver
-        if (
-            this.feesReceiver.toLowerCase() !==
-            req.relayRequest.relayData.feesReceiver.toLowerCase()
-        ) {
-            throw new Error(
-                `Wrong fees receiver address: ${req.relayRequest.relayData.feesReceiver}\n`
-            );
-        }
-
         // Check that the gasPrice is initialized & acceptable
         if (this.gasPrice > parseInt(req.relayRequest.relayData.gasPrice)) {
             throw new Error(
@@ -353,6 +343,7 @@ export class RelayServer extends EventEmitter {
             maxPossibleGas = toBN(
                 await this.contractInteractor.walletFactoryEstimateGasOfDeployCall(
                     deployReq,
+                    this.feesReceiver,
                     this.workerAddress
                 )
             );
@@ -400,6 +391,7 @@ export class RelayServer extends EventEmitter {
             maxPossibleGas = toBN(
                 await this.contractInteractor.estimateRelayTransactionMaxPossibleGasWithTransactionRequest(
                     relayReq,
+                    this.feesReceiver,
                     this.workerAddress
                 )
             );
@@ -525,16 +517,19 @@ export class RelayServer extends EventEmitter {
         const method = isDeploy
             ? this.relayHubContract.contract.methods.deployCall(
                   req.relayRequest as DeployRequest,
+                  this.feesReceiver,
                   req.metadata.signature
               )
             : this.relayHubContract.contract.methods.relayCall(
                   req.relayRequest as RelayRequest,
+                  this.feesReceiver,
                   req.metadata.signature
               );
 
         // Call relayCall as a view function to see if we'll get paid for relaying this tx
         await this.validateViewCallSucceeds(method, req, maxPossibleGas);
         const currentBlock = await this.contractInteractor.getBlockNumber();
+
         const details: SendTransactionDetails = {
             signer: this.workerAddress,
             serverAction: ServerAction.RELAY_CALL,
