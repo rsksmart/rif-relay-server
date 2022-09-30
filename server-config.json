@@ -8,6 +8,6 @@
     "rskNodeUrl": "http://127.0.0.1:4444",
     "devMode": true,
     "customReplenish": false,
-    "logLevel": 1,
+    "logLevel": 2,
     "workdir": "/Users/borja/iovlabs/projects/rif-relay/environment"
 }
