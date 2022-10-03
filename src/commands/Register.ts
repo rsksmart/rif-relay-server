@@ -33,7 +33,7 @@ export class Register extends CommandClient {
         const transactions: string[] = [];
         // TRACE: 0; DEBUG: 1; INFO: 2; WARN: 3; ERROR: 4; SILENT: 5;
         log.setLevel(this.config.logLevel);
-        log.info('Log level: '+ log.getLevel());
+        log.info('Log level: ' + log.getLevel());
         log.info(`Registering Enveloping relayer at ${options.relayUrl}`);
         log.info('Options received:', options);
         const response = await this.httpClient.getPingResponse(
@@ -146,7 +146,7 @@ export async function executeRegister(registerOptions?: RegisterOptions) {
     );
     const register = new Register(
         serverConfiguration.rskNodeUrl,
-        configure({ ...serverConfiguration } ),
+        configure(serverConfiguration),
         parameters.mnemonic
     );
     const portIncluded: boolean = serverConfiguration.url.indexOf(':') > 0;
