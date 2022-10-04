@@ -1,13 +1,13 @@
 {
     "url": "https://backend.qa.relay.rifcomputing.net",
     "port": 8090,
-    "relayHubAddress": "0x66Fa9FEAfB8Db66Fe2160ca7aEAc7FC24e254387",
-    "relayVerifierAddress": "0x56ccdB6D312307Db7A4847c3Ea8Ce2449e9B79e9",
-    "deployVerifierAddress": "0x5C6e96a84271AC19974C3e99d6c4bE4318BfE483",
+    "relayHubAddress": "0xB6d661BaceB51B0091933c1B951e5de4785D9C59",
+    "relayVerifierAddress": "0x1389b4d0cE729F416CC92B44735Fb5186de115c5",
+    "deployVerifierAddress": "0x5c0CCE19B7B4567F05eCe0C9c2471e2B1ab3A4fB",
     "gasPriceFactor": 1,
     "rskNodeUrl": "http://172.17.0.1:4444",
     "devMode": true,
     "customReplenish": false,
-    "logLevel": 1,
+    "logLevel": 0,
     "workdir": "/srv/app/environment"
 }
