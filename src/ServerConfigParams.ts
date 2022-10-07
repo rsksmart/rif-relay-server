@@ -1,23 +1,24 @@
-import parseArgs from 'minimist';
-import * as fs from 'fs';
-import {
-    VersionRegistry,
-    ContractInteractor,
-    constants
-} from '@rsksmart/rif-relay-common';
 import { configure } from '@rsksmart/rif-relay-client';
+import {
+    constants,
+    ContractInteractor,
+    VersionRegistry
+} from '@rsksmart/rif-relay-common';
+import * as fs from 'fs';
+import parseArgs from 'minimist';
 import { KeyManager } from './KeyManager';
 import { TxStoreManager } from './TxStoreManager';
 
 //@ts-ignore
-import sourceMapSupport from 'source-map-support';
-//@ts-ignore
-sourceMapSupport.install({ errorFormatterForce: true });
-import { LogLevelNumbers } from 'loglevel';
-import log from 'loglevel';
 import 'dotenv/config';
+import log, { LogLevelNumbers } from 'loglevel';
+// TODO: had to comment out as it doesn't work. Maybe let's update the dependency ;]
+// import sourceMapSupport from 'source-map-support';
+//@ts-ignore
+// sourceMapSupport.install({ errorFormatterForce: true });
 
 // TODO: is there a way to merge the typescript definition ServerConfigParams with the runtime checking ConfigParamTypes ?
+// FIXME: Yes there is with Pattern Matching. Let's create a ticket for refactoring this. We could also move to node config which would make life easier I suspect; see [PP-314](https://rsklabs.atlassian.net/browse/PP-314).
 export interface ServerConfigParams {
     url: string;
     port: number;
@@ -40,6 +41,7 @@ export interface ServerConfigParams {
     logLevel: LogLevelNumbers;
     deployVerifierAddress: string;
     relayVerifierAddress: string;
+    feesReceiver: string;
     workerMinBalance: number;
     workerTargetBalance: number;
     managerMinBalance: number;
@@ -54,6 +56,22 @@ export interface ServerConfigParams {
     maxGasPrice: string;
     defaultGasLimit: number;
     estimateGasFactor: number;
+    /**
+     * Forces relay users to pay for transaction gas
+     * @option false - The smart wallet of the relay user will be charged for the transaction
+     * @option true - The relay worker will pay transaction gas.
+     */
+    disableSponsoredTx: boolean;
+
+    /**
+     * Sets the fee value (%) that the server will take from all transactions.
+     * This fee will be added to the estimated gas and required in the transaction amount.
+     * @option n : {n ∈ ℝ} - absolute value of the fee percentage to be added to gas
+     * @note the percentage is represented as a fraction (1 = 100%) string to allow for very low or high percentages
+     * @note the minus sign is omitted if used
+     * @note fractions exceeding the number of decimals of that of the native currency will be rounded up
+     */
+    feePercentage: string;
 }
 
 export interface ServerDependencies {
@@ -64,13 +82,15 @@ export interface ServerDependencies {
     txStoreManager: TxStoreManager;
 }
 
-const serverDefaultConfiguration: ServerConfigParams = {
+export const serverDefaultConfiguration: ServerConfigParams = {
+    // FIXME: serverDefaultConfiguration is not obvious and there is no other config. I suggest naming it just: defaultConfiguration
     alertedBlockDelay: 0,
     minAlertedDelayMS: 0,
     maxAlertedDelayMS: 0,
     relayHubAddress: constants.ZERO_ADDRESS,
     relayVerifierAddress: constants.ZERO_ADDRESS,
     deployVerifierAddress: constants.ZERO_ADDRESS,
+    feesReceiver: constants.ZERO_ADDRESS,
     trustedVerifiers: [],
     gasPriceFactor: 1,
     registrationBlockRate: 0,
@@ -97,7 +117,9 @@ const serverDefaultConfiguration: ServerConfigParams = {
     retryGasPriceFactor: 1.2,
     defaultGasLimit: 500000,
     maxGasPrice: (100e9).toString(),
-    estimateGasFactor: 1.2
+    estimateGasFactor: 1.2,
+    disableSponsoredTx: false,
+    feePercentage: '0'
 };
 
 const ConfigParamsTypes = {
@@ -128,7 +150,11 @@ const ConfigParamsTypes = {
 
     trustedVerifiers: 'string',
     relayVerifierAddress: 'string',
-    deployVerifierAddress: 'string'
+    deployVerifierAddress: 'string',
+    feesReceiver: 'string',
+
+    disableSponsoredTx: 'boolean',
+    feePercentage: 'string'
 } as any;
 
 // by default: no waiting period - use VersionRegistry entries immediately.
@@ -284,13 +310,28 @@ export async function resolveServerConfig(
     ) {
         error(`RelayHub: no contract at address ${config.relayHubAddress}`);
     }
+
+    if (config.feesReceiver && config.feesReceiver !== constants.ZERO_ADDRESS) {
+        const isFeesReceiverDeployed =
+            await contractInteractor.isContractDeployed(config.feesReceiver);
+        if (!isFeesReceiverDeployed) {
+            error(
+                `FeesReceiver: no contract at address ${config.feesReceiver}`
+            );
+        }
+    }
+
     if (config.url == null) error('missing param: url');
     if (config.workdir == null) error('missing param: workdir');
     return { ...serverDefaultConfiguration, ...config };
 }
 
+//FIXME: the incomming and outgoing type may and likely should differ. For example for all big number values the incoming value should be a string to prevent loss of precision, but outgoing type should be big number so that it doesn't need to be converted everywhere it is used.
 export function configureServer(
     partialConfig: Partial<ServerConfigParams>
 ): ServerConfigParams {
-    return Object.assign({}, serverDefaultConfiguration, partialConfig);
+    return {
+        ...serverDefaultConfiguration,
+        ...partialConfig
+    };
 }

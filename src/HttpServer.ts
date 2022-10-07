@@ -2,10 +2,10 @@ import express, { Express, Request, Response } from 'express';
 import jsonrpc, { Defined } from 'jsonrpc-lite';
 import bodyParser from 'body-parser';
 import cors from 'cors';
+import { RelayServer } from './RelayServer';
 import { Server } from 'http';
 import log from 'loglevel';
 import configureDocumentation from './DocConfiguration';
-import { RelayServer } from './RelayServer';
 
 export type RootHandlerRequest = Request & {
     body?: {

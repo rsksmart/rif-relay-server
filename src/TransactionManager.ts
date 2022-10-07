@@ -1,23 +1,23 @@
-// @ts-ignore
-import EthVal from 'ethval';
-import chalk from 'chalk';
-import log from 'loglevel';
+import { ContractInteractor } from '@rsksmart/rif-relay-common';
 import { Mutex } from 'async-mutex';
+import chalk from 'chalk';
 import {
     PrefixedHexString,
     Transaction,
     TransactionOptions
 } from 'ethereumjs-tx';
-import { ContractInteractor } from '@rsksmart/rif-relay-common';
-import { TxStoreManager } from './TxStoreManager';
+// @ts-ignore
+import EthVal from 'ethval';
+import log from 'loglevel';
 import { KeyManager } from './KeyManager';
-import { ServerDependencies, ServerConfigParams } from './ServerConfigParams';
+import { ServerConfigParams, ServerDependencies } from './ServerConfigParams';
 import {
     createStoredTransaction,
     ServerAction,
     StoredTransaction,
     StoredTransactionMetadata
 } from './StoredTransaction';
+import { TxStoreManager } from './TxStoreManager';
 
 export interface SignedTransactionDetails {
     transactionHash: PrefixedHexString;
@@ -46,6 +46,8 @@ export class TransactionManager {
 
     rawTxOptions!: TransactionOptions;
 
+    // FIXME: this coupling should be broken apart (dependencies -> new RelayServer -> new TransactionManager)
+    // FIXME: the passing of the config can be removed by using node config
     constructor(dependencies: ServerDependencies, config: ServerConfigParams) {
         this.contractInteractor = dependencies.contractInteractor;
         this.txStoreManager = dependencies.txStoreManager;

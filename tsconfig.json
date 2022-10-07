@@ -16,14 +16,6 @@
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
     "outDir": "dist",
-    "typeRoots": [
-      "./node_modules/@types"
-    ],
-    "types": [
-      "node",
-      "mocha",
-      "chai"
-    ],
     "lib": [
       "es2018",
       "webworker",
@@ -34,10 +26,5 @@
   "include": [
     "src/**/*"
   ],
-  "exclude": [
-    "dist",
-    "node_modules",
-    "build",
-    "test"
-  ]
+  "exclude": ["dist", "node_modules", "build", "test"]
 }
