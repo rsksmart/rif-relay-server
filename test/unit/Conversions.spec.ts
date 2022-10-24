@@ -3,12 +3,14 @@ import { ERC20Instance } from '@rsksmart/rif-relay-contracts/types/truffle-contr
 import BigNumber from 'bignumber.js';
 import { expect, use, assert } from 'chai';
 import chaiAsPromised from 'chai-as-promised';
-import Sinon, { SinonStubbedInstance } from 'sinon';
+import sinon, { SinonStubbedInstance } from 'sinon';
 import sinonChai from 'sinon-chai';
+import { fromWei } from 'web3-utils';
 import {
     getXRateFor,
     toNativeWeiFrom,
-    toPrecision
+    toPrecision,
+    convertGasToToken
 } from '../../src/Conversions';
 import ExchangeToken from '../../src/definitions/token.type';
 
@@ -16,18 +18,18 @@ use(sinonChai);
 use(chaiAsPromised);
 
 describe('Conversions', () => {
-    let erc20Instance: SinonStubbedInstance<ERC20Instance>; 
-    const xRateRifRbtc =  new BigNumber('0.00000332344907316948');
+    let erc20Instance: SinonStubbedInstance<ERC20Instance>;
+    const xRateRifRbtc = new BigNumber('0.00000332344907316948');
 
     afterEach(() => {
-        Sinon.restore();
+        sinon.restore();
     });
 
     describe('getXRateFor', async () => {
         it('should return exchange rate of given token', async () => {
-            Sinon.stub(RelayPricer.prototype, 'getExchangeRate').returns(
-                Promise.resolve(xRateRifRbtc)
-            );
+            sinon
+                .stub(RelayPricer.prototype, 'getExchangeRate')
+                .returns(Promise.resolve(xRateRifRbtc));
             const expectedXRate: BigNumber = xRateRifRbtc;
             const token: ExchangeToken = {
                 instance: erc20Instance,
@@ -48,9 +50,9 @@ describe('Conversions', () => {
             const error = Error(
                 'There is no available API for token undefined'
             );
-            Sinon.stub(RelayPricer.prototype, 'getExchangeRate').returns(
-                Promise.reject(error)
-            );
+            sinon
+                .stub(RelayPricer.prototype, 'getExchangeRate')
+                .returns(Promise.reject(error));
             const token: ExchangeToken = {
                 instance: erc20Instance,
                 decimals: 18,
@@ -61,9 +63,9 @@ describe('Conversions', () => {
 
         it('should fail if token does not exist', async () => {
             const error = Error('There is no available API for token NA');
-            Sinon.stub(RelayPricer.prototype, 'getExchangeRate').returns(
-                Promise.reject(error)
-            );
+            sinon
+                .stub(RelayPricer.prototype, 'getExchangeRate')
+                .returns(Promise.reject(error));
             const token: ExchangeToken = {
                 instance: erc20Instance,
                 decimals: 18,
@@ -136,6 +138,29 @@ describe('Conversions', () => {
             expect(
                 actualCurrencyAmount.eq(expectedWeiAmount),
                 `${actualCurrencyAmount.toString()} should equal ${expectedWeiAmount.toString()}`
+            ).to.be.true;
+        });
+    });
+
+    describe('convertGasToToken', function () {
+        const exchangeRate: BigNumber = xRateRifRbtc;
+        const estimation = BigNumber(145000);
+        const gasPrice = BigNumber(60000000);
+        const excpectedTokenAmountInWei = BigNumber(
+            fromWei(estimation.multipliedBy(gasPrice).toString())
+        );
+        const excpectedTokenAmount =
+            excpectedTokenAmountInWei.dividedBy(exchangeRate);
+
+        it('should return token amount', function () {
+            const tokenAmount = convertGasToToken(
+                estimation,
+                exchangeRate,
+                gasPrice
+            );
+            expect(
+                tokenAmount.eq(excpectedTokenAmount),
+                `${tokenAmount.toString()} should equal ${excpectedTokenAmount.toString()}`
             ).to.be.true;
         });
     });

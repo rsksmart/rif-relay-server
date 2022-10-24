@@ -279,16 +279,27 @@ export class HttpServer {
      *               value: {"relayRequest":{"request":{"relayHub":"0x66Fa9FEAfB8Db66Fe2160ca7aEAc7FC24e254387","to":"0xF5859303f76596dD558B438b18d0Ce0e1660F3ea","data":"0xa9059cbb000000000000000000000000cb8f8130e289946aec9a17b29819716b1e9e49980000000000000000000000000000000000000000000000000429d069189e0000","from":"0xCB8F8130E289946aec9a17b29819716B1E9e4998","value":"0","nonce":"1","gas":"16559","tokenAmount":"100000000000000000","tokenGas":"16559","tokenContract":"0xF5859303f76596dD558B438b18d0Ce0e1660F3ea"},"relayData":{"gasPrice":"65164000","callVerifier":"0x56ccdB6D312307Db7A4847c3Ea8Ce2449e9B79e9","domainSeparator":"0x6c2c692f3161d8587aaceabe51a7569e16f267d57e928ee6947559582f9be4ea","callForwarder":"0xc3D55e5244b4aB3cFbF5BD41ad1A6C5bfF2381AD","relayWorker":"0x74105590d404df3f384a099c2e55135281ca6b40"}},"metadata":{"relayHubAddress":"0x66Fa9FEAfB8Db66Fe2160ca7aEAc7FC24e254387","signature":"0x40c462a5a5ad1b87f0ff1a685b5f0884c712c9fb211763601efcf723c005122637e18d4483edd1164f759c38a3b0a39803898caa2a88a144038556ad34949d171b","relayMaxNonce":31}}
      *     responses:
      *       '200':
-     *         description: "An hash of the signed transaction."
+     *         description: "Object with data about the estimation and the requiredTokenAmount"
      *         content:
      *           application/json:
      *             schema:
      *               type: object
      *               properties:
-     *                 estimateGas:
-     *                   type: number
+     *                 gasPrice:
+     *                   type: string
+     *                 estimation:
+     *                   type: BigNumber
+     *                 requiredTokenAmount:
+     *                   type: BigNumber
+     *                 exchangeRate:
+     *                   type: BigNumber
      *               example:
-     *                  { estimateGas: 193889 }
+     *                  {
+     *                    gasPrice: 60000000,
+     *                    estimation: 151800,
+     *                    requiredTokenAmount: 2.74053,
+     *                    exchangeRate: 0.00000332344907316948
+     *                  }
      */
     async estimateHandler(req: Request, res: Response): Promise<void> {
         try {

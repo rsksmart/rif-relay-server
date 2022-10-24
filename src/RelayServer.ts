@@ -66,7 +66,7 @@ const calculateFeeValue = (
     return toBN(percentage.multipliedBy(maxPossibleGas).toFixed(0));
 };
 
-type EstimationResponse = {
+export type RelayEstimation = {
     gasPrice: string;
     estimation: BigNumber;
     requiredTokenAmount: BigNumber;
@@ -495,7 +495,8 @@ export class RelayServer extends EventEmitter {
             );
         } catch (e) {
             throw new Error(
-                `relayCall (local call) reverted in server: ${(e as Error).message
+                `relayCall (local call) reverted in server: ${
+                    (e as Error).message
                 }`
             );
         }
@@ -503,9 +504,10 @@ export class RelayServer extends EventEmitter {
 
     async estimateRelayTransaction(
         req: RelayTransactionRequest | DeployTransactionRequest
-    ): Promise<EstimationResponse> {
-
-        const { relayData: { gasPrice } } = req.relayRequest;
+    ): Promise<RelayEstimation> {
+        const {
+            relayData: { gasPrice }
+        } = req.relayRequest;
 
         let estimation = await estimateGasRelayTransaction(
             this.contractInteractor,
@@ -534,7 +536,11 @@ export class RelayServer extends EventEmitter {
 
         const exchangeRate: BigNumber = await getXRateFor(token);
 
-        const requiredTokenAmount = convertGasToToken(estimation, exchangeRate, BigNumber(gasPrice));
+        const requiredTokenAmount = convertGasToToken(
+            estimation,
+            exchangeRate,
+            BigNumber(gasPrice)
+        );
 
         return { estimation, requiredTokenAmount, exchangeRate, gasPrice };
     }
@@ -569,13 +575,13 @@ export class RelayServer extends EventEmitter {
 
         const method = isDeploy
             ? this.relayHubContract.contract.methods.deployCall(
-                req.relayRequest as DeployRequest,
-                req.metadata.signature
-            )
+                  req.relayRequest as DeployRequest,
+                  req.metadata.signature
+              )
             : this.relayHubContract.contract.methods.relayCall(
-                req.relayRequest as RelayRequest,
-                req.metadata.signature
-            );
+                  req.relayRequest as RelayRequest,
+                  req.metadata.signature
+              );
 
         // Call relayCall as a view function to see if we'll get paid for relaying this tx
         await this.validateViewCallSucceeds(method, req, maxPossibleGas);
@@ -863,7 +869,7 @@ latestBlock timestamp   | ${latestBlock.timestamp}
         if (
             this.alerted &&
             this.alertedBlock + this.config.alertedBlockDelay <
-            currentBlockNumber
+                currentBlockNumber
         ) {
             log.warn(
                 `Relay exited alerted state. Alerted block: ${this.alertedBlock}. Current block number: ${currentBlockNumber}`
@@ -931,7 +937,7 @@ latestBlock timestamp   | ${latestBlock.timestamp}
     _shouldRefreshState(currentBlock: number): boolean {
         return (
             currentBlock - this.lastRefreshBlock >=
-            this.config.refreshStateTimeoutBlocks || !this.isReady()
+                this.config.refreshStateTimeoutBlocks || !this.isReady()
         );
     }
 

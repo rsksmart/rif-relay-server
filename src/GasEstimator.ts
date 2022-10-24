@@ -18,7 +18,7 @@ const SUBSIDY = BigNumber(12000);
  * @param contractInteractor object containing the contractInteractor
  * @param request request that contains the relayRequest/deployRequest and metadata
  * @param relayWorker address of the relayWorker that will execute the transaction
- * @returns gas estimation from the relayTransaction 
+ * @returns gas estimation from the relayTransaction
  */
 export const estimateGasRelayTransaction = async (
     contractInteractor: ContractInteractor,
@@ -99,38 +99,35 @@ export const estandardGasEstimation = async (
         gasPrice: relayData.gasPrice
     });
 
-    return tokenEstimation.plus(applyGasCorrectionFactor(relayEstimation));
-};
+    const correctedEstimation = applyGasCorrectionFactor(relayEstimation);
 
+    return tokenEstimation.plus(correctedEstimation);
+};
 
 /**
  * Estimates the gas consume by relaying a transaction using a linearFit
  * @param contractInteractor object containing the contractInteractor
  * @param request request that contains the relayRequest/deployRequest and metadata
  * @param tokenEstimation gas consume by the token transfer
- * @returns gas estimation from the relayTransaction 
+ * @returns gas estimation from the relayTransaction
  */
 export const linearFitGasEstimation = async (
     contractInteractor: ContractInteractor,
     { request, relayData }: RelayRequest | DeployRequest,
     tokenEstimation: BigNumber
 ): Promise<BigNumber> => {
-
     let internalEstimation: BigNumber;
 
     if ('index' in request) {
         throw Error('LinearFit estimation not implemented for deployments');
     }
 
-    internalEstimation = await estimateGasDestination(
-        contractInteractor,
-        {
-            from: request.from,
-            to: request.to,
-            data: request.data,
-            gasPrice: relayData.gasPrice
-        }
-    );
+    internalEstimation = await estimateGas(contractInteractor, {
+        from: request.from,
+        to: request.to,
+        data: request.data,
+        gasPrice: relayData.gasPrice
+    });
 
     internalEstimation = applyInternalCorrection(internalEstimation);
 
@@ -169,7 +166,12 @@ export const estimateGasTokenTransfer = async (
         let caller = relayData.callForwarder;
         if ('index' in request) {
             const { from, recoverer, index } = request;
-            caller = await contractInteractor.getSmartWalletAddress(caller, from, recoverer, index);
+            caller = await contractInteractor.getSmartWalletAddress(
+                caller,
+                from,
+                recoverer,
+                index
+            );
         }
 
         const estimation = await methodToEstimate.estimateGas({
@@ -187,21 +189,19 @@ export const estimateGasTokenTransfer = async (
     return applyGasCorrectionFactor(tokenEstimation);
 };
 
-
 /**
  * Estimates the gas consume by executing a function
  * @param contractInteractor object containing the contractInteractor
  * @param estimate params to execute the estimateGas function
  * @returns gas estimation from the execution
  */
-export const estimateGasDestination = async (
+export const estimateGas = async (
     contractInteractor: ContractInteractor,
     estimate: EstimateGasParams
 ): Promise<BigNumber> => {
     const estimation = await contractInteractor.estimateGas(estimate);
     return BigNumber(estimation);
 };
-
 
 /**
  * Applies the correction from internal calls
@@ -226,7 +226,9 @@ export const applyInternalCorrection = (
  * @param estimation BigNumber gas estimation that needs to be corrected
  * @returns gas estimation with the correction done
  */
-export const applyGasCorrectionFactor = (estimation: BigNumber | number | string) => {
+export const applyGasCorrectionFactor = (
+    estimation: BigNumber | number | string
+) => {
     const bigValue = BigNumber(estimation);
     return bigValue.multipliedBy(constants.ESTIMATED_GAS_CORRECTION_FACTOR);
 };

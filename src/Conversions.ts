@@ -99,7 +99,6 @@ export const toNativeWeiFrom = async ({
     });
 };
 
-
 /**
  * Converts gas estimation to token amount
  * @param token exchange rate of the token

@@ -68,6 +68,10 @@ describe('ServerConfigParams', () => {
     });
 
     describe('resolveServerConfig', () => {
+        afterEach(function () {
+            sinon.restore();
+        });
+
         it('should fulfill if collectorContract is specified and is deployed', () => {
             sinon.mock(ContractInteractor);
             sinon

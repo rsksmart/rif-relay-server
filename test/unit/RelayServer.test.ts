@@ -5,12 +5,22 @@ import {
     RelayTransactionRequest
 } from '@rsksmart/rif-relay-common';
 import { ForwardRequest, RelayData } from '@rsksmart/rif-relay-contracts';
-import { ERC20Instance, IRelayHubInstance } from '@rsksmart/rif-relay-contracts/types/truffle-contracts';
+import {
+    ERC20Instance,
+    IRelayHubInstance
+} from '@rsksmart/rif-relay-contracts/types/truffle-contracts';
 import BigNumber from 'bignumber.js';
 import BN from 'bn.js';
 import { expect, use } from 'chai';
 import chaiAsPromised from 'chai-as-promised';
-import Sinon, { createStubInstance, SinonStubbedInstance, stub } from 'sinon';
+import {
+    createStubInstance,
+    SinonStubbedInstance,
+    stub,
+    restore,
+    replace,
+    fake
+} from 'sinon';
 import sinonChai from 'sinon-chai';
 import { stubInterface } from 'ts-sinon';
 import { toBN } from 'web3-utils';
@@ -22,6 +32,7 @@ import {
     TxStoreManager
 } from '../../src';
 import * as conversions from '../../src/Conversions';
+import * as gasEstimator from '../../src/GasEstimator';
 import { INSUFFICIENT_TOKEN_AMOUNT } from '../../src/definitions/errorMessages.const';
 import ExchangeToken from '../../src/definitions/token.type';
 
@@ -29,12 +40,12 @@ use(sinonChai);
 use(chaiAsPromised);
 
 describe('RelayServer', () => {
-    let erc20Instance: SinonStubbedInstance<ERC20Instance>; 
+    let erc20Instance: SinonStubbedInstance<ERC20Instance>;
 
     let token: ExchangeToken;
     let fakeManagerKeyManager: SinonStubbedInstance<KeyManager> & KeyManager;
     let fakeWorkersKeyManager: SinonStubbedInstance<KeyManager> & KeyManager;
-    let fakeContractInteractor: SinonStubbedInstance<ContractInteractor> &
+    let contractInteractor: SinonStubbedInstance<ContractInteractor> &
         ContractInteractor;
     let fakeTxStoreManager: SinonStubbedInstance<TxStoreManager> &
         TxStoreManager;
@@ -56,10 +67,10 @@ describe('RelayServer', () => {
             getAddress: stub()
         });
         fakeWorkersKeyManager.getAddress.returns('fake_address');
-        fakeContractInteractor = createStubInstance(ContractInteractor, {
+        contractInteractor = createStubInstance(ContractInteractor, {
             getERC20Token: Promise.resolve(token)
         });
-        fakeContractInteractor.relayHubInstance = {
+        contractInteractor.relayHubInstance = {
             address: 'relayHubAddress'
         } as IRelayHubInstance;
 
@@ -68,13 +79,13 @@ describe('RelayServer', () => {
         mockDependencies = {
             managerKeyManager: fakeManagerKeyManager,
             workersKeyManager: fakeWorkersKeyManager,
-            contractInteractor: fakeContractInteractor,
+            contractInteractor: contractInteractor,
             txStoreManager: fakeTxStoreManager
         };
     });
 
     afterEach(() => {
-        Sinon.restore();
+        restore();
     });
 
     describe('constructor', () => {
@@ -142,13 +153,13 @@ describe('RelayServer', () => {
         const xRateRifRbtc = BigNumber('0.00000332344907316948');
 
         beforeEach(() => {
-            Sinon.stub(RelayPricer.prototype, 'getExchangeRate').returns(
+            stub(RelayPricer.prototype, 'getExchangeRate').returns(
                 Promise.resolve(xRateRifRbtc)
             );
         });
 
         const fakeMaxGasEstimation = (price?: number) =>
-            fakeContractInteractor.estimateRelayTransactionMaxPossibleGasWithTransactionRequest.returns(
+            contractInteractor.estimateRelayTransactionMaxPossibleGasWithTransactionRequest.returns(
                 Promise.resolve(price ?? MAX_POSSIBLE_GAS.toNumber())
             ); // 3e7 gas is ethereum total block size gas limit)
 
@@ -161,10 +172,10 @@ describe('RelayServer', () => {
                 xRate
             };
             fakeMaxGasEstimation();
-            const fakeToNativeWeiFrom = Sinon.fake.returns(
+            const fakeToNativeWeiFrom = fake.returns(
                 Promise.resolve(new BigNumber(tokenAmount.multipliedBy(xRate)))
             );
-            Sinon.replace(conversions, 'toNativeWeiFrom', fakeToNativeWeiFrom);
+            replace(conversions, 'toNativeWeiFrom', fakeToNativeWeiFrom);
 
             const server = new RelayServer(
                 {
@@ -334,6 +345,76 @@ describe('RelayServer', () => {
             ).to.throw(
                 `Wrong fees receiver address: ${fakeFeesReceiverAddress}\n`
             );
+        });
+    });
+
+    describe('estimateRelayTransaction', function () {
+        const gasPrice = new BigNumber('60000000');
+        const xRateRifRbtc = new BigNumber('0.00000332344907316948');
+        const estandardRelayEstimation = new BigNumber(99466);
+        const relayTransactionRequest: RelayTransactionRequest = {
+            relayRequest: {
+                relayData: {
+                    gasPrice: gasPrice.toString()
+                } as RelayData,
+                request: {} as ForwardRequest
+            },
+            metadata: {
+                signature: '0x1'
+            } as RelayMetadata
+        };
+
+        let server: RelayServer;
+        beforeEach(function () {
+            replace(
+                gasEstimator,
+                'estimateGasRelayTransaction',
+                fake.returns(Promise.resolve(estandardRelayEstimation))
+            );
+            replace(
+                conversions,
+                'getXRateFor',
+                fake.returns(Promise.resolve(xRateRifRbtc))
+            );
+        });
+
+        it('should estimate transaction with fee', async function () {
+            const percentage = new BigNumber('0.1');
+            server = new RelayServer(
+                {
+                    disableSponsoredTx: false,
+                    feePercentage: percentage.toString()
+                },
+                mockDependencies
+            );
+            const { requiredTokenAmount } =
+                await server.estimateRelayTransaction(relayTransactionRequest);
+            const expectedRequiredTokenAmount = conversions.convertGasToToken(
+                percentage.multipliedBy(estandardRelayEstimation),
+                xRateRifRbtc,
+                gasPrice
+            );
+
+            expect(
+                requiredTokenAmount.eq(requiredTokenAmount),
+                `${requiredTokenAmount.toString()} should equal ${expectedRequiredTokenAmount.toString()}`
+            ).to.be.true;
+        });
+
+        it('should estimate transaction without fee', async function () {
+            server = new RelayServer({}, mockDependencies);
+            const { requiredTokenAmount } =
+                await server.estimateRelayTransaction(relayTransactionRequest);
+            const expectedRequiredTokenAmount = conversions.convertGasToToken(
+                estandardRelayEstimation,
+                xRateRifRbtc,
+                gasPrice
+            );
+
+            expect(
+                requiredTokenAmount.eq(requiredTokenAmount),
+                `${requiredTokenAmount.toString()} should equal ${expectedRequiredTokenAmount.toString()}`
+            ).to.be.true;
         });
     });
 });
