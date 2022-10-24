@@ -1,7 +1,7 @@
-import { Token } from '@rsksmart/rif-relay-common';
+import { ERC20Token } from '@rsksmart/rif-relay-common';
 import BigNumber from 'bignumber.js';
 
-type ExchangeToken = Token & {
+type ExchangeToken = ERC20Token & {
     xRate?: BigNumber;
     amount?: BigNumber;
 };

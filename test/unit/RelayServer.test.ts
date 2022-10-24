@@ -5,7 +5,7 @@ import {
     RelayTransactionRequest
 } from '@rsksmart/rif-relay-common';
 import { ForwardRequest, RelayData } from '@rsksmart/rif-relay-contracts';
-import { IRelayHubInstance } from '@rsksmart/rif-relay-contracts/types/truffle-contracts';
+import { ERC20Instance, IRelayHubInstance } from '@rsksmart/rif-relay-contracts/types/truffle-contracts';
 import BigNumber from 'bignumber.js';
 import BN from 'bn.js';
 import { expect, use } from 'chai';
@@ -29,12 +29,9 @@ use(sinonChai);
 use(chaiAsPromised);
 
 describe('RelayServer', () => {
-    const token: ExchangeToken = {
-        contractAddress: 'address',
-        name: 'tRif',
-        symbol: 'RIF',
-        decimals: 18
-    };
+    let erc20Instance: SinonStubbedInstance<ERC20Instance>; 
+
+    let token: ExchangeToken;
     let fakeManagerKeyManager: SinonStubbedInstance<KeyManager> & KeyManager;
     let fakeWorkersKeyManager: SinonStubbedInstance<KeyManager> & KeyManager;
     let fakeContractInteractor: SinonStubbedInstance<ContractInteractor> &
@@ -44,6 +41,12 @@ describe('RelayServer', () => {
     let mockDependencies: ServerDependencies;
 
     beforeEach(() => {
+        token = {
+            instance: erc20Instance,
+            name: 'tRif',
+            symbol: 'RIF',
+            decimals: 18
+        };
         fakeManagerKeyManager = createStubInstance(KeyManager, {
             getAddress: stub()
         });

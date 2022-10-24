@@ -15,7 +15,7 @@ import {
     RootHandlerRequest,
     WhitelistedRelayMethod,
     SignedTransactionDetails
-} from '../src';
+} from '../../src';
 import jsonrpc from 'jsonrpc-lite';
 
 use(chaiAsPromised);

@@ -32,9 +32,10 @@ import log from 'loglevel';
 import ow from 'ow';
 import { EventData } from 'web3-eth-contract';
 import { toBN } from 'web3-utils';
-import { getXRateFor, toNativeWeiFrom } from './Conversions';
+import { convertGasToToken, getXRateFor, toNativeWeiFrom } from './Conversions';
 import { INSUFFICIENT_TOKEN_AMOUNT } from './definitions/errorMessages.const';
 import ExchangeToken from './definitions/token.type';
+import { estimateGasRelayTransaction } from './GasEstimator';
 import { RegistrationManager } from './RegistrationManager';
 import { replenishStrategy } from './ReplenishFunction';
 import {
@@ -63,6 +64,13 @@ const calculateFeeValue = (
     }
 
     return toBN(percentage.multipliedBy(maxPossibleGas).toFixed(0));
+};
+
+type EstimationResponse = {
+    gasPrice: string;
+    estimation: BigNumber;
+    requiredTokenAmount: BigNumber;
+    exchangeRate: BigNumber;
 };
 
 export class RelayServer extends EventEmitter {
@@ -487,11 +495,48 @@ export class RelayServer extends EventEmitter {
             );
         } catch (e) {
             throw new Error(
-                `relayCall (local call) reverted in server: ${
-                    (e as Error).message
+                `relayCall (local call) reverted in server: ${(e as Error).message
                 }`
             );
         }
+    }
+
+    async estimateRelayTransaction(
+        req: RelayTransactionRequest | DeployTransactionRequest
+    ): Promise<EstimationResponse> {
+
+        const { relayData: { gasPrice } } = req.relayRequest;
+
+        let estimation = await estimateGasRelayTransaction(
+            this.contractInteractor,
+            req,
+            this.workerAddress
+        );
+
+        const { feePercentage, disableSponsoredTx } = this.config;
+
+        if (disableSponsoredTx) {
+            log.debug(`RelayServer - feePercentage: ${feePercentage}`);
+
+            const feeValue: BN = calculateFeeValue(
+                feePercentage,
+                estimation.toString()
+            );
+
+            estimation = estimation.plus(feeValue.toString());
+        }
+
+        const token: ExchangeToken =
+            await this.contractInteractor.getERC20Token(
+                req.relayRequest.request.tokenContract,
+                { symbol: true, decimals: true }
+            );
+
+        const exchangeRate: BigNumber = await getXRateFor(token);
+
+        const requiredTokenAmount = convertGasToToken(estimation, exchangeRate, BigNumber(gasPrice));
+
+        return { estimation, requiredTokenAmount, exchangeRate, gasPrice };
     }
 
     async createRelayTransaction(
@@ -524,13 +569,13 @@ export class RelayServer extends EventEmitter {
 
         const method = isDeploy
             ? this.relayHubContract.contract.methods.deployCall(
-                  req.relayRequest as DeployRequest,
-                  req.metadata.signature
-              )
+                req.relayRequest as DeployRequest,
+                req.metadata.signature
+            )
             : this.relayHubContract.contract.methods.relayCall(
-                  req.relayRequest as RelayRequest,
-                  req.metadata.signature
-              );
+                req.relayRequest as RelayRequest,
+                req.metadata.signature
+            );
 
         // Call relayCall as a view function to see if we'll get paid for relaying this tx
         await this.validateViewCallSucceeds(method, req, maxPossibleGas);
@@ -818,7 +863,7 @@ latestBlock timestamp   | ${latestBlock.timestamp}
         if (
             this.alerted &&
             this.alertedBlock + this.config.alertedBlockDelay <
-                currentBlockNumber
+            currentBlockNumber
         ) {
             log.warn(
                 `Relay exited alerted state. Alerted block: ${this.alertedBlock}. Current block number: ${currentBlockNumber}`
@@ -886,7 +931,7 @@ latestBlock timestamp   | ${latestBlock.timestamp}
     _shouldRefreshState(currentBlock: number): boolean {
         return (
             currentBlock - this.lastRefreshBlock >=
-                this.config.refreshStateTimeoutBlocks || !this.isReady()
+            this.config.refreshStateTimeoutBlocks || !this.isReady()
         );
     }
 

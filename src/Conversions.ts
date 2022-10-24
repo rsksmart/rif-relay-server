@@ -1,6 +1,6 @@
 import BigNumber from 'bignumber.js';
 import BN from 'bn.js';
-import { toBN } from 'web3-utils';
+import { fromWei, toBN } from 'web3-utils';
 import ExchangeToken from './definitions/token.type';
 import { RelayPricer } from '@rsksmart/rif-relay-client';
 
@@ -97,4 +97,21 @@ export const toNativeWeiFrom = async ({
         value: amountAsFraction.multipliedBy(xRate),
         precision: RBTC_CHAIN_DECIMALS
     });
+};
+
+
+/**
+ * Converts gas estimation to token amount
+ * @param token exchange rate of the token
+ * @param native BigNumber of the native "wei"
+ * @returns 'WEI' representation of the gas converted to token
+ */
+export const convertGasToToken = (
+    estimation: BigNumber,
+    xRate: BigNumber,
+    gasPrice: BigNumber
+): BigNumber => {
+    const total = estimation.multipliedBy(gasPrice);
+    const inWei = BigNumber(fromWei(total.toString()).toString());
+    return inWei.dividedBy(xRate);
 };

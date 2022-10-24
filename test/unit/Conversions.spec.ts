@@ -1,8 +1,9 @@
 import { RelayPricer } from '@rsksmart/rif-relay-client';
+import { ERC20Instance } from '@rsksmart/rif-relay-contracts/types/truffle-contracts';
 import BigNumber from 'bignumber.js';
 import { expect, use, assert } from 'chai';
 import chaiAsPromised from 'chai-as-promised';
-import Sinon from 'sinon';
+import Sinon, { SinonStubbedInstance } from 'sinon';
 import sinonChai from 'sinon-chai';
 import {
     getXRateFor,
@@ -15,7 +16,8 @@ use(sinonChai);
 use(chaiAsPromised);
 
 describe('Conversions', () => {
-    const xRateRifRbtc = BigNumber('0.00000332344907316948');
+    let erc20Instance: SinonStubbedInstance<ERC20Instance>; 
+    const xRateRifRbtc =  new BigNumber('0.00000332344907316948');
 
     afterEach(() => {
         Sinon.restore();
@@ -28,7 +30,7 @@ describe('Conversions', () => {
             );
             const expectedXRate: BigNumber = xRateRifRbtc;
             const token: ExchangeToken = {
-                contractAddress: '',
+                instance: erc20Instance,
                 decimals: 18,
                 name: 'tRIF',
                 symbol: 'RIF'
@@ -42,13 +44,6 @@ describe('Conversions', () => {
             ).to.be.true;
         });
 
-        it('should fail if token is null', async () => {
-            await assert.isRejected(
-                getXRateFor(null),
-                "Cannot destructure property 'symbol' of 'object null' as it is null."
-            );
-        });
-
         it('should fail if token is does not have symbol', async () => {
             const error = Error(
                 'There is no available API for token undefined'
@@ -57,7 +52,7 @@ describe('Conversions', () => {
                 Promise.reject(error)
             );
             const token: ExchangeToken = {
-                contractAddress: '',
+                instance: erc20Instance,
                 decimals: 18,
                 name: ''
             };
@@ -70,7 +65,7 @@ describe('Conversions', () => {
                 Promise.reject(error)
             );
             const token: ExchangeToken = {
-                contractAddress: '',
+                instance: erc20Instance,
                 decimals: 18,
                 name: 'NA',
                 symbol: 'NA'
@@ -89,7 +84,7 @@ describe('Conversions', () => {
                 expectedCurrencyAmount.dividedBy(exchangeRate);
 
             const token: ExchangeToken = {
-                contractAddress: '',
+                instance: erc20Instance,
                 decimals: 18,
                 name: 'tRIF',
                 amount: tokenAmount,
@@ -116,7 +111,7 @@ describe('Conversions', () => {
             const nativeWeiDecimals = 18;
 
             const token: ExchangeToken = {
-                contractAddress: '',
+                instance: erc20Instance,
                 decimals: erc20Decimals,
                 name: 'tRIF_22',
                 symbol: 'RIF_22',
@@ -125,8 +120,8 @@ describe('Conversions', () => {
             };
 
             const tokenAsFraction = toPrecision({
-                value: token.amount,
-                precision: -token.decimals
+                value: token.amount ?? 0,
+                precision: -(token.decimals ?? 18)
             });
 
             const tokenInNativeWei = toPrecision({
