@@ -257,7 +257,7 @@ export class HttpServer {
 
     /**
      * @openapi
-     * /relay:
+     * /estimate:
      *   post:
      *     summary: It estimate relay transactions.
      *     description: It receives transactions to be estimated (deploy or forward requests) and after performing all the checks, it estimates the gas consumption.

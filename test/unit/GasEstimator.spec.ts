@@ -33,7 +33,7 @@ import {
 import * as gasEstimator from '../../src/GasEstimator';
 import {
     applyGasCorrectionFactor,
-    estandardGasEstimation,
+    standardGasEstimation,
     estimateGasRelayTransaction,
     estimateGasTokenTransfer,
     estimateGas,
@@ -64,8 +64,8 @@ describe('GasEstimator', function () {
     const relayWorker = '0x0';
 
     describe('estimateRelayTransaction', function () {
-        const estandardDeployEstimation = new BigNumber(178869);
-        const estandardRelayEstimation = new BigNumber(99466);
+        const standardDeployEstimation = new BigNumber(178869);
+        const standardRelayEstimation = new BigNumber(99466);
         const tokenGas = new BigNumber(16559);
         const estimateGasTokenTransfer = fake.returns(
             Promise.resolve(tokenGas)
@@ -83,17 +83,17 @@ describe('GasEstimator', function () {
             restore();
         });
 
-        it('should estimate the relay transaction(estandard)', async function () {
-            const relayEstandardEstimation = fake.returns(
-                Promise.resolve(estandardRelayEstimation)
+        it('should estimate the relay transaction(standard)', async function () {
+            const relayStandardEstimation = fake.returns(
+                Promise.resolve(standardRelayEstimation)
             );
             const metadata: Partial<RelayMetadata> = {
                 signature: '0x1'
             };
             replace(
                 gasEstimator,
-                'estandardGasEstimation',
-                relayEstandardEstimation
+                'standardGasEstimation',
+                relayStandardEstimation
             );
             const request: RelayTransactionRequest = {
                 relayRequest: relayRequest as RelayRequest,
@@ -105,22 +105,22 @@ describe('GasEstimator', function () {
                 relayWorker
             );
             expect(
-                estimation.eq(estandardRelayEstimation),
-                `${estimation.toString()} should equal ${estandardRelayEstimation.toString()}`
+                estimation.eq(standardRelayEstimation),
+                `${estimation.toString()} should equal ${standardRelayEstimation.toString()}`
             ).to.be.true;
         });
 
-        it('should estimate the deploy transaction(estandard)', async function () {
-            const deployEstandardEstimation = fake.returns(
-                Promise.resolve(estandardDeployEstimation)
+        it('should estimate the deploy transaction(standard)', async function () {
+            const deployStandardEstimation = fake.returns(
+                Promise.resolve(standardDeployEstimation)
             );
             const metadata: Partial<RelayMetadata> = {
                 signature: '0x1'
             };
             replace(
                 gasEstimator,
-                'estandardGasEstimation',
-                deployEstandardEstimation
+                'standardGasEstimation',
+                deployStandardEstimation
             );
             const request: DeployTransactionRequest = {
                 relayRequest: deployRequest as DeployRequest,
@@ -132,13 +132,13 @@ describe('GasEstimator', function () {
                 relayWorker
             );
             expect(
-                estimation.eq(estandardDeployEstimation),
-                `${estimation.toString()} should equal ${estandardDeployEstimation.toString()}`
+                estimation.eq(standardDeployEstimation),
+                `${estimation.toString()} should equal ${standardDeployEstimation.toString()}`
             ).to.be.true;
         });
     });
 
-    describe('estandardGasEstimation', function () {
+    describe('standardGasEstimation', function () {
         const tokenGas = new BigNumber(16559);
         const deployGas = 147246;
         const relayGas = 82907;
@@ -174,7 +174,7 @@ describe('GasEstimator', function () {
                 relayRequest: relayRequest as RelayRequest,
                 metadata: metadata as RelayMetadata
             };
-            const estimation = await estandardGasEstimation(
+            const estimation = await standardGasEstimation(
                 contractInteractor,
                 request,
                 relayWorker,
@@ -194,7 +194,7 @@ describe('GasEstimator', function () {
                 relayRequest: deployRequest as DeployRequest,
                 metadata: metadata as RelayMetadata
             };
-            const estimation = await estandardGasEstimation(
+            const estimation = await standardGasEstimation(
                 contractInteractor,
                 request,
                 relayWorker,

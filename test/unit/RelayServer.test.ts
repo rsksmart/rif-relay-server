@@ -351,7 +351,7 @@ describe('RelayServer', () => {
     describe('estimateRelayTransaction', function () {
         const gasPrice = new BigNumber('60000000');
         const xRateRifRbtc = new BigNumber('0.00000332344907316948');
-        const estandardRelayEstimation = new BigNumber(99466);
+        const standardRelayEstimation = new BigNumber(99466);
         const relayTransactionRequest: RelayTransactionRequest = {
             relayRequest: {
                 relayData: {
@@ -369,7 +369,7 @@ describe('RelayServer', () => {
             replace(
                 gasEstimator,
                 'estimateGasRelayTransaction',
-                fake.returns(Promise.resolve(estandardRelayEstimation))
+                fake.returns(Promise.resolve(standardRelayEstimation))
             );
             replace(
                 conversions,
@@ -390,7 +390,7 @@ describe('RelayServer', () => {
             const { requiredTokenAmount } =
                 await server.estimateRelayTransaction(relayTransactionRequest);
             const expectedRequiredTokenAmount = conversions.convertGasToToken(
-                percentage.multipliedBy(estandardRelayEstimation),
+                percentage.multipliedBy(standardRelayEstimation),
                 xRateRifRbtc,
                 gasPrice
             );
@@ -406,7 +406,7 @@ describe('RelayServer', () => {
             const { requiredTokenAmount } =
                 await server.estimateRelayTransaction(relayTransactionRequest);
             const expectedRequiredTokenAmount = conversions.convertGasToToken(
-                estandardRelayEstimation,
+                standardRelayEstimation,
                 xRateRifRbtc,
                 gasPrice
             );

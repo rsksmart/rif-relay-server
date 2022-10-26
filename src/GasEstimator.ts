@@ -35,7 +35,7 @@ export const estimateGasRelayTransaction = async (
     );
 
     if (checkSignature(metadata.signature)) {
-        estimation = await estandardGasEstimation(
+        estimation = await standardGasEstimation(
             contractInteractor,
             request,
             relayWorker,
@@ -68,7 +68,7 @@ const checkSignature = (signature: string): boolean => {
  * @param tokenEstimation gas consume by the token transfer
  * @returns gas estimation from the relayTransaction
  */
-export const estandardGasEstimation = async (
+export const standardGasEstimation = async (
     contractInteractor: ContractInteractor,
     {
         relayRequest,

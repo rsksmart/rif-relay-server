@@ -24,7 +24,7 @@
   "dependencies": {
     "@openzeppelin/test-helpers": "^0.5.16",
     "@rsksmart/rif-relay-client": "1.0.0-alpha.0",
-    "@rsksmart/rif-relay-common": "1.0.0-alpha.0",
+    "@rsksmart/rif-relay-common": "github:rsksmart/rif-relay-common#PP-437/enpoint-required-fees",
     "@rsksmart/rif-relay-contracts": "1.0.0-alpha.0",
     "@truffle/abi-utils": "~0.2.3",
     "@truffle/hdwallet-provider": "1.6.0",
