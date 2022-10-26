@@ -182,7 +182,8 @@ describe('HttpServer', () => {
             estimation: new BigNumber(151800),
             exchangeRate: new BigNumber(0.000003323449073),
             gasPrice: '60000000',
-            requiredTokenAmount: new BigNumber(2.74053e18)
+            requiredTokenAmount: new BigNumber(2.74053e18),
+            requiredNativeAmount: new BigNumber(0.00000311892)
         };
         const fakeResponseExpress: SinonStubbedInstance<
             Pick<Response, 'send'>

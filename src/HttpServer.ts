@@ -303,10 +303,10 @@ export class HttpServer {
      */
     async estimateHandler(req: Request, res: Response): Promise<void> {
         try {
-            const estimateGas = await this.backend.estimateRelayTransaction(
+            const estimation = await this.backend.estimateRelayTransaction(
                 req.body
             );
-            res.send(estimateGas);
+            res.send(estimation);
         } catch (e) {
             if (e instanceof Error) {
                 res.send({ error: e.message });

@@ -10,7 +10,8 @@ import {
     getXRateFor,
     toNativeWeiFrom,
     toPrecision,
-    convertGasToToken
+    convertGasToToken,
+    convertGasToNative
 } from '../../src/Conversions';
 import ExchangeToken from '../../src/definitions/token.type';
 
@@ -161,6 +162,22 @@ describe('Conversions', () => {
             expect(
                 tokenAmount.eq(excpectedTokenAmount),
                 `${tokenAmount.toString()} should equal ${excpectedTokenAmount.toString()}`
+            ).to.be.true;
+        });
+    });
+
+    describe('convertGasToNative', function () {
+        const estimation = BigNumber(145000);
+        const gasPrice = BigNumber(60000000);
+
+        it('should return native amount', function () {
+            const nativeAmount = convertGasToNative(estimation, gasPrice);
+            const expectedNative = fromWei(
+                estimation.multipliedBy(gasPrice).toString()
+            );
+            expect(
+                nativeAmount.eq(expectedNative),
+                `${nativeAmount.toString()} should equal ${expectedNative.toString()}`
             ).to.be.true;
         });
     });

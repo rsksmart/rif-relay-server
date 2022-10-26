@@ -32,7 +32,12 @@ import log from 'loglevel';
 import ow from 'ow';
 import { EventData } from 'web3-eth-contract';
 import { toBN } from 'web3-utils';
-import { convertGasToToken, getXRateFor, toNativeWeiFrom } from './Conversions';
+import {
+    convertGasToNative,
+    convertGasToToken,
+    getXRateFor,
+    toNativeWeiFrom
+} from './Conversions';
 import { INSUFFICIENT_TOKEN_AMOUNT } from './definitions/errorMessages.const';
 import ExchangeToken from './definitions/token.type';
 import { estimateGasRelayTransaction } from './GasEstimator';
@@ -70,6 +75,7 @@ export type RelayEstimation = {
     gasPrice: string;
     estimation: BigNumber;
     requiredTokenAmount: BigNumber;
+    requiredNativeAmount: BigNumber;
     exchangeRate: BigNumber;
 };
 
@@ -542,7 +548,18 @@ export class RelayServer extends EventEmitter {
             BigNumber(gasPrice)
         );
 
-        return { estimation, requiredTokenAmount, exchangeRate, gasPrice };
+        const requiredNativeAmount = convertGasToNative(
+            estimation,
+            BigNumber(gasPrice)
+        );
+
+        return {
+            estimation,
+            requiredTokenAmount,
+            requiredNativeAmount,
+            exchangeRate,
+            gasPrice
+        };
     }
 
     async createRelayTransaction(

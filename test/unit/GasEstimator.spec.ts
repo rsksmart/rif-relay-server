@@ -5,7 +5,8 @@ import {
     DeployTransactionRequest,
     ERC20Token,
     constants,
-    EstimateGasParams
+    EstimateGasParams,
+    estimateMaxPossibleRelayCallWithLinearFit
 } from '@rsksmart/rif-relay-common';
 import {
     DeployRequest,
@@ -146,16 +147,7 @@ describe('GasEstimator', function () {
             signature: '0x1'
         };
 
-        const estimateGasTokenTransfer = fake.returns(
-            Promise.resolve(tokenGas)
-        );
-
         beforeEach(function () {
-            replace(
-                gasEstimator,
-                'estimateGasTokenTransfer',
-                estimateGasTokenTransfer
-            );
             relayHubInstance = {
                 contract: {
                     methods: {
@@ -215,6 +207,52 @@ describe('GasEstimator', function () {
                 estimation.eq(relayEstimation),
                 `${estimation.toString()} should equal ${relayEstimation.toString()}`
             ).to.be.true;
+        });
+    });
+
+    describe('linearFitGasEstimation', function () {
+        const tokenGas = new BigNumber(16559);
+        const internalGas = new BigNumber(16559);
+
+        const internalEstimation = fake.returns(Promise.resolve(internalGas));
+
+        beforeEach(function () {
+            replace(gasEstimator, 'estimateGas', internalEstimation);
+        });
+
+        afterEach(function () {
+            restore();
+        });
+
+        it('should estimate the relay transaction', async function () {
+            const expectedEstimation =
+                estimateMaxPossibleRelayCallWithLinearFit(
+                    applyInternalCorrection(internalGas).toNumber(),
+                    tokenGas.toNumber()
+                );
+
+            const estimation = await gasEstimator.linearFitGasEstimation(
+                contractInteractor,
+                relayRequest as RelayRequest,
+                tokenGas
+            );
+
+            expect(
+                estimation.eq(expectedEstimation),
+                `${estimation.toString()} should equal ${expectedEstimation.toString()}`
+            ).to.be.true;
+        });
+
+        it('should fail to estimate the deploy transaction', async function () {
+            const estimation = gasEstimator.linearFitGasEstimation(
+                contractInteractor,
+                deployRequest as DeployRequest,
+                tokenGas
+            );
+
+            await expect(estimation).to.be.rejectedWith(
+                'LinearFit estimation not implemented for deployments'
+            );
         });
     });
 

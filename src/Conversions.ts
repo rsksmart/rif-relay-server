@@ -101,8 +101,9 @@ export const toNativeWeiFrom = async ({
 
 /**
  * Converts gas estimation to token amount
- * @param token exchange rate of the token
- * @param native BigNumber of the native "wei"
+ * @param estimation estimation to be converted
+ * @param xRate exchange rate of the token
+ * @param gasPrice gasPrice in BigNumber
  * @returns 'WEI' representation of the gas converted to token
  */
 export const convertGasToToken = (
@@ -111,6 +112,21 @@ export const convertGasToToken = (
     gasPrice: BigNumber
 ): BigNumber => {
     const total = estimation.multipliedBy(gasPrice);
-    const inWei = BigNumber(fromWei(total.toString()).toString());
+    const inWei = BigNumber(fromWei(total.toString()));
     return inWei.dividedBy(xRate);
+};
+
+/**
+ * Converts gas estimation to native amount
+ * @param estimation estimation to be converted
+ * @param gasPrice gasPrice in BigNumber
+ * @returns 'WEI' representation of the gas converted to native
+ */
+export const convertGasToNative = (
+    estimation: BigNumber,
+    gasPrice: BigNumber
+): BigNumber => {
+    const total = estimation.multipliedBy(gasPrice);
+    const inWei = BigNumber(fromWei(total.toString()));
+    return inWei;
 };
