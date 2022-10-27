@@ -112,8 +112,7 @@ export const convertGasToToken = (
     gasPrice: BigNumber
 ): BigNumber => {
     const total = estimation.multipliedBy(gasPrice);
-    const inWei = BigNumber(fromWei(total.toString()));
-    return inWei.dividedBy(xRate);
+    return total.dividedBy(xRate);
 };
 
 /**
@@ -126,7 +125,5 @@ export const convertGasToNative = (
     estimation: BigNumber,
     gasPrice: BigNumber
 ): BigNumber => {
-    const total = estimation.multipliedBy(gasPrice);
-    const inWei = BigNumber(fromWei(total.toString()));
-    return inWei;
+    return estimation.multipliedBy(gasPrice);
 };

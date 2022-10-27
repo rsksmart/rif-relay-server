@@ -7,14 +7,19 @@ import {
     estimateMaxPossibleRelayCallWithLinearFit,
     RelayTransactionRequest
 } from '@rsksmart/rif-relay-common';
-import { DeployRequest, RelayRequest } from '@rsksmart/rif-relay-contracts';
+import {
+    DeployRequest,
+    DeployRequestStruct,
+    ForwardRequest,
+    RelayRequest
+} from '@rsksmart/rif-relay-contracts';
 import BigNumber from 'bignumber.js';
 import { toWei } from 'web3-utils';
 
 const SUBSIDY = BigNumber(12000);
 
 /**
- * Estimates the gas consume by relaying a transaction using either a linearFit/standard estimation
+ * Estimates the gas consumed by relaying a transaction using either a linearFit/standard estimation
  * @param contractInteractor object containing the contractInteractor
  * @param request request that contains the relayRequest/deployRequest and metadata
  * @param relayWorker address of the relayWorker that will execute the transaction
@@ -53,11 +58,17 @@ export const estimateGasRelayTransaction = async (
 };
 
 const checkSignature = (signature: string): boolean => {
-    const bigValue: BigNumber = new BigNumber(signature, 16);
+    const bigValue = new BigNumber(signature, 16);
     if (!bigValue.isZero()) {
         return true;
     }
     return false;
+};
+
+const isDeployRequest = (
+    request: DeployRequestStruct | ForwardRequest
+): boolean => {
+    return 'index' in request;
 };
 
 /**
@@ -82,13 +93,13 @@ export const standardGasEstimation = async (
     let methodToEstimate;
     if ('index' in request) {
         methodToEstimate =
-            await contractInteractor.relayHubInstance.contract.methods.deployCall(
+            contractInteractor.relayHubInstance.contract.methods.deployCall(
                 relayRequest as DeployRequest,
                 metadata.signature
             );
     } else {
         methodToEstimate =
-            await contractInteractor.relayHubInstance.contract.methods.relayCall(
+            contractInteractor.relayHubInstance.contract.methods.relayCall(
                 relayRequest as RelayRequest,
                 metadata.signature
             );
@@ -118,7 +129,7 @@ export const linearFitGasEstimation = async (
 ): Promise<BigNumber> => {
     let internalEstimation: BigNumber;
 
-    if ('index' in request) {
+    if (isDeployRequest(request)) {
         throw Error('LinearFit estimation not implemented for deployments');
     }
 
@@ -149,6 +160,7 @@ export const estimateGasTokenTransfer = async (
     contractInteractor: ContractInteractor,
     { request, relayData }: RelayRequest | DeployRequest
 ): Promise<BigNumber> => {
+    const deploy = isDeployRequest(request);
     let tokenEstimation: BigNumber;
     const tokenGas = BigNumber(request.tokenGas);
     if (tokenGas.gt(0)) {
@@ -164,8 +176,8 @@ export const estimateGasTokenTransfer = async (
         );
 
         let caller = relayData.callForwarder;
-        if ('index' in request) {
-            const { from, recoverer, index } = request;
+        if (deploy) {
+            const { from, recoverer, index } = request as DeployRequestStruct;
             caller = await contractInteractor.getSmartWalletAddress(
                 caller,
                 from,
@@ -182,7 +194,7 @@ export const estimateGasTokenTransfer = async (
         tokenEstimation = applyInternalCorrection(estimation);
     }
 
-    if (tokenEstimation.isZero()) {
+    if (tokenEstimation.isZero() && deploy) {
         return SUBSIDY;
     }
 
@@ -228,7 +240,10 @@ export const applyInternalCorrection = (
  */
 export const applyGasCorrectionFactor = (
     estimation: BigNumber | number | string
-) => {
+): BigNumber => {
     const bigValue = BigNumber(estimation);
-    return bigValue.multipliedBy(constants.ESTIMATED_GAS_CORRECTION_FACTOR);
+    if (constants.ESTIMATED_GAS_CORRECTION_FACTOR !== 1) {
+        return bigValue.multipliedBy(constants.ESTIMATED_GAS_CORRECTION_FACTOR);
+    }
+    return bigValue;
 };

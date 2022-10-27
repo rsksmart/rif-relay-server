@@ -147,11 +147,9 @@ describe('Conversions', () => {
         const exchangeRate: BigNumber = xRateRifRbtc;
         const estimation = BigNumber(145000);
         const gasPrice = BigNumber(60000000);
-        const excpectedTokenAmountInWei = BigNumber(
-            fromWei(estimation.multipliedBy(gasPrice).toString())
-        );
-        const excpectedTokenAmount =
-            excpectedTokenAmountInWei.dividedBy(exchangeRate);
+        const excpectedTokenAmount = estimation
+            .multipliedBy(gasPrice)
+            .dividedBy(exchangeRate);
 
         it('should return token amount', function () {
             const tokenAmount = convertGasToToken(
@@ -172,9 +170,7 @@ describe('Conversions', () => {
 
         it('should return native amount', function () {
             const nativeAmount = convertGasToNative(estimation, gasPrice);
-            const expectedNative = fromWei(
-                estimation.multipliedBy(gasPrice).toString()
-            );
+            const expectedNative = estimation.multipliedBy(gasPrice);
             expect(
                 nativeAmount.eq(expectedNative),
                 `${nativeAmount.toString()} should equal ${expectedNative.toString()}`

@@ -179,11 +179,11 @@ describe('HttpServer', () => {
 
     describe('estimateHandler', function () {
         const responseRelayEstimation: RelayEstimation = {
-            estimation: new BigNumber(151800),
-            exchangeRate: new BigNumber(0.000003323449073),
+            estimation: '151800',
+            exchangeRate: '0.000003323449073',
             gasPrice: '60000000',
-            requiredTokenAmount: new BigNumber(2.74053e18),
-            requiredNativeAmount: new BigNumber(0.00000311892)
+            requiredTokenAmount: '2.74053e18',
+            requiredNativeAmount: '0.00000311892'
         };
         const fakeResponseExpress: SinonStubbedInstance<
             Pick<Response, 'send'>

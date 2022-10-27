@@ -382,22 +382,28 @@ describe('RelayServer', () => {
             const percentage = new BigNumber('0.1');
             server = new RelayServer(
                 {
-                    disableSponsoredTx: false,
+                    disableSponsoredTx: true,
                     feePercentage: percentage.toString()
                 },
                 mockDependencies
             );
             const { requiredTokenAmount } =
                 await server.estimateRelayTransaction(relayTransactionRequest);
-            const expectedRequiredTokenAmount = conversions.convertGasToToken(
-                percentage.multipliedBy(standardRelayEstimation),
-                xRateRifRbtc,
-                gasPrice
-            );
+            const expectedRequiredTokenAmount = conversions
+                .convertGasToToken(
+                    standardRelayEstimation.plus(
+                        percentage
+                            .multipliedBy(standardRelayEstimation)
+                            .toFixed(0)
+                    ),
+                    xRateRifRbtc,
+                    gasPrice
+                )
+                .toFixed(0);
 
             expect(
-                requiredTokenAmount.eq(requiredTokenAmount),
-                `${requiredTokenAmount.toString()} should equal ${expectedRequiredTokenAmount.toString()}`
+                expectedRequiredTokenAmount == requiredTokenAmount,
+                `${expectedRequiredTokenAmount.toString()} should equal ${requiredTokenAmount}`
             ).to.be.true;
         });
 
@@ -405,15 +411,17 @@ describe('RelayServer', () => {
             server = new RelayServer({}, mockDependencies);
             const { requiredTokenAmount } =
                 await server.estimateRelayTransaction(relayTransactionRequest);
-            const expectedRequiredTokenAmount = conversions.convertGasToToken(
-                standardRelayEstimation,
-                xRateRifRbtc,
-                gasPrice
-            );
+            const expectedRequiredTokenAmount = conversions
+                .convertGasToToken(
+                    standardRelayEstimation,
+                    xRateRifRbtc,
+                    gasPrice
+                )
+                .toFixed(0);
 
             expect(
-                requiredTokenAmount.eq(requiredTokenAmount),
-                `${requiredTokenAmount.toString()} should equal ${expectedRequiredTokenAmount.toString()}`
+                expectedRequiredTokenAmount == requiredTokenAmount,
+                `${expectedRequiredTokenAmount.toString()} should equal ${requiredTokenAmount}`
             ).to.be.true;
         });
     });

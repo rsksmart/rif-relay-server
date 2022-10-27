@@ -73,10 +73,10 @@ const calculateFeeValue = (
 
 export type RelayEstimation = {
     gasPrice: string;
-    estimation: BigNumber;
-    requiredTokenAmount: BigNumber;
-    requiredNativeAmount: BigNumber;
-    exchangeRate: BigNumber;
+    estimation: string;
+    requiredTokenAmount: string;
+    requiredNativeAmount: string;
+    exchangeRate: string;
 };
 
 export class RelayServer extends EventEmitter {
@@ -521,9 +521,9 @@ export class RelayServer extends EventEmitter {
             this.workerAddress
         );
 
-        const { feePercentage, disableSponsoredTx } = this.config;
+        const { feePercentage } = this.config;
 
-        if (disableSponsoredTx) {
+        if (feePercentage) {
             log.debug(`RelayServer - feePercentage: ${feePercentage}`);
 
             const feeValue: BN = calculateFeeValue(
@@ -542,22 +542,24 @@ export class RelayServer extends EventEmitter {
 
         const exchangeRate: BigNumber = await getXRateFor(token);
 
+        const bigGasPrice = BigNumber(gasPrice);
+
         const requiredTokenAmount = convertGasToToken(
             estimation,
             exchangeRate,
-            BigNumber(gasPrice)
+            bigGasPrice
         );
 
         const requiredNativeAmount = convertGasToNative(
             estimation,
-            BigNumber(gasPrice)
+            bigGasPrice
         );
 
         return {
-            estimation,
-            requiredTokenAmount,
-            requiredNativeAmount,
-            exchangeRate,
+            estimation: estimation.toFixed(0),
+            requiredTokenAmount: requiredTokenAmount.toFixed(0),
+            requiredNativeAmount: requiredNativeAmount.toFixed(0),
+            exchangeRate: exchangeRate.toFixed(),
             gasPrice
         };
     }

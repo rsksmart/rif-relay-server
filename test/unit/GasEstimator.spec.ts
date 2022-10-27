@@ -152,10 +152,10 @@ describe('GasEstimator', function () {
                 contract: {
                     methods: {
                         relayCall: fake.returns({
-                            estimateGas: () => relayGas
+                            estimateGas: () => Promise.resolve(relayGas)
                         }),
                         deployCall: fake.returns({
-                            estimateGas: () => deployGas
+                            estimateGas: () => Promise.resolve(deployGas)
                         })
                     }
                 }
@@ -267,7 +267,8 @@ describe('GasEstimator', function () {
                     contract: {
                         methods: {
                             transfer: fake.returns({
-                                estimateGas: () => estimateTokenGas
+                                estimateGas: () =>
+                                    Promise.resolve(estimateTokenGas)
                             })
                         }
                     }
@@ -362,15 +363,15 @@ describe('GasEstimator', function () {
                 'applyInternalCorrection'
             );
             erc20.instance.contract.methods.transfer = fake.returns({
-                estimateGas: () => 0
+                estimateGas: () => Promise.resolve(0)
             });
 
             const estimation = await estimateGasTokenTransfer(
                 contractInteractor,
-                relayRequest as RelayRequest
+                deployRequest as DeployRequest
             );
             expect(contractInteractor.getSmartWalletAddress.calledOnce).to.be
-                .false;
+                .true;
             expect(internalCorrectionSpy.calledOnce).to.be.true;
 
             const tokenEstimation = BigNumber(12000);
