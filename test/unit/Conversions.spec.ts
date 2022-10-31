@@ -211,7 +211,11 @@ describe('Conversions', () => {
         });
 
         it('should return 0 if gas price is invalid', function () {
-            const tokenAmount = convertGasToToken(estimation, exchangeRate, 'na');
+            const tokenAmount = convertGasToToken(
+                estimation,
+                exchangeRate,
+                'na'
+            );
             expect(tokenAmount.isZero(), 'token amount should be zero').to.be
                 .true;
         });

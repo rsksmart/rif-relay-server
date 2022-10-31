@@ -58,7 +58,7 @@ export const estimateMaxPossibleGas = async (
 };
 
 /**
- * Verify if the string contains a hexahecimal value bigger than 0
+ * Verify if the string contains a hexadecimal value bigger than 0
  * @param signature string that contains the signature
  * @returns boolean flag
  */
