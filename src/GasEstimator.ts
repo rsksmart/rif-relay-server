@@ -19,13 +19,13 @@ import { toWei } from 'web3-utils';
 const SUBSIDY = BigNumber(12000);
 
 /**
- * Estimates the gas consumed by relaying a transaction using either a linearFit/standard estimation
+ * Estimates the max possible gas consumed by relaying a transaction using either a linearFit/standard estimation
  * @param contractInteractor object containing the contractInteractor
  * @param request request that contains the relayRequest/deployRequest and metadata
  * @param relayWorker address of the relayWorker that will execute the transaction
  * @returns gas estimation from the relayTransaction
  */
-export const estimateGasRelayTransaction = async (
+export const estimateMaxPossibleGas = async (
     contractInteractor: ContractInteractor,
     request: RelayTransactionRequest | DeployTransactionRequest,
     relayWorker: string
@@ -34,20 +34,20 @@ export const estimateGasRelayTransaction = async (
 
     let estimation: BigNumber;
 
-    const tokenEstimation = await estimateGasTokenTransfer(
+    const tokenEstimation = await estimateMaxPossibleGasTokenTransfer(
         contractInteractor,
         relayRequest
     );
 
     if (checkSignature(metadata.signature)) {
-        estimation = await standardGasEstimation(
+        estimation = await standardMaxPossibleGasEstimation(
             contractInteractor,
             request,
             relayWorker,
             tokenEstimation
         );
     } else {
-        estimation = await linearFitGasEstimation(
+        estimation = await linearFitMaxPossibleGasEstimation(
             contractInteractor,
             relayRequest,
             tokenEstimation
@@ -72,14 +72,14 @@ const isDeployRequest = (
 };
 
 /**
- * Estimates the gas consume by relaying a transaction using a standard estimation
+ * Estimates the max possible gas consumed by relaying a transaction using a standard estimation
  * @param contractInteractor object containing the contractInteractor
  * @param request request that contains the relayRequest/deployRequest and metadata
  * @param relayWorker address of the relayWorker that will execute the transaction
- * @param tokenEstimation gas consume by the token transfer
+ * @param tokenEstimation gas consumed by the token transfer
  * @returns gas estimation from the relayTransaction
  */
-export const standardGasEstimation = async (
+export const standardMaxPossibleGasEstimation = async (
     contractInteractor: ContractInteractor,
     {
         relayRequest,
@@ -116,13 +116,13 @@ export const standardGasEstimation = async (
 };
 
 /**
- * Estimates the gas consume by relaying a transaction using a linearFit
+ * Estimates the max possible gas consumed by relaying a transaction using a linearFit
  * @param contractInteractor object containing the contractInteractor
  * @param request request that contains the relayRequest/deployRequest and metadata
- * @param tokenEstimation gas consume by the token transfer
+ * @param tokenEstimation gas consumed by the token transfer
  * @returns gas estimation from the relayTransaction
  */
-export const linearFitGasEstimation = async (
+export const linearFitMaxPossibleGasEstimation = async (
     contractInteractor: ContractInteractor,
     { request, relayData }: RelayRequest | DeployRequest,
     tokenEstimation: BigNumber
@@ -133,12 +133,15 @@ export const linearFitGasEstimation = async (
         throw Error('LinearFit estimation not implemented for deployments');
     }
 
-    internalEstimation = await estimateGas(contractInteractor, {
-        from: request.from,
-        to: request.to,
-        data: request.data,
-        gasPrice: relayData.gasPrice
-    });
+    internalEstimation = await estimateMaxPossibleGasExecution(
+        contractInteractor,
+        {
+            from: relayData.callForwarder,
+            to: request.to,
+            data: request.data,
+            gasPrice: relayData.gasPrice
+        }
+    );
 
     internalEstimation = applyInternalCorrection(internalEstimation);
 
@@ -151,12 +154,12 @@ export const linearFitGasEstimation = async (
 };
 
 /**
- * Estimates the gas consume by transfering an ERC20 token
+ * Estimates the max possible gas consumed by transfering an ERC20 token
  * @param contractInteractor object containing the contractInteractor
  * @param request request that contains the relayRequest/deployRequest and metadata
  * @returns gas estimation from the transfer
  */
-export const estimateGasTokenTransfer = async (
+export const estimateMaxPossibleGasTokenTransfer = async (
     contractInteractor: ContractInteractor,
     { request, relayData }: RelayRequest | DeployRequest
 ): Promise<BigNumber> => {
@@ -202,12 +205,12 @@ export const estimateGasTokenTransfer = async (
 };
 
 /**
- * Estimates the gas consume by executing a function
+ * Estimates the max possible gas consumed by executing a function
  * @param contractInteractor object containing the contractInteractor
  * @param estimate params to execute the estimateGas function
  * @returns gas estimation from the execution
  */
-export const estimateGas = async (
+export const estimateMaxPossibleGasExecution = async (
     contractInteractor: ContractInteractor,
     estimate: EstimateGasParams
 ): Promise<BigNumber> => {
@@ -234,7 +237,7 @@ export const applyInternalCorrection = (
 };
 
 /**
- * Applies the correction from the RSK node miscalculation
+ * Applies the correction from the RSK node misscalculation
  * @param estimation BigNumber gas estimation that needs to be corrected
  * @returns gas estimation with the correction done
  */

@@ -368,7 +368,7 @@ describe('RelayServer', () => {
         beforeEach(function () {
             replace(
                 gasEstimator,
-                'estimateGasRelayTransaction',
+                'estimateMaxPossibleGas',
                 fake.returns(Promise.resolve(standardRelayEstimation))
             );
             replace(
@@ -387,8 +387,9 @@ describe('RelayServer', () => {
                 },
                 mockDependencies
             );
-            const { requiredTokenAmount } =
-                await server.estimateRelayTransaction(relayTransactionRequest);
+            const { requiredTokenAmount } = await server.estimateMaxPossibleGas(
+                relayTransactionRequest
+            );
             const expectedRequiredTokenAmount = conversions
                 .convertGasToToken(
                     standardRelayEstimation.plus(
@@ -409,8 +410,9 @@ describe('RelayServer', () => {
 
         it('should estimate transaction without fee', async function () {
             server = new RelayServer({}, mockDependencies);
-            const { requiredTokenAmount } =
-                await server.estimateRelayTransaction(relayTransactionRequest);
+            const { requiredTokenAmount } = await server.estimateMaxPossibleGas(
+                relayTransactionRequest
+            );
             const expectedRequiredTokenAmount = conversions
                 .convertGasToToken(
                     standardRelayEstimation,

@@ -1,6 +1,6 @@
 import BigNumber from 'bignumber.js';
 import BN from 'bn.js';
-import { fromWei, toBN } from 'web3-utils';
+import { toBN } from 'web3-utils';
 import ExchangeToken from './definitions/token.type';
 import { RelayPricer } from '@rsksmart/rif-relay-client';
 
@@ -18,15 +18,20 @@ const relayPricer = new RelayPricer();
  * @returns BigNumber
  */
 export const getPrecision = (
-    precision: BigNumber | string | number = RBTC_CHAIN_DECIMALS,
+    precision: InputParam = RBTC_CHAIN_DECIMALS,
     base = 10
 ): BigNumber => new BigNumber(base).pow(precision);
+
+/**
+ * Input param that can be converted to BigNumber
+ */
+type InputParam = BigNumber | string | number;
 
 /**
  * value and precision for the value to be converted to
  */
 export type ToPrecisionParams = {
-    value: BigNumber | string | number;
+    value: InputParam;
     precision?: number;
 };
 
@@ -103,27 +108,43 @@ export const toNativeWeiFrom = async ({
  * Converts gas estimation to token amount
  * @param estimation estimation to be converted
  * @param xRate exchange rate of the token
- * @param gasPrice gasPrice in BigNumber
+ * @param gasPrice gasPrice
  * @returns 'WEI' representation of the gas converted to token
  */
 export const convertGasToToken = (
-    estimation: BigNumber,
-    xRate: BigNumber,
-    gasPrice: BigNumber
+    estimation: InputParam,
+    xRate: InputParam,
+    gasPrice: InputParam
 ): BigNumber => {
-    const total = estimation.multipliedBy(gasPrice);
-    return total.dividedBy(xRate);
+    const bigEstimation = new BigNumber(estimation);
+    const bigRate = new BigNumber(xRate);
+    const bigPrice = new BigNumber(gasPrice);
+    if (
+        bigEstimation.isNegative() ||
+        bigPrice.isNegative() ||
+        bigRate.isZero() ||
+        bigRate.isNegative()
+    ) {
+        return new BigNumber(0);
+    }
+    const total = bigEstimation.multipliedBy(bigPrice);
+    return total.dividedBy(bigRate);
 };
 
 /**
  * Converts gas estimation to native amount
  * @param estimation estimation to be converted
- * @param gasPrice gasPrice in BigNumber
+ * @param gasPrice gasPrice
  * @returns 'WEI' representation of the gas converted to native
  */
 export const convertGasToNative = (
-    estimation: BigNumber,
-    gasPrice: BigNumber
+    estimation: InputParam,
+    gasPrice: InputParam
 ): BigNumber => {
-    return estimation.multipliedBy(gasPrice);
+    const bigEstimation = new BigNumber(estimation);
+    const bigPrice = new BigNumber(gasPrice);
+    if (bigEstimation.isNegative() || bigPrice.isNegative()) {
+        return new BigNumber(0);
+    }
+    return bigEstimation.multipliedBy(bigPrice);
 };

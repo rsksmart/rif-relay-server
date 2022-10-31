@@ -259,7 +259,7 @@ export class HttpServer {
      * @openapi
      * /estimate:
      *   post:
-     *     summary: It estimate relay transactions.
+     *     summary: It estimate the mas possible gas in relay transaction.
      *     description: It receives transactions to be estimated (deploy or forward requests) and after performing all the checks, it estimates the gas consumption.
      *     requestBody:
      *       description: Deploy transaction or forward transaction.
@@ -303,7 +303,7 @@ export class HttpServer {
      */
     async estimateHandler(req: Request, res: Response): Promise<void> {
         try {
-            const estimation = await this.backend.estimateRelayTransaction(
+            const estimation = await this.backend.estimateMaxPossibleGas(
                 req.body
             );
             res.send(estimation);

@@ -5,7 +5,6 @@ import { expect, use, assert } from 'chai';
 import chaiAsPromised from 'chai-as-promised';
 import sinon, { SinonStubbedInstance } from 'sinon';
 import sinonChai from 'sinon-chai';
-import { fromWei } from 'web3-utils';
 import {
     getXRateFor,
     toNativeWeiFrom,
@@ -162,6 +161,42 @@ describe('Conversions', () => {
                 `${tokenAmount.toString()} should equal ${excpectedTokenAmount.toString()}`
             ).to.be.true;
         });
+
+        it('should return 0 if estimation is negative', function () {
+            const tokenAmount = convertGasToToken(-1, exchangeRate, gasPrice);
+            expect(tokenAmount.isZero(), 'token amount should be zero').to.be
+                .true;
+        });
+
+        it('should return 0 if exchange rate is negative', function () {
+            const tokenAmount = convertGasToToken(estimation, -1, gasPrice);
+            expect(tokenAmount.isZero(), 'token amount should be zero').to.be
+                .true;
+        });
+
+        it('should return 0 if gas price is negative', function () {
+            const tokenAmount = convertGasToToken(estimation, exchangeRate, -1);
+            expect(tokenAmount.isZero(), 'token amount should be zero').to.be
+                .true;
+        });
+
+        it('should return 0 if estimation is zero', function () {
+            const tokenAmount = convertGasToToken(0, exchangeRate, gasPrice);
+            expect(tokenAmount.isZero(), 'token amount should be zero').to.be
+                .true;
+        });
+
+        it('should return 0 if exchange rate is zero', function () {
+            const tokenAmount = convertGasToToken(estimation, 0, gasPrice);
+            expect(tokenAmount.isZero(), 'token amount should be zero').to.be
+                .true;
+        });
+
+        it('should return 0 if gas price is zero', function () {
+            const tokenAmount = convertGasToToken(estimation, exchangeRate, 0);
+            expect(tokenAmount.isZero(), 'token amount should be zero').to.be
+                .true;
+        });
     });
 
     describe('convertGasToNative', function () {
@@ -175,6 +210,30 @@ describe('Conversions', () => {
                 nativeAmount.eq(expectedNative),
                 `${nativeAmount.toString()} should equal ${expectedNative.toString()}`
             ).to.be.true;
+        });
+
+        it('should return 0 if estimation is negative', function () {
+            const tokenAmount = convertGasToNative(-1, gasPrice);
+            expect(tokenAmount.isZero(), 'native amount should be zero').to.be
+                .true;
+        });
+
+        it('should return 0 if gas price is negative', function () {
+            const tokenAmount = convertGasToNative(estimation, -1);
+            expect(tokenAmount.isZero(), 'native amount should be zero').to.be
+                .true;
+        });
+
+        it('should return 0 if estimation is zero', function () {
+            const tokenAmount = convertGasToNative(0, gasPrice);
+            expect(tokenAmount.isZero(), 'native amount should be zero').to.be
+                .true;
+        });
+
+        it('should return 0 if gas price is zero', function () {
+            const tokenAmount = convertGasToNative(estimation, 0);
+            expect(tokenAmount.isZero(), 'native amount should be zero').to.be
+                .true;
         });
     });
 });

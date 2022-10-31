@@ -33,11 +33,12 @@ import {
 import * as gasEstimator from '../../src/GasEstimator';
 import {
     applyGasCorrectionFactor,
-    standardGasEstimation,
-    estimateGasRelayTransaction,
-    estimateGasTokenTransfer,
-    estimateGas,
-    applyInternalCorrection
+    standardMaxPossibleGasEstimation,
+    estimateMaxPossibleGas,
+    estimateMaxPossibleGasTokenTransfer,
+    estimateMaxPossibleGasExecution,
+    applyInternalCorrection,
+    linearFitMaxPossibleGasEstimation
 } from '../../src/GasEstimator';
 
 use(chaiAsPromised);
@@ -67,15 +68,15 @@ describe('GasEstimator', function () {
         const standardDeployEstimation = new BigNumber(178869);
         const standardRelayEstimation = new BigNumber(99466);
         const tokenGas = new BigNumber(16559);
-        const estimateGasTokenTransfer = fake.returns(
+        const estimateMaxPossibleGasTokenTransfer = fake.returns(
             Promise.resolve(tokenGas)
         );
 
         beforeEach(function () {
             replace(
                 gasEstimator,
-                'estimateGasTokenTransfer',
-                estimateGasTokenTransfer
+                'estimateMaxPossibleGasTokenTransfer',
+                estimateMaxPossibleGasTokenTransfer
             );
         });
 
@@ -92,14 +93,14 @@ describe('GasEstimator', function () {
             };
             replace(
                 gasEstimator,
-                'standardGasEstimation',
+                'standardMaxPossibleGasEstimation',
                 relayStandardEstimation
             );
             const request: RelayTransactionRequest = {
                 relayRequest: relayRequest as RelayRequest,
                 metadata: metadata as RelayMetadata
             };
-            const estimation = await estimateGasRelayTransaction(
+            const estimation = await estimateMaxPossibleGas(
                 contractInteractor,
                 request,
                 relayWorker
@@ -119,14 +120,14 @@ describe('GasEstimator', function () {
             };
             replace(
                 gasEstimator,
-                'standardGasEstimation',
+                'standardMaxPossibleGasEstimation',
                 deployStandardEstimation
             );
             const request: DeployTransactionRequest = {
                 relayRequest: deployRequest as DeployRequest,
                 metadata: metadata as RelayMetadata
             };
-            const estimation = await estimateGasRelayTransaction(
+            const estimation = await estimateMaxPossibleGas(
                 contractInteractor,
                 request,
                 relayWorker
@@ -138,7 +139,7 @@ describe('GasEstimator', function () {
         });
     });
 
-    describe('standardGasEstimation', function () {
+    describe('standardMaxPossibleGasEstimation', function () {
         const tokenGas = new BigNumber(16559);
         const deployGas = 147246;
         const relayGas = 82907;
@@ -174,7 +175,7 @@ describe('GasEstimator', function () {
                 relayRequest: relayRequest as RelayRequest,
                 metadata: metadata as RelayMetadata
             };
-            const estimation = await standardGasEstimation(
+            const estimation = await standardMaxPossibleGasEstimation(
                 contractInteractor,
                 request,
                 relayWorker,
@@ -194,7 +195,7 @@ describe('GasEstimator', function () {
                 relayRequest: deployRequest as DeployRequest,
                 metadata: metadata as RelayMetadata
             };
-            const estimation = await standardGasEstimation(
+            const estimation = await standardMaxPossibleGasEstimation(
                 contractInteractor,
                 request,
                 relayWorker,
@@ -217,7 +218,11 @@ describe('GasEstimator', function () {
         const internalEstimation = fake.returns(Promise.resolve(internalGas));
 
         beforeEach(function () {
-            replace(gasEstimator, 'estimateGas', internalEstimation);
+            replace(
+                gasEstimator,
+                'estimateMaxPossibleGasExecution',
+                internalEstimation
+            );
         });
 
         afterEach(function () {
@@ -231,7 +236,7 @@ describe('GasEstimator', function () {
                     tokenGas.toNumber()
                 );
 
-            const estimation = await gasEstimator.linearFitGasEstimation(
+            const estimation = await linearFitMaxPossibleGasEstimation(
                 contractInteractor,
                 relayRequest as RelayRequest,
                 tokenGas
@@ -244,7 +249,7 @@ describe('GasEstimator', function () {
         });
 
         it('should fail to estimate the deploy transaction', async function () {
-            const estimation = gasEstimator.linearFitGasEstimation(
+            const estimation = linearFitMaxPossibleGasEstimation(
                 contractInteractor,
                 deployRequest as DeployRequest,
                 tokenGas
@@ -256,7 +261,7 @@ describe('GasEstimator', function () {
         });
     });
 
-    describe('estimateGasTokenTransfer', function () {
+    describe('estimateMaxPossibleGasTokenTransfer', function () {
         const tokenGas = new BigNumber(16559);
         const estimateTokenGas = new BigNumber(24554);
         let erc20: ERC20Token;
@@ -289,7 +294,7 @@ describe('GasEstimator', function () {
                 gasEstimator,
                 'applyInternalCorrection'
             );
-            const estimation = await estimateGasTokenTransfer(
+            const estimation = await estimateMaxPossibleGasTokenTransfer(
                 contractInteractor,
                 relayRequest as RelayRequest
             );
@@ -312,7 +317,7 @@ describe('GasEstimator', function () {
                 gasEstimator,
                 'applyInternalCorrection'
             );
-            const estimation = await estimateGasTokenTransfer(
+            const estimation = await estimateMaxPossibleGasTokenTransfer(
                 contractInteractor,
                 deployRequest as DeployRequest
             );
@@ -341,7 +346,7 @@ describe('GasEstimator', function () {
             };
             localRelayRequest.request.tokenGas = tokenGas.toString();
 
-            const estimation = await estimateGasTokenTransfer(
+            const estimation = await estimateMaxPossibleGasTokenTransfer(
                 contractInteractor,
                 localRelayRequest as RelayRequest
             );
@@ -366,7 +371,7 @@ describe('GasEstimator', function () {
                 estimateGas: () => Promise.resolve(0)
             });
 
-            const estimation = await estimateGasTokenTransfer(
+            const estimation = await estimateMaxPossibleGasTokenTransfer(
                 contractInteractor,
                 deployRequest as DeployRequest
             );
@@ -382,8 +387,8 @@ describe('GasEstimator', function () {
         });
     });
 
-    describe('estimateGas', function () {
-        const estimateGasParams: EstimateGasParams = {
+    describe('estimateMaxPossibleGasExecution', function () {
+        const estimateMaxPossibleGasExecutionParams: EstimateGasParams = {
             from: '0x0',
             to: '0x0',
             data: '0x0'
@@ -400,9 +405,9 @@ describe('GasEstimator', function () {
         });
 
         it('should estimate the data execution', async function () {
-            const estimation = await estimateGas(
+            const estimation = await estimateMaxPossibleGasExecution(
                 contractInteractor,
-                estimateGasParams
+                estimateMaxPossibleGasExecutionParams
             );
             expect(
                 estimation.eq(estimateTokenGas),

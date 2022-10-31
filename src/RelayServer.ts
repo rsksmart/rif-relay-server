@@ -40,7 +40,7 @@ import {
 } from './Conversions';
 import { INSUFFICIENT_TOKEN_AMOUNT } from './definitions/errorMessages.const';
 import ExchangeToken from './definitions/token.type';
-import { estimateGasRelayTransaction } from './GasEstimator';
+import { estimateMaxPossibleGas } from './GasEstimator';
 import { RegistrationManager } from './RegistrationManager';
 import { replenishStrategy } from './ReplenishFunction';
 import {
@@ -508,14 +508,14 @@ export class RelayServer extends EventEmitter {
         }
     }
 
-    async estimateRelayTransaction(
+    async estimateMaxPossibleGas(
         req: RelayTransactionRequest | DeployTransactionRequest
     ): Promise<RelayEstimation> {
         const {
             relayData: { gasPrice }
         } = req.relayRequest;
 
-        let estimation = await estimateGasRelayTransaction(
+        let estimation = await estimateMaxPossibleGas(
             this.contractInteractor,
             req,
             this.workerAddress

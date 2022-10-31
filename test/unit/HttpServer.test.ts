@@ -18,7 +18,6 @@ import {
     RelayEstimation
 } from '../../src';
 import jsonrpc from 'jsonrpc-lite';
-import BigNumber from 'bignumber.js';
 
 use(chaiAsPromised);
 
@@ -196,7 +195,7 @@ describe('HttpServer', () => {
             };
 
         it('should return response with RelayEstimation in body', async function () {
-            fakeRelayServer.estimateRelayTransaction = stub().returns(
+            fakeRelayServer.estimateMaxPossibleGas = stub().returns(
                 responseRelayEstimation
             );
             await httpServer.estimateHandler(
