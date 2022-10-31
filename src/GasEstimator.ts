@@ -57,6 +57,11 @@ export const estimateMaxPossibleGas = async (
     return estimation;
 };
 
+/**
+ * Verify if the string contains a hexahecimal value bigger than 0
+ * @param signature string that contains the signature
+ * @returns boolean flag
+ */
 const checkSignature = (signature: string): boolean => {
     const bigValue = new BigNumber(signature, 16);
     if (!bigValue.isZero()) {
@@ -65,6 +70,11 @@ const checkSignature = (signature: string): boolean => {
     return false;
 };
 
+/**
+ * Verify if request is a deployment
+ * @param request relay request
+ * @returns boolean flag
+ */
 const isDeployRequest = (
     request: DeployRequestStruct | ForwardRequest
 ): boolean => {

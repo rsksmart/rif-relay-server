@@ -120,10 +120,10 @@ export const convertGasToToken = (
     const bigRate = new BigNumber(xRate);
     const bigPrice = new BigNumber(gasPrice);
     if (
-        bigEstimation.isNegative() ||
-        bigPrice.isNegative() ||
-        bigRate.isZero() ||
-        bigRate.isNegative()
+        invalidNumber(bigEstimation) ||
+        invalidNumber(bigRate) ||
+        invalidNumber(bigPrice) ||
+        bigRate.isZero()
     ) {
         return new BigNumber(0);
     }
@@ -143,8 +143,20 @@ export const convertGasToNative = (
 ): BigNumber => {
     const bigEstimation = new BigNumber(estimation);
     const bigPrice = new BigNumber(gasPrice);
-    if (bigEstimation.isNegative() || bigPrice.isNegative()) {
+    if (invalidNumber(bigEstimation) || invalidNumber(bigPrice)) {
         return new BigNumber(0);
     }
     return bigEstimation.multipliedBy(bigPrice);
+};
+
+/**
+ * Verify of the number is not valid
+ * @param value BigNumber value
+ * @returns boolean flag
+ */
+const invalidNumber = (value: BigNumber): boolean => {
+    if (value.isNegative() || value.isNaN() || !value.isFinite()) {
+        return true;
+    }
+    return false;
 };

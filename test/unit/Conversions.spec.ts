@@ -197,6 +197,24 @@ describe('Conversions', () => {
             expect(tokenAmount.isZero(), 'token amount should be zero').to.be
                 .true;
         });
+
+        it('should return 0 if estimation is invalid', function () {
+            const tokenAmount = convertGasToToken('na', exchangeRate, gasPrice);
+            expect(tokenAmount.isZero(), 'token amount should be zero').to.be
+                .true;
+        });
+
+        it('should return 0 if exchange rate is invalid', function () {
+            const tokenAmount = convertGasToToken(estimation, 'na', gasPrice);
+            expect(tokenAmount.isZero(), 'token amount should be zero').to.be
+                .true;
+        });
+
+        it('should return 0 if gas price is invalid', function () {
+            const tokenAmount = convertGasToToken(estimation, exchangeRate, 'na');
+            expect(tokenAmount.isZero(), 'token amount should be zero').to.be
+                .true;
+        });
     });
 
     describe('convertGasToNative', function () {
@@ -232,6 +250,18 @@ describe('Conversions', () => {
 
         it('should return 0 if gas price is zero', function () {
             const tokenAmount = convertGasToNative(estimation, 0);
+            expect(tokenAmount.isZero(), 'native amount should be zero').to.be
+                .true;
+        });
+
+        it('should return 0 if estimation is invalid', function () {
+            const tokenAmount = convertGasToNative('na', gasPrice);
+            expect(tokenAmount.isZero(), 'native amount should be zero').to.be
+                .true;
+        });
+
+        it('should return 0 if gas price is invalid', function () {
+            const tokenAmount = convertGasToNative(estimation, 'na');
             expect(tokenAmount.isZero(), 'native amount should be zero').to.be
                 .true;
         });
