@@ -22,7 +22,8 @@ import {
     fake,
     restore,
     createStubInstance,
-    spy
+    spy,
+    stub
 } from 'sinon';
 import crypto from 'crypto';
 import * as gasEstimator from '../../src/GasEstimator';
@@ -89,7 +90,8 @@ describe('GasEstimator', function () {
 
     describe('estimateMaxPossibleGas', function () {
         const standardDeployEstimation = new BigNumber(178869);
-        const standardRelayEstimation = new BigNumber(99466);
+        const standardRelayEstimation = new BigNumber(128954);
+        const fitRelayEstimation = new BigNumber(125583);
         const tokenGas = new BigNumber(16559);
         const estimateMaxPossibleGasTokenTransfer = fake.returns(
             Promise.resolve(tokenGas)
@@ -163,6 +165,61 @@ describe('GasEstimator', function () {
                 estimation.eq(standardDeployEstimation),
                 `${estimation.toString()} should equal ${standardDeployEstimation.toString()}`
             ).to.be.true;
+        });
+
+        it('should estimate the relay transaction(linearFit)', async function () {
+            const relayFitEstimation = fake.returns(
+                Promise.resolve(fitRelayEstimation)
+            );
+            const metadata: RelayMetadata = {
+                signature: '0x0',
+                relayHubAddress: relayRequest.request.relayHub,
+                relayMaxNonce: Number(createRandomeValue(100))
+            };
+            replace(
+                gasEstimator,
+                'linearFitMaxPossibleGasEstimation',
+                relayFitEstimation
+            );
+            const request: RelayTransactionRequest = {
+                relayRequest: relayRequest,
+                metadata: metadata
+            };
+            const estimation = await estimateMaxPossibleGas(
+                contractInteractor,
+                request,
+                relayWorker
+            );
+            expect(
+                estimation.eq(fitRelayEstimation),
+                `${estimation.toString()} should equal ${fitRelayEstimation.toString()}`
+            ).to.be.true;
+        });
+
+        it('should estimate the deploy transaction(linearFit)', async function () {
+            const error = new Error(
+                'LinearFit estimation not implemented for deployments'
+            );
+            const metadata: RelayMetadata = {
+                signature: '0x1',
+                relayHubAddress: deployRequest.request.relayHub,
+                relayMaxNonce: Number(createRandomeValue(100))
+            };
+            replace(
+                gasEstimator,
+                'standardMaxPossibleGasEstimation',
+                stub().throws(error)
+            );
+            const request: DeployTransactionRequest = {
+                relayRequest: deployRequest,
+                metadata: metadata
+            };
+            const estimation = estimateMaxPossibleGas(
+                contractInteractor,
+                request,
+                relayWorker
+            );
+            await expect(estimation).to.be.rejectedWith(error);
         });
     });
 
