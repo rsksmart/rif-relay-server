@@ -101,7 +101,7 @@ export const standardMaxPossibleGasEstimation = async (
     const { request, relayData } = relayRequest;
 
     let methodToEstimate;
-    if ('index' in request) {
+    if (isDeployRequest(request)) {
         methodToEstimate =
             contractInteractor.relayHubInstance.contract.methods.deployCall(
                 relayRequest as DeployRequest,

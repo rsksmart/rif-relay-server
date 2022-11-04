@@ -8,13 +8,7 @@ import {
     EstimateGasParams,
     estimateMaxPossibleRelayCallWithLinearFit
 } from '@rsksmart/rif-relay-common';
-import {
-    DeployRequest,
-    DeployRequestStruct,
-    ForwardRequest,
-    RelayData,
-    RelayRequest
-} from '@rsksmart/rif-relay-contracts';
+import { DeployRequest, RelayRequest } from '@rsksmart/rif-relay-contracts';
 import {
     ERC20Instance,
     IRelayHubInstance
@@ -30,6 +24,7 @@ import {
     createStubInstance,
     spy
 } from 'sinon';
+import crypto from 'crypto';
 import * as gasEstimator from '../../src/GasEstimator';
 import {
     applyGasCorrectionFactor,
@@ -43,28 +38,56 @@ import {
 
 use(chaiAsPromised);
 
+const createRandomAddress = () => `0x${crypto.randomBytes(20).toString('hex')}`;
+const createRandomeValue = (value: number) => `${Math.random() * value}`;
+
 describe('GasEstimator', function () {
     const deployRequest: DeployRequest = {
         request: {
-            index: '0'
-        } as DeployRequestStruct,
+            data: '',
+            from: createRandomAddress(),
+            nonce: createRandomeValue(1e16),
+            relayHub: createRandomAddress(),
+            to: createRandomAddress(),
+            tokenAmount: createRandomeValue(1e16),
+            tokenContract: createRandomAddress(),
+            tokenGas: createRandomeValue(1000),
+            value: createRandomeValue(1e16),
+            index: createRandomeValue(100),
+            recoverer: createRandomAddress()
+        },
         relayData: {
-            gasPrice: '60000000'
-        } as RelayData
+            gasPrice: createRandomeValue(1000),
+            callForwarder: createRandomAddress(),
+            callVerifier: createRandomAddress(),
+            feesReceiver: createRandomAddress()
+        }
     };
     const relayRequest: RelayRequest = {
         request: {
-            gas: '100'
-        } as ForwardRequest,
+            data: '',
+            from: createRandomAddress(),
+            nonce: createRandomeValue(1e16),
+            relayHub: createRandomAddress(),
+            to: createRandomAddress(),
+            tokenAmount: createRandomeValue(1e16),
+            tokenContract: createRandomAddress(),
+            tokenGas: createRandomeValue(1000),
+            value: createRandomeValue(1e16),
+            gas: createRandomeValue(1000)
+        },
         relayData: {
-            gasPrice: '60000000'
-        } as RelayData
+            gasPrice: createRandomeValue(1000),
+            callForwarder: createRandomAddress(),
+            callVerifier: createRandomAddress(),
+            feesReceiver: createRandomAddress()
+        }
     };
 
     let contractInteractor: SinonStubbedInstance<ContractInteractor>;
     const relayWorker = '0x0';
 
-    describe('estimateRelayTransaction', function () {
+    describe('estimateMaxPossibleGas', function () {
         const standardDeployEstimation = new BigNumber(178869);
         const standardRelayEstimation = new BigNumber(99466);
         const tokenGas = new BigNumber(16559);
@@ -88,8 +111,10 @@ describe('GasEstimator', function () {
             const relayStandardEstimation = fake.returns(
                 Promise.resolve(standardRelayEstimation)
             );
-            const metadata: Partial<RelayMetadata> = {
-                signature: '0x1'
+            const metadata: RelayMetadata = {
+                signature: '0x1',
+                relayHubAddress: relayRequest.request.relayHub,
+                relayMaxNonce: Number(createRandomeValue(100))
             };
             replace(
                 gasEstimator,
@@ -97,8 +122,8 @@ describe('GasEstimator', function () {
                 relayStandardEstimation
             );
             const request: RelayTransactionRequest = {
-                relayRequest: relayRequest as RelayRequest,
-                metadata: metadata as RelayMetadata
+                relayRequest: relayRequest,
+                metadata: metadata
             };
             const estimation = await estimateMaxPossibleGas(
                 contractInteractor,
@@ -115,8 +140,10 @@ describe('GasEstimator', function () {
             const deployStandardEstimation = fake.returns(
                 Promise.resolve(standardDeployEstimation)
             );
-            const metadata: Partial<RelayMetadata> = {
-                signature: '0x1'
+            const metadata: RelayMetadata = {
+                signature: '0x1',
+                relayHubAddress: deployRequest.request.relayHub,
+                relayMaxNonce: Number(createRandomeValue(100))
             };
             replace(
                 gasEstimator,
@@ -124,8 +151,8 @@ describe('GasEstimator', function () {
                 deployStandardEstimation
             );
             const request: DeployTransactionRequest = {
-                relayRequest: deployRequest as DeployRequest,
-                metadata: metadata as RelayMetadata
+                relayRequest: deployRequest,
+                metadata: metadata
             };
             const estimation = await estimateMaxPossibleGas(
                 contractInteractor,
@@ -144,9 +171,6 @@ describe('GasEstimator', function () {
         const deployGas = 147246;
         const relayGas = 82907;
         let relayHubInstance: Partial<IRelayHubInstance>;
-        const metadata: Partial<RelayMetadata> = {
-            signature: '0x1'
-        };
 
         beforeEach(function () {
             relayHubInstance = {
@@ -171,9 +195,14 @@ describe('GasEstimator', function () {
         });
 
         it('should estimate the relay transaction', async function () {
+            const metadata: RelayMetadata = {
+                signature: '0x1',
+                relayHubAddress: relayRequest.request.relayHub,
+                relayMaxNonce: Number(createRandomeValue(100))
+            };
             const request: RelayTransactionRequest = {
-                relayRequest: relayRequest as RelayRequest,
-                metadata: metadata as RelayMetadata
+                relayRequest: relayRequest,
+                metadata: metadata
             };
             const estimation = await standardMaxPossibleGasEstimation(
                 contractInteractor,
@@ -191,9 +220,14 @@ describe('GasEstimator', function () {
         });
 
         it('should estimate the deploy transaction', async function () {
+            const metadata: RelayMetadata = {
+                signature: '0x1',
+                relayHubAddress: deployRequest.request.relayHub,
+                relayMaxNonce: Number(createRandomeValue(100))
+            };
             const request: DeployTransactionRequest = {
-                relayRequest: deployRequest as DeployRequest,
-                metadata: metadata as RelayMetadata
+                relayRequest: deployRequest,
+                metadata: metadata
             };
             const estimation = await standardMaxPossibleGasEstimation(
                 contractInteractor,
@@ -211,7 +245,7 @@ describe('GasEstimator', function () {
         });
     });
 
-    describe('linearFitGasEstimation', function () {
+    describe('linearFitMaxPossibleGasEstimation', function () {
         const tokenGas = new BigNumber(16559);
         const internalGas = new BigNumber(16559);
 
@@ -238,7 +272,7 @@ describe('GasEstimator', function () {
 
             const estimation = await linearFitMaxPossibleGasEstimation(
                 contractInteractor,
-                relayRequest as RelayRequest,
+                relayRequest,
                 tokenGas
             );
 
@@ -251,7 +285,7 @@ describe('GasEstimator', function () {
         it('should fail to estimate the deploy transaction', async function () {
             const estimation = linearFitMaxPossibleGasEstimation(
                 contractInteractor,
-                deployRequest as DeployRequest,
+                deployRequest,
                 tokenGas
             );
 
@@ -290,13 +324,14 @@ describe('GasEstimator', function () {
         });
 
         it('should estimate relay token transfer', async function () {
+            relayRequest.request.tokenGas = '0';
             const internalCorrectionSpy = spy(
                 gasEstimator,
                 'applyInternalCorrection'
             );
             const estimation = await estimateMaxPossibleGasTokenTransfer(
                 contractInteractor,
-                relayRequest as RelayRequest
+                relayRequest
             );
 
             expect(contractInteractor.getSmartWalletAddress.calledOnce).to.be
@@ -313,13 +348,14 @@ describe('GasEstimator', function () {
         });
 
         it('should estimate deploy token transfer', async function () {
+            deployRequest.request.tokenGas = '0';
             const internalCorrectionSpy = spy(
                 gasEstimator,
                 'applyInternalCorrection'
             );
             const estimation = await estimateMaxPossibleGasTokenTransfer(
                 contractInteractor,
-                deployRequest as DeployRequest
+                deployRequest
             );
 
             expect(contractInteractor.getSmartWalletAddress.calledOnce).to.be
@@ -348,7 +384,7 @@ describe('GasEstimator', function () {
 
             const estimation = await estimateMaxPossibleGasTokenTransfer(
                 contractInteractor,
-                localRelayRequest as RelayRequest
+                localRelayRequest
             );
 
             expect(contractInteractor.getSmartWalletAddress.calledOnce).to.be
@@ -373,7 +409,7 @@ describe('GasEstimator', function () {
 
             const estimation = await estimateMaxPossibleGasTokenTransfer(
                 contractInteractor,
-                deployRequest as DeployRequest
+                deployRequest
             );
             expect(contractInteractor.getSmartWalletAddress.calledOnce).to.be
                 .true;
