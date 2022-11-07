@@ -15,7 +15,6 @@ import {
 import BigNumber from 'bignumber.js';
 import { toWei } from 'web3-utils';
 
-
 // If by any chance the tokenEstimation its zero, a value of 12000 its added to the estimation to include the subsidy scenario
 const SUBSIDY = BigNumber(12000);
 
@@ -125,19 +124,16 @@ export const linearFitMaxPossibleGasEstimation = async (
     { request, relayData }: RelayRequest | DeployRequest,
     tokenEstimation: BigNumber
 ): Promise<BigNumber> => {
-
     if (isDeployRequest(request)) {
         throw Error('LinearFit estimation not implemented for deployments');
     }
 
-    const internalEstimation = await contractInteractor.estimateGas(
-        {
-            from: relayData.callForwarder,
-            to: request.to,
-            data: request.data,
-            gasPrice: relayData.gasPrice
-        }
-    );
+    const internalEstimation = await contractInteractor.estimateGas({
+        from: relayData.callForwarder,
+        to: request.to,
+        data: request.data,
+        gasPrice: relayData.gasPrice
+    });
 
     const estimation = applyInternalCorrection(internalEstimation);
 
