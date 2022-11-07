@@ -18,20 +18,20 @@ const relayPricer = new RelayPricer();
  * @returns BigNumber
  */
 export const getPrecision = (
-    precision: InputParam = RBTC_CHAIN_DECIMALS,
+    precision: BigNumberish = RBTC_CHAIN_DECIMALS,
     base = 10
 ): BigNumber => new BigNumber(base).pow(precision);
 
 /**
  * Input param that can be converted to BigNumber
  */
-type InputParam = BigNumber | string | number;
+type BigNumberish = BigNumber | string | number;
 
 /**
  * value and precision for the value to be converted to
  */
 export type ToPrecisionParams = {
-    value: InputParam;
+    value: BigNumberish;
     precision?: number;
 };
 
@@ -112,9 +112,9 @@ export const toNativeWeiFrom = async ({
  * @returns 'WEI' representation of the gas converted to token
  */
 export const convertGasToToken = (
-    estimation: InputParam,
-    xRate: InputParam,
-    gasPrice: InputParam
+    estimation: BigNumberish,
+    xRate: BigNumberish,
+    gasPrice: BigNumberish
 ): BigNumber => {
     const bigEstimation = new BigNumber(estimation);
     const bigRate = new BigNumber(xRate);
@@ -138,8 +138,8 @@ export const convertGasToToken = (
  * @returns 'WEI' representation of the gas converted to native
  */
 export const convertGasToNative = (
-    estimation: InputParam,
-    gasPrice: InputParam
+    estimation: BigNumberish,
+    gasPrice: BigNumberish
 ): BigNumber => {
     const bigEstimation = new BigNumber(estimation);
     const bigPrice = new BigNumber(gasPrice);
