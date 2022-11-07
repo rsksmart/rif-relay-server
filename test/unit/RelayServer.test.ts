@@ -368,7 +368,7 @@ describe('RelayServer', () => {
         beforeEach(function () {
             replace(
                 gasEstimator,
-                'estimateMaxPossibleGas',
+                'estimateRelayMaxPossibleGas',
                 fake.returns(Promise.resolve(standardRelayEstimation))
             );
             replace(

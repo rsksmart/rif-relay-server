@@ -5,7 +5,6 @@ import {
     DeployTransactionRequest,
     ERC20Token,
     constants,
-    EstimateGasParams,
     estimateMaxPossibleRelayCallWithLinearFit
 } from '@rsksmart/rif-relay-common';
 import { DeployRequest, RelayRequest } from '@rsksmart/rif-relay-contracts';
@@ -30,9 +29,8 @@ import * as gasEstimator from '../../src/GasEstimator';
 import {
     applyGasCorrectionFactor,
     standardMaxPossibleGasEstimation,
-    estimateMaxPossibleGas,
+    estimateRelayMaxPossibleGas,
     estimateMaxPossibleGasTokenTransfer,
-    estimateMaxPossibleGasExecution,
     applyInternalCorrection,
     linearFitMaxPossibleGasEstimation
 } from '../../src/GasEstimator';
@@ -127,7 +125,7 @@ describe('GasEstimator', function () {
                 relayRequest: relayRequest,
                 metadata: metadata
             };
-            const estimation = await estimateMaxPossibleGas(
+            const estimation = await estimateRelayMaxPossibleGas(
                 contractInteractor,
                 request,
                 relayWorker
@@ -156,7 +154,7 @@ describe('GasEstimator', function () {
                 relayRequest: deployRequest,
                 metadata: metadata
             };
-            const estimation = await estimateMaxPossibleGas(
+            const estimation = await estimateRelayMaxPossibleGas(
                 contractInteractor,
                 request,
                 relayWorker
@@ -185,7 +183,7 @@ describe('GasEstimator', function () {
                 relayRequest: relayRequest,
                 metadata: metadata
             };
-            const estimation = await estimateMaxPossibleGas(
+            const estimation = await estimateRelayMaxPossibleGas(
                 contractInteractor,
                 request,
                 relayWorker
@@ -214,7 +212,7 @@ describe('GasEstimator', function () {
                 relayRequest: deployRequest,
                 metadata: metadata
             };
-            const estimation = estimateMaxPossibleGas(
+            const estimation = estimateRelayMaxPossibleGas(
                 contractInteractor,
                 request,
                 relayWorker
@@ -304,16 +302,12 @@ describe('GasEstimator', function () {
 
     describe('linearFitMaxPossibleGasEstimation', function () {
         const tokenGas = new BigNumber(16559);
-        const internalGas = new BigNumber(16559);
-
-        const internalEstimation = fake.returns(Promise.resolve(internalGas));
+        const internalGas = 16559;
 
         beforeEach(function () {
-            replace(
-                gasEstimator,
-                'estimateMaxPossibleGasExecution',
-                internalEstimation
-            );
+            contractInteractor = createStubInstance(ContractInteractor, {
+                estimateGas: Promise.resolve(internalGas)
+            });
         });
 
         afterEach(function () {
@@ -476,35 +470,6 @@ describe('GasEstimator', function () {
             expect(
                 estimation.eq(tokenEstimation),
                 `${estimation.toString()} should equal ${tokenEstimation.toString()}`
-            ).to.be.true;
-        });
-    });
-
-    describe('estimateMaxPossibleGasExecution', function () {
-        const estimateMaxPossibleGasExecutionParams: EstimateGasParams = {
-            from: '0x0',
-            to: '0x0',
-            data: '0x0'
-        };
-        const estimateTokenGas = 24554;
-        beforeEach(function () {
-            contractInteractor = createStubInstance(ContractInteractor, {
-                estimateGas: Promise.resolve(estimateTokenGas)
-            });
-        });
-
-        afterEach(function () {
-            restore();
-        });
-
-        it('should estimate the data execution', async function () {
-            const estimation = await estimateMaxPossibleGasExecution(
-                contractInteractor,
-                estimateMaxPossibleGasExecutionParams
-            );
-            expect(
-                estimation.eq(estimateTokenGas),
-                `${estimation.toString()} should equal ${estimateTokenGas.toString()}`
             ).to.be.true;
         });
     });

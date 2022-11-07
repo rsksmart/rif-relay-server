@@ -108,7 +108,7 @@ export const toNativeWeiFrom = async ({
  * Converts gas estimation to token amount
  * @param estimation estimation to be converted
  * @param xRate exchange rate of the token
- * @param gasPrice gasPrice
+ * @param gasPrice gas price use to convert to WEI
  * @returns 'WEI' representation of the gas converted to token
  */
 export const convertGasToToken = (
@@ -120,9 +120,9 @@ export const convertGasToToken = (
     const bigRate = new BigNumber(xRate);
     const bigPrice = new BigNumber(gasPrice);
     if (
-        invalidNumber(bigEstimation) ||
-        invalidNumber(bigRate) ||
-        invalidNumber(bigPrice) ||
+        isInvalidNumber(bigEstimation) ||
+        isInvalidNumber(bigRate) ||
+        isInvalidNumber(bigPrice) ||
         bigRate.isZero()
     ) {
         return new BigNumber(0);
@@ -134,7 +134,7 @@ export const convertGasToToken = (
 /**
  * Converts gas estimation to native amount
  * @param estimation estimation to be converted
- * @param gasPrice gasPrice
+ * @param gasPrice gas price use to convert to WEI
  * @returns 'WEI' representation of the gas converted to native
  */
 export const convertGasToNative = (
@@ -143,18 +143,18 @@ export const convertGasToNative = (
 ): BigNumber => {
     const bigEstimation = new BigNumber(estimation);
     const bigPrice = new BigNumber(gasPrice);
-    if (invalidNumber(bigEstimation) || invalidNumber(bigPrice)) {
+    if (isInvalidNumber(bigEstimation) || isInvalidNumber(bigPrice)) {
         return new BigNumber(0);
     }
     return bigEstimation.multipliedBy(bigPrice);
 };
 
 /**
- * Verify of the number is not valid
+ * Verify that a number is not valid
  * @param value BigNumber value
- * @returns boolean flag
+ * @returns `true` if value is  either negative, infinite or a NaN; `false` otherwise
  */
-const invalidNumber = (value: BigNumber): boolean => {
+const isInvalidNumber = (value: BigNumber): boolean => {
     if (value.isNegative() || value.isNaN() || !value.isFinite()) {
         return true;
     }
