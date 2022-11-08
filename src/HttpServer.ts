@@ -298,9 +298,10 @@ export class HttpServer {
      *               example:
      *                  {
      *                    gasPrice: 60000000,
-     *                    estimation: 151800,
-     *                    requiredTokenAmount: 2.74053,
-     *                    exchangeRate: 0.00000332344907316948
+     *                    estimation: 193889,
+     *                    requiredTokenAmount: 3500381604736193689,
+     *                    exchangeRate: 0.00000332344907316948,
+     *                    requiredNativeToken: 11633340000000
      *                  }
      */
     async estimateHandler(req: Request, res: Response): Promise<void> {
