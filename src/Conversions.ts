@@ -18,15 +18,20 @@ const relayPricer = new RelayPricer();
  * @returns BigNumber
  */
 export const getPrecision = (
-    precision: BigNumber | string | number = RBTC_CHAIN_DECIMALS,
+    precision: BigNumberish = RBTC_CHAIN_DECIMALS,
     base = 10
 ): BigNumber => new BigNumber(base).pow(precision);
+
+/**
+ * Input param that can be converted to BigNumber
+ */
+type BigNumberish = BigNumber | string | number;
 
 /**
  * value and precision for the value to be converted to
  */
 export type ToPrecisionParams = {
-    value: BigNumber | string | number;
+    value: BigNumberish;
     precision?: number;
 };
 
@@ -97,4 +102,64 @@ export const toNativeWeiFrom = async ({
         value: amountAsFraction.multipliedBy(xRate),
         precision: RBTC_CHAIN_DECIMALS
     });
+};
+
+/**
+ * Converts gas estimation to token amount
+ * @param estimation estimation to be converted
+ * @param xRate exchange rate of the token
+ * @param gasPrice gas price use to convert to WEI
+ * @returns 'WEI' representation of the gas converted to token
+ */
+export const convertGasToToken = (
+    estimation: BigNumberish,
+    { decimals = 18, xRate }: ExchangeToken,
+    gasPrice: BigNumberish
+): BigNumber => {
+    const bigEstimation = new BigNumber(estimation);
+    const bigPrice = new BigNumber(gasPrice);
+    if (
+        isInvalidNumber(bigEstimation) ||
+        isInvalidNumber(xRate) ||
+        isInvalidNumber(bigPrice) ||
+        xRate.isZero()
+    ) {
+        return new BigNumber(0);
+    }
+    const precision = RBTC_CHAIN_DECIMALS - decimals;
+    const total = toPrecision({
+        value: bigEstimation.multipliedBy(bigPrice),
+        precision
+    });
+    return total.dividedBy(xRate);
+};
+
+/**
+ * Converts gas estimation to native amount
+ * @param estimation estimation to be converted
+ * @param gasPrice gas price use to convert to WEI
+ * @returns 'WEI' representation of the gas converted to native
+ */
+export const convertGasToNative = (
+    estimation: BigNumberish,
+    gasPrice: BigNumberish
+): BigNumber => {
+    const bigEstimation = new BigNumber(estimation);
+    const bigPrice = new BigNumber(gasPrice);
+    if (isInvalidNumber(bigEstimation) || isInvalidNumber(bigPrice)) {
+        return new BigNumber(0);
+    }
+    return bigEstimation.multipliedBy(bigPrice);
+};
+
+/**
+ * Verify that a number is not valid
+ * @param value BigNumber value
+ * @returns `true` if value is  either negative, infinite or a NaN; `false` otherwise
+ */
+const isInvalidNumber = (value: BigNumber): boolean => {
+    if (value.isNegative() || value.isNaN() || !value.isFinite()) {
+        return true;
+    }
+    return false;
 };

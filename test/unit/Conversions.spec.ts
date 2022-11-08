@@ -1,13 +1,16 @@
 import { RelayPricer } from '@rsksmart/rif-relay-client';
+import { ERC20Instance } from '@rsksmart/rif-relay-contracts/types/truffle-contracts';
 import BigNumber from 'bignumber.js';
 import { expect, use, assert } from 'chai';
 import chaiAsPromised from 'chai-as-promised';
-import Sinon from 'sinon';
+import sinon, { SinonStubbedInstance } from 'sinon';
 import sinonChai from 'sinon-chai';
 import {
     getXRateFor,
     toNativeWeiFrom,
-    toPrecision
+    toPrecision,
+    convertGasToToken,
+    convertGasToNative
 } from '../../src/Conversions';
 import ExchangeToken from '../../src/definitions/token.type';
 
@@ -15,20 +18,21 @@ use(sinonChai);
 use(chaiAsPromised);
 
 describe('Conversions', () => {
-    const xRateRifRbtc = BigNumber('0.00000332344907316948');
+    let erc20Instance: SinonStubbedInstance<ERC20Instance>;
+    const xRateRifRbtc = new BigNumber('0.00000332344907316948');
 
     afterEach(() => {
-        Sinon.restore();
+        sinon.restore();
     });
 
     describe('getXRateFor', async () => {
         it('should return exchange rate of given token', async () => {
-            Sinon.stub(RelayPricer.prototype, 'getExchangeRate').returns(
-                Promise.resolve(xRateRifRbtc)
-            );
+            sinon
+                .stub(RelayPricer.prototype, 'getExchangeRate')
+                .returns(Promise.resolve(xRateRifRbtc));
             const expectedXRate: BigNumber = xRateRifRbtc;
             const token: ExchangeToken = {
-                contractAddress: '',
+                instance: erc20Instance,
                 decimals: 18,
                 name: 'tRIF',
                 symbol: 'RIF'
@@ -42,22 +46,15 @@ describe('Conversions', () => {
             ).to.be.true;
         });
 
-        it('should fail if token is null', async () => {
-            await assert.isRejected(
-                getXRateFor(null),
-                "Cannot destructure property 'symbol' of 'object null' as it is null."
-            );
-        });
-
         it('should fail if token is does not have symbol', async () => {
             const error = Error(
                 'There is no available API for token undefined'
             );
-            Sinon.stub(RelayPricer.prototype, 'getExchangeRate').returns(
-                Promise.reject(error)
-            );
+            sinon
+                .stub(RelayPricer.prototype, 'getExchangeRate')
+                .returns(Promise.reject(error));
             const token: ExchangeToken = {
-                contractAddress: '',
+                instance: erc20Instance,
                 decimals: 18,
                 name: ''
             };
@@ -66,11 +63,11 @@ describe('Conversions', () => {
 
         it('should fail if token does not exist', async () => {
             const error = Error('There is no available API for token NA');
-            Sinon.stub(RelayPricer.prototype, 'getExchangeRate').returns(
-                Promise.reject(error)
-            );
+            sinon
+                .stub(RelayPricer.prototype, 'getExchangeRate')
+                .returns(Promise.reject(error));
             const token: ExchangeToken = {
-                contractAddress: '',
+                instance: erc20Instance,
                 decimals: 18,
                 name: 'NA',
                 symbol: 'NA'
@@ -89,7 +86,7 @@ describe('Conversions', () => {
                 expectedCurrencyAmount.dividedBy(exchangeRate);
 
             const token: ExchangeToken = {
-                contractAddress: '',
+                instance: erc20Instance,
                 decimals: 18,
                 name: 'tRIF',
                 amount: tokenAmount,
@@ -116,7 +113,7 @@ describe('Conversions', () => {
             const nativeWeiDecimals = 18;
 
             const token: ExchangeToken = {
-                contractAddress: '',
+                instance: erc20Instance,
                 decimals: erc20Decimals,
                 name: 'tRIF_22',
                 symbol: 'RIF_22',
@@ -125,8 +122,8 @@ describe('Conversions', () => {
             };
 
             const tokenAsFraction = toPrecision({
-                value: token.amount,
-                precision: -token.decimals
+                value: token.amount ?? 0,
+                precision: -(token.decimals ?? 18)
             });
 
             const tokenInNativeWei = toPrecision({
@@ -142,6 +139,178 @@ describe('Conversions', () => {
                 actualCurrencyAmount.eq(expectedWeiAmount),
                 `${actualCurrencyAmount.toString()} should equal ${expectedWeiAmount.toString()}`
             ).to.be.true;
+        });
+    });
+
+    describe('convertGasToToken', function () {
+        let erc20Instance: SinonStubbedInstance<ERC20Instance>;
+        let token: ExchangeToken;
+        const exchangeRate: BigNumber = xRateRifRbtc;
+        const estimation = BigNumber(145000);
+        const gasPrice = BigNumber(60000000);
+
+        beforeEach(function () {
+            token = {
+                instance: erc20Instance,
+                name: 'tRif',
+                symbol: 'RIF',
+                decimals: 18
+            };
+        });
+
+        it('should return token amount', function () {
+            const tokenAmount = convertGasToToken(
+                estimation,
+                { ...token, xRate: exchangeRate },
+                gasPrice
+            );
+            const expectedTokenAmount = estimation
+                .multipliedBy(gasPrice)
+                .dividedBy(exchangeRate);
+            expect(
+                tokenAmount.eq(expectedTokenAmount),
+                `${tokenAmount.toString()} should equal ${expectedTokenAmount.toString()}`
+            ).to.be.true;
+        });
+
+        it('should return 0 if estimation is negative', function () {
+            const tokenAmount = convertGasToToken(
+                -1,
+                { ...token, xRate: exchangeRate },
+                gasPrice
+            );
+            expect(tokenAmount.isZero(), 'token amount should be zero').to.be
+                .true;
+        });
+
+        it('should return 0 if exchange rate is negative', function () {
+            const tokenAmount = convertGasToToken(
+                estimation,
+                { ...token, xRate: new BigNumber(-1) },
+                gasPrice
+            );
+            expect(tokenAmount.isZero(), 'token amount should be zero').to.be
+                .true;
+        });
+
+        it('should return 0 if gas price is negative', function () {
+            const tokenAmount = convertGasToToken(
+                estimation,
+                { ...token, xRate: exchangeRate },
+                -1
+            );
+            expect(tokenAmount.isZero(), 'token amount should be zero').to.be
+                .true;
+        });
+
+        it('should return 0 if estimation is zero', function () {
+            const tokenAmount = convertGasToToken(
+                0,
+                { ...token, xRate: exchangeRate },
+                gasPrice
+            );
+            expect(tokenAmount.isZero(), 'token amount should be zero').to.be
+                .true;
+        });
+
+        it('should return 0 if exchange rate is zero', function () {
+            const tokenAmount = convertGasToToken(
+                estimation,
+                { ...token, xRate: new BigNumber(0) },
+                gasPrice
+            );
+            expect(tokenAmount.isZero(), 'token amount should be zero').to.be
+                .true;
+        });
+
+        it('should return 0 if gas price is zero', function () {
+            const tokenAmount = convertGasToToken(
+                estimation,
+                { ...token, xRate: exchangeRate },
+                0
+            );
+            expect(tokenAmount.isZero(), 'token amount should be zero').to.be
+                .true;
+        });
+
+        it('should return 0 if estimation is invalid', function () {
+            const tokenAmount = convertGasToToken(
+                'na',
+                { ...token, xRate: exchangeRate },
+                gasPrice
+            );
+            expect(tokenAmount.isZero(), 'token amount should be zero').to.be
+                .true;
+        });
+
+        it('should return 0 if exchange rate is invalid', function () {
+            const tokenAmount = convertGasToToken(
+                estimation,
+                { ...token, xRate: new BigNumber(-1) },
+                gasPrice
+            );
+            expect(tokenAmount.isZero(), 'token amount should be zero').to.be
+                .true;
+        });
+
+        it('should return 0 if gas price is invalid', function () {
+            const tokenAmount = convertGasToToken(
+                estimation,
+                { ...token, xRate: exchangeRate },
+                'na'
+            );
+            expect(tokenAmount.isZero(), 'token amount should be zero').to.be
+                .true;
+        });
+    });
+
+    describe('convertGasToNative', function () {
+        const estimation = BigNumber(145000);
+        const gasPrice = BigNumber(60000000);
+
+        it('should return native amount', function () {
+            const nativeAmount = convertGasToNative(estimation, gasPrice);
+            const expectedNative = estimation.multipliedBy(gasPrice);
+            expect(
+                nativeAmount.eq(expectedNative),
+                `${nativeAmount.toString()} should equal ${expectedNative.toString()}`
+            ).to.be.true;
+        });
+
+        it('should return 0 if estimation is negative', function () {
+            const tokenAmount = convertGasToNative(-1, gasPrice);
+            expect(tokenAmount.isZero(), 'native amount should be zero').to.be
+                .true;
+        });
+
+        it('should return 0 if gas price is negative', function () {
+            const tokenAmount = convertGasToNative(estimation, -1);
+            expect(tokenAmount.isZero(), 'native amount should be zero').to.be
+                .true;
+        });
+
+        it('should return 0 if estimation is zero', function () {
+            const tokenAmount = convertGasToNative(0, gasPrice);
+            expect(tokenAmount.isZero(), 'native amount should be zero').to.be
+                .true;
+        });
+
+        it('should return 0 if gas price is zero', function () {
+            const tokenAmount = convertGasToNative(estimation, 0);
+            expect(tokenAmount.isZero(), 'native amount should be zero').to.be
+                .true;
+        });
+
+        it('should return 0 if estimation is invalid', function () {
+            const tokenAmount = convertGasToNative('na', gasPrice);
+            expect(tokenAmount.isZero(), 'native amount should be zero').to.be
+                .true;
+        });
+
+        it('should return 0 if gas price is invalid', function () {
+            const tokenAmount = convertGasToNative(estimation, 'na');
+            expect(tokenAmount.isZero(), 'native amount should be zero').to.be
+                .true;
         });
     });
 });

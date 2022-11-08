@@ -32,9 +32,15 @@ import log from 'loglevel';
 import ow from 'ow';
 import { EventData } from 'web3-eth-contract';
 import { toBN } from 'web3-utils';
-import { getXRateFor, toNativeWeiFrom } from './Conversions';
+import {
+    convertGasToNative,
+    convertGasToToken,
+    getXRateFor,
+    toNativeWeiFrom
+} from './Conversions';
 import { INSUFFICIENT_TOKEN_AMOUNT } from './definitions/errorMessages.const';
 import ExchangeToken from './definitions/token.type';
+import { estimateRelayMaxPossibleGas } from './GasEstimator';
 import { RegistrationManager } from './RegistrationManager';
 import { replenishStrategy } from './ReplenishFunction';
 import {
@@ -63,6 +69,14 @@ const calculateFeeValue = (
     }
 
     return toBN(percentage.multipliedBy(maxPossibleGas).toFixed(0));
+};
+
+export type RelayEstimation = {
+    gasPrice: string;
+    estimation: string;
+    requiredTokenAmount: string;
+    requiredNativeAmount: string;
+    exchangeRate: string;
 };
 
 export class RelayServer extends EventEmitter {
@@ -492,6 +506,62 @@ export class RelayServer extends EventEmitter {
                 }`
             );
         }
+    }
+
+    async estimateMaxPossibleGas(
+        req: RelayTransactionRequest | DeployTransactionRequest
+    ): Promise<RelayEstimation> {
+        const {
+            relayData: { gasPrice }
+        } = req.relayRequest;
+
+        let estimation = await estimateRelayMaxPossibleGas(
+            this.contractInteractor,
+            req,
+            this.workerAddress
+        );
+
+        const { feePercentage } = this.config;
+
+        if (feePercentage) {
+            log.debug(`RelayServer - feePercentage: ${feePercentage}`);
+
+            const feeValue: BN = calculateFeeValue(
+                feePercentage,
+                estimation.toString()
+            );
+
+            estimation = estimation.plus(feeValue.toString());
+        }
+
+        const token: ExchangeToken =
+            await this.contractInteractor.getERC20Token(
+                req.relayRequest.request.tokenContract,
+                { symbol: true, decimals: true }
+            );
+
+        const xRate: BigNumber = await getXRateFor(token);
+
+        const bigGasPrice = BigNumber(gasPrice);
+
+        const requiredTokenAmount = convertGasToToken(
+            estimation,
+            { ...token, xRate },
+            bigGasPrice
+        );
+
+        const requiredNativeAmount = convertGasToNative(
+            estimation,
+            bigGasPrice
+        );
+
+        return {
+            estimation: estimation.toFixed(0),
+            requiredTokenAmount: requiredTokenAmount.toFixed(0),
+            requiredNativeAmount: requiredNativeAmount.toFixed(0),
+            exchangeRate: xRate.toFixed(),
+            gasPrice
+        };
     }
 
     async createRelayTransaction(
