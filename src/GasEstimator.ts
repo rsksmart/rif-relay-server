@@ -20,7 +20,7 @@ const SUBSIDY = BigNumber(12000);
 
 /**
  * Estimates the max possible gas consumed by relaying a transaction using either a linearFit/standard estimation
- * @param contractInteractor object containing the contractInteractor that is used to interact with the blockchain
+ * @param contractInteractor object used to interact with the blockchain to do estimations
  * @param request request that contains the relayRequest/deployRequest and metadata
  * @param relayWorkerAddress address of the relayWorker that will execute the transaction
  * @returns gas estimation from the relayTransaction
@@ -32,29 +32,25 @@ export const estimateRelayMaxPossibleGas = async (
 ): Promise<BigNumber> => {
     const { relayRequest, metadata } = request;
 
-    let estimation: BigNumber;
-
     const tokenEstimation = await estimateMaxPossibleGasTokenTransfer(
         contractInteractor,
         relayRequest
     );
 
     if (metadata.signature > '0x0') {
-        estimation = await standardMaxPossibleGasEstimation(
+        return await standardMaxPossibleGasEstimation(
             contractInteractor,
             request,
             relayWorkerAddress,
             tokenEstimation
         );
-    } else {
-        estimation = await linearFitMaxPossibleGasEstimation(
-            contractInteractor,
-            relayRequest,
-            tokenEstimation
-        );
     }
 
-    return estimation;
+    return await linearFitMaxPossibleGasEstimation(
+        contractInteractor,
+        relayRequest,
+        tokenEstimation
+    );
 };
 
 /**
@@ -70,7 +66,7 @@ const isDeployRequest = (
 
 /**
  * Estimates the max possible gas consumed by relaying a transaction using a standard estimation
- * @param contractInteractor object containing the contractInteractor that is used to interact with the blockchain
+ * @param contractInteractor object used to interact with the blockchain to do estimations
  * @param request request that contains the relayRequest/deployRequest and metadata
  * @param relayWorkerAddress address of the relayWorker that will execute the transaction
  * @param tokenEstimation gas consumed by the token transfer
@@ -106,7 +102,7 @@ export const standardMaxPossibleGasEstimation = async (
 
 /**
  * Estimates the max possible gas consumed by relaying a transaction using a linearFit
- * @param contractInteractor object containing the contractInteractor that is used to interact with the blockchain
+ * @param contractInteractor object used to interact with the blockchain to do estimations
  * @param request request that contains the relayRequest/deployRequest and metadata
  * @param tokenEstimation gas consumed by the token transfer
  * @returns gas estimation from the relayTransaction
@@ -139,7 +135,7 @@ export const linearFitMaxPossibleGasEstimation = async (
 
 /**
  * Estimates the max possible gas consumed by transfering an ERC20 token
- * @param contractInteractor object containing the contractInteractor that is used to interact with the blockchain
+ * @param contractInteractor object used to interact with the blockchain to do estimations
  * @param request request that contains the relayRequest/deployRequest and metadata
  * @returns gas estimation from the transfer
  */
