@@ -80,27 +80,19 @@ export const standardMaxPossibleGasEstimation = async (
     contractInteractor: ContractInteractor,
     {
         relayRequest,
-        metadata
+        metadata: { signature }
     }: RelayTransactionRequest | DeployTransactionRequest,
     relayWorkerAddress: string,
     tokenEstimation: BigNumber
 ): Promise<BigNumber> => {
     const { request, relayData } = relayRequest;
 
-    let methodToEstimate;
-    if (isDeployRequest(request)) {
-        methodToEstimate =
-            contractInteractor.relayHubInstance.contract.methods.deployCall(
-                relayRequest as DeployRequest,
-                metadata.signature
-            );
-    } else {
-        methodToEstimate =
-            contractInteractor.relayHubInstance.contract.methods.relayCall(
-                relayRequest as RelayRequest,
-                metadata.signature
-            );
-    }
+    const hubMethod = isDeployRequest(request) ? 'deployCall' : 'relayCall';
+    const methodToEstimate =
+        contractInteractor.relayHubInstance.contract.methods[hubMethod](
+            relayRequest,
+            signature
+        );
 
     const relayEstimation = await methodToEstimate.estimateGas({
         from: relayWorkerAddress,
@@ -155,11 +147,11 @@ export const estimateMaxPossibleGasTokenTransfer = async (
     contractInteractor: ContractInteractor,
     { request, relayData }: RelayRequest | DeployRequest
 ): Promise<BigNumber> => {
-    const deploy = isDeployRequest(request);
+    const isDeployCall = isDeployRequest(request);
     let tokenEstimation: BigNumber;
     const gasInRequest = BigNumber(request.tokenGas);
     if (gasInRequest.gt(0)) {
-        tokenEstimation = BigNumber(request.tokenGas);
+        tokenEstimation = BigNumber(gasInRequest);
     } else {
         const erc20: ERC20Token = await contractInteractor.getERC20Token(
             request.tokenContract
@@ -170,16 +162,15 @@ export const estimateMaxPossibleGasTokenTransfer = async (
             toWei('1')
         );
 
-        let caller = relayData.callForwarder;
-        if (deploy) {
-            const { from, recoverer, index } = request as DeployRequestStruct;
-            caller = await contractInteractor.getSmartWalletAddress(
-                caller,
-                from,
-                recoverer,
-                index
-            );
-        }
+        const { from, recoverer, index } = request as DeployRequestStruct;
+        const caller = isDeployCall
+            ? await contractInteractor.getSmartWalletAddress(
+                  relayData.callForwarder,
+                  from,
+                  recoverer,
+                  index
+              )
+            : relayData.callForwarder;
 
         const estimation = await methodToEstimate.estimateGas({
             from: caller,
@@ -189,7 +180,7 @@ export const estimateMaxPossibleGasTokenTransfer = async (
         tokenEstimation = applyInternalCorrection(estimation);
     }
 
-    if (tokenEstimation.isZero() && deploy) {
+    if (tokenEstimation.isZero() && isDeployCall) {
         return SUBSIDY;
     }
 
