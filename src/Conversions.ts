@@ -113,22 +113,25 @@ export const toNativeWeiFrom = async ({
  */
 export const convertGasToToken = (
     estimation: BigNumberish,
-    xRate: BigNumberish,
+    { 
+        decimals = 18,
+        xRate 
+    }: ExchangeToken,
     gasPrice: BigNumberish
 ): BigNumber => {
     const bigEstimation = new BigNumber(estimation);
-    const bigRate = new BigNumber(xRate);
     const bigPrice = new BigNumber(gasPrice);
     if (
         isInvalidNumber(bigEstimation) ||
-        isInvalidNumber(bigRate) ||
+        isInvalidNumber(xRate) ||
         isInvalidNumber(bigPrice) ||
-        bigRate.isZero()
+        xRate.isZero()
     ) {
         return new BigNumber(0);
     }
-    const total = bigEstimation.multipliedBy(bigPrice);
-    return total.dividedBy(bigRate);
+    const precision = RBTC_CHAIN_DECIMALS - decimals;
+    const total = toPrecision({ value: bigEstimation.multipliedBy(bigPrice), precision });
+    return total.dividedBy(xRate);
 };
 
 /**

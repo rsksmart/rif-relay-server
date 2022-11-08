@@ -540,13 +540,13 @@ export class RelayServer extends EventEmitter {
                 { symbol: true, decimals: true }
             );
 
-        const exchangeRate: BigNumber = await getXRateFor(token);
+        const xRate: BigNumber = await getXRateFor(token);
 
         const bigGasPrice = BigNumber(gasPrice);
 
         const requiredTokenAmount = convertGasToToken(
             estimation,
-            exchangeRate,
+            { ...token, xRate },
             bigGasPrice
         );
 
@@ -559,7 +559,7 @@ export class RelayServer extends EventEmitter {
             estimation: estimation.toFixed(0),
             requiredTokenAmount: requiredTokenAmount.toFixed(0),
             requiredNativeAmount: requiredNativeAmount.toFixed(0),
-            exchangeRate: exchangeRate.toFixed(),
+            exchangeRate: xRate.toFixed(),
             gasPrice
         };
     }

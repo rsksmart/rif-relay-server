@@ -18,13 +18,6 @@ import { toWei } from 'web3-utils';
 // If by any chance the tokenEstimation its zero, a value of 12000 its added to the estimation to include the subsidy scenario
 const SUBSIDY = BigNumber(12000);
 
-/**
- * Estimates the max possible gas consumed by relaying a transaction using either a linearFit/standard estimation
- * @param contractInteractor object used to interact with the blockchain to do estimations
- * @param request request that contains the relayRequest/deployRequest and metadata
- * @param relayWorkerAddress address of the relayWorker that will execute the transaction
- * @returns gas estimation from the relayTransaction
- */
 export const estimateRelayMaxPossibleGas = async (
     contractInteractor: ContractInteractor,
     request: RelayTransactionRequest | DeployTransactionRequest,
@@ -53,25 +46,12 @@ export const estimateRelayMaxPossibleGas = async (
     );
 };
 
-/**
- * Check if the relay request is a smart wallet deployment request. Transaction request does not contain the `index` property of the former.
- * @param request to be relayed. May be either transaction, or smart-wallet-deployment request.
- * @returns `true` if given request is a smart wallet deployment request; `false` if a transaction request.
- */
 const isDeployRequest = (
     request: DeployRequestStruct | ForwardRequest
 ): boolean => {
     return 'index' in request;
 };
 
-/**
- * Estimates the max possible gas consumed by relaying a transaction using a standard estimation
- * @param contractInteractor object used to interact with the blockchain to do estimations
- * @param request request that contains the relayRequest/deployRequest and metadata
- * @param relayWorkerAddress address of the relayWorker that will execute the transaction
- * @param tokenEstimation gas consumed by the token transfer
- * @returns gas estimation from the relayTransaction
- */
 export const standardMaxPossibleGasEstimation = async (
     contractInteractor: ContractInteractor,
     {
@@ -100,13 +80,6 @@ export const standardMaxPossibleGasEstimation = async (
     return tokenEstimation.plus(correctedEstimation);
 };
 
-/**
- * Estimates the max possible gas consumed by relaying a transaction using a linearFit
- * @param contractInteractor object used to interact with the blockchain to do estimations
- * @param request request that contains the relayRequest/deployRequest and metadata
- * @param tokenEstimation gas consumed by the token transfer
- * @returns gas estimation from the relayTransaction
- */
 export const linearFitMaxPossibleGasEstimation = async (
     contractInteractor: ContractInteractor,
     { request, relayData }: RelayRequest | DeployRequest,
@@ -133,12 +106,6 @@ export const linearFitMaxPossibleGasEstimation = async (
     return BigNumber(relayEstimation);
 };
 
-/**
- * Estimates the max possible gas consumed by transfering an ERC20 token
- * @param contractInteractor object used to interact with the blockchain to do estimations
- * @param request request that contains the relayRequest/deployRequest and metadata
- * @returns gas estimation from the transfer
- */
 export const estimateMaxPossibleGasTokenTransfer = async (
     contractInteractor: ContractInteractor,
     { request, relayData }: RelayRequest | DeployRequest
@@ -184,9 +151,7 @@ export const estimateMaxPossibleGasTokenTransfer = async (
 };
 
 /**
- * Applies the correction from internal calls. When estimating the gas an internal call is going to spend, we need to substract some gas inherent to send the parameters to the blockchain
- * @param estimation BigNumber gas estimation that needs to be corrected
- * @returns gas estimation with the correction done
+ * Applies the correction from internal calls. When estimating the gas that an internal call is going to spend, we need to substract some gas inherent to send the parameters to the blockchain
  */
 export const applyInternalCorrection = (
     estimation: BigNumber | number | string
@@ -201,10 +166,9 @@ export const applyInternalCorrection = (
     return bigValue;
 };
 
+//TODO add link to the rskj misscalculation correction
 /**
- * Applies the correction from the RSK node misscalculation
- * @param estimation BigNumber gas estimation that needs to be corrected
- * @returns gas estimation with the correction done
+ * Applies the correction from the RSK node misscalculation if execution includes refunds
  */
 export const applyGasCorrectionFactor = (
     estimation: BigNumber | number | string

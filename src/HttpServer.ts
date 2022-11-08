@@ -291,7 +291,7 @@ export class HttpServer {
      *                   type: string
      *                 requiredTokenAmount:
      *                   type: string
-     *                requiredNativeAmount:
+     *                 requiredNativeAmount:
      *                   type: string
      *                 exchangeRate:
      *                   type: string

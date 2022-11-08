@@ -397,7 +397,7 @@ describe('RelayServer', () => {
                             .multipliedBy(standardRelayEstimation)
                             .toFixed(0)
                     ),
-                    xRateRifRbtc,
+                    { ...token, xRate: xRateRifRbtc },
                     gasPrice
                 )
                 .toFixed(0);
@@ -416,7 +416,7 @@ describe('RelayServer', () => {
             const expectedRequiredTokenAmount = conversions
                 .convertGasToToken(
                     standardRelayEstimation,
-                    xRateRifRbtc,
+                    { ...token, xRate: xRateRifRbtc },
                     gasPrice
                 )
                 .toFixed(0);
