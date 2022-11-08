@@ -23,14 +23,17 @@ export const estimateRelayMaxPossibleGas = async (
     request: RelayTransactionRequest | DeployTransactionRequest,
     relayWorkerAddress: string
 ): Promise<BigNumber> => {
-    const { relayRequest, metadata } = request;
+    const {
+        relayRequest,
+        metadata: { signature }
+    } = request;
 
     const tokenEstimation = await estimateMaxPossibleGasTokenTransfer(
         contractInteractor,
         relayRequest
     );
 
-    if (metadata.signature > '0x0') {
+    if (signature > '0x0') {
         return await standardMaxPossibleGasEstimation(
             contractInteractor,
             request,
