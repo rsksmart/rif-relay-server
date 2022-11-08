@@ -113,10 +113,7 @@ export const toNativeWeiFrom = async ({
  */
 export const convertGasToToken = (
     estimation: BigNumberish,
-    { 
-        decimals = 18,
-        xRate 
-    }: ExchangeToken,
+    { decimals = 18, xRate }: ExchangeToken,
     gasPrice: BigNumberish
 ): BigNumber => {
     const bigEstimation = new BigNumber(estimation);
@@ -130,7 +127,10 @@ export const convertGasToToken = (
         return new BigNumber(0);
     }
     const precision = RBTC_CHAIN_DECIMALS - decimals;
-    const total = toPrecision({ value: bigEstimation.multipliedBy(bigPrice), precision });
+    const total = toPrecision({
+        value: bigEstimation.multipliedBy(bigPrice),
+        precision
+    });
     return total.dividedBy(xRate);
 };
 
