@@ -23,7 +23,7 @@
   "license": "MIT",
   "dependencies": {
     "@openzeppelin/test-helpers": "^0.5.16",
-    "@rsksmart/rif-relay-client": "1.0.0-alpha.1",
+    "@rsksmart/rif-relay-client": "1.0.0-alpha.2",
     "@rsksmart/rif-relay-common": "1.0.0-alpha.1",
     "@rsksmart/rif-relay-contracts": "1.0.0-alpha.0",
     "@truffle/abi-utils": "~0.2.3",
