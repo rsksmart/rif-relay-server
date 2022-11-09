@@ -28,6 +28,7 @@ import chalk from 'chalk';
 import { PrefixedHexString } from 'ethereumjs-tx';
 import { toChecksumAddress } from 'ethereumjs-util';
 import EventEmitter from 'events';
+import { Server } from 'http';
 import log from 'loglevel';
 import ow from 'ow';
 import { EventData } from 'web3-eth-contract';
@@ -40,6 +41,7 @@ import {
 } from './Conversions';
 import { INSUFFICIENT_TOKEN_AMOUNT } from './definitions/errorMessages.const';
 import ExchangeToken from './definitions/token.type';
+import EventHandler from './EventHandler';
 import { estimateRelayMaxPossibleGas } from './GasEstimator';
 import { RegistrationManager } from './RegistrationManager';
 import { replenishStrategy } from './ReplenishFunction';
@@ -98,6 +100,7 @@ export class RelayServer extends EventEmitter {
     config: ServerConfigParams;
     transactionManager: TransactionManager;
     txStoreManager: TxStoreManager;
+    eventHandler: EventHandler;
 
     lastMinedActiveTransaction?: EventData;
 
@@ -121,6 +124,7 @@ export class RelayServer extends EventEmitter {
         this.config = configureServer(config);
         this.contractInteractor = dependencies.contractInteractor;
         this.txStoreManager = dependencies.txStoreManager;
+        this.eventHandler = dependencies.eventHandler;
         this.transactionManager = new TransactionManager(
             dependencies,
             this.config
@@ -638,6 +642,8 @@ export class RelayServer extends EventEmitter {
             }, this.config.readyTimeout);
         }
 
+        this.eventHandler.queryBlockchain();
+
         return new Promise<void>((resolve, reject) => {
             this.contractInteractor
                 .getBlock('latest')
@@ -661,10 +667,11 @@ export class RelayServer extends EventEmitter {
         });
     }
 
-    start(): void {
+    start(server: Server): void {
         log.debug(
             `Started polling for new blocks every ${this.config.checkInterval}ms`
         );
+        this.eventHandler.start(server);
         // eslint-disable-next-line @typescript-eslint/no-misused-promises
         this.workerTask = setInterval(
             this.intervalHandler.bind(this),

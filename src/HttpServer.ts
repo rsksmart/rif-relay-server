@@ -85,7 +85,7 @@ export class HttpServer {
 
     startBackend(): void {
         try {
-            this.backend.start();
+            this.backend.start(this.serverInstance);
         } catch (e) {
             log.error('relay task error', e);
         }

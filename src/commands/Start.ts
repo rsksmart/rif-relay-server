@@ -14,6 +14,7 @@ import {
     ServerConfigParams
 } from '../ServerConfigParams';
 import log from 'loglevel';
+import EventHandler from '../EventHandler';
 
 function error(err: string): void {
     log.error(err);
@@ -79,11 +80,13 @@ async function run(): Promise<void> {
     await contractInteractor.init();
     log.debug('runServer() - contract interactor initilized');
 
+    const eventHandler = new EventHandler(contractInteractor, config);
     const dependencies: ServerDependencies = {
         txStoreManager,
         managerKeyManager,
         workersKeyManager,
-        contractInteractor
+        contractInteractor,
+        eventHandler
     };
 
     const relayServer = new RelayServer(config, dependencies);

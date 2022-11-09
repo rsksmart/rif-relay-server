@@ -12,6 +12,7 @@ import { TxStoreManager } from './TxStoreManager';
 //@ts-ignore
 import 'dotenv/config';
 import log, { LogLevelNumbers } from 'loglevel';
+import EventHandler from './EventHandler';
 // TODO: had to comment out as it doesn't work. Maybe let's update the dependency ;]
 // import sourceMapSupport from 'source-map-support';
 //@ts-ignore
@@ -80,6 +81,7 @@ export interface ServerDependencies {
     workersKeyManager: KeyManager;
     contractInteractor: ContractInteractor;
     txStoreManager: TxStoreManager;
+    eventHandler: EventHandler;
 }
 
 export const serverDefaultConfiguration: ServerConfigParams = {
@@ -100,7 +102,7 @@ export const serverDefaultConfiguration: ServerConfigParams = {
     managerMinStake: '1', // 1 wei
     managerTargetBalance: 0.003e18, // 0.003 RBTC
     minHubWithdrawalBalance: 0.001e18, // 0.001 RBTC
-    checkInterval: 10000,
+    checkInterval: 1000,
     readyTimeout: 30000,
     devMode: false,
     customReplenish: false,

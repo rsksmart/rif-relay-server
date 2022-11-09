@@ -35,6 +35,7 @@ import * as conversions from '../../src/Conversions';
 import * as gasEstimator from '../../src/GasEstimator';
 import { INSUFFICIENT_TOKEN_AMOUNT } from '../../src/definitions/errorMessages.const';
 import ExchangeToken from '../../src/definitions/token.type';
+import EventHandler from '../../src/EventHandler';
 
 use(sinonChai);
 use(chaiAsPromised);
@@ -49,6 +50,7 @@ describe('RelayServer', () => {
         ContractInteractor;
     let fakeTxStoreManager: SinonStubbedInstance<TxStoreManager> &
         TxStoreManager;
+    let fakeEventHandler: SinonStubbedInstance<EventHandler> & EventHandler;
     let mockDependencies: ServerDependencies;
 
     beforeEach(() => {
@@ -75,12 +77,14 @@ describe('RelayServer', () => {
         } as IRelayHubInstance;
 
         fakeTxStoreManager = createStubInstance(TxStoreManager);
+        fakeEventHandler = createStubInstance(EventHandler);
 
         mockDependencies = {
             managerKeyManager: fakeManagerKeyManager,
             workersKeyManager: fakeWorkersKeyManager,
             contractInteractor: contractInteractor,
-            txStoreManager: fakeTxStoreManager
+            txStoreManager: fakeTxStoreManager, 
+            eventHandler: fakeEventHandler
         };
     });
 
