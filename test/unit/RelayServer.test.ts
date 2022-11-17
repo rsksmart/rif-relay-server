@@ -427,4 +427,46 @@ describe('RelayServer', () => {
             ).to.be.true;
         });
     });
+
+    describe('validateSponsorship', function () {
+
+        describe('disabledSponsoredTx(true)', function () {
+
+            let server: RelayServer;
+
+            beforeEach(function () {
+                server = new RelayServer({ disableSponsoredTx: true }, mockDependencies);
+            });
+
+            afterEach(function () {
+                restore();
+            });
+
+            it('shold not sponsor relay transaction', function () {
+                server.validateSponsorship();
+            });
+
+            it('shold not sponsor deploy transaction', function () {
+
+            });
+
+            it('should sponsor deploy transaction if its sponsored destination', function () {
+
+            });
+
+            it('should sponsor relay transaction if its sponsored destination', function () {
+
+            });
+        });
+
+        describe('disabledSponsoredTx(false)', function () {
+            it('should sponsor relay transaction', function () {
+
+            });
+
+            it('should sponsor deploy transaction', function () {
+
+            });
+        });
+    });
 });

@@ -419,9 +419,10 @@ export class RelayServer extends EventEmitter {
             );
         }
 
-        const { feePercentage, disableSponsoredTx } = this.config;
 
-        if (disableSponsoredTx) {
+        if (this.sponsoredTransaction(req.relayRequest)) {
+            const { feePercentage } = this.config;
+
             log.debug(`RelayServer - feePercentage: ${feePercentage}`);
 
             const feeValue: BN = calculateFeeValue(
@@ -483,6 +484,18 @@ export class RelayServer extends EventEmitter {
         return maxPossibleGas;
     }
 
+    sponsoredTransaction(req: RelayRequest | DeployRequest): boolean {
+        const { disableSponsoredTx } = this.config;
+        if (disableSponsoredTx) {
+            const { sponsoredDestinations } = this.config;
+            if (!sponsoredDestinations.includes(req.request.to)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+
     async validateViewCallSucceeds(
         method: any,
         req: RelayTransactionRequest | DeployTransactionRequest,
@@ -501,8 +514,7 @@ export class RelayServer extends EventEmitter {
             );
         } catch (e) {
             throw new Error(
-                `relayCall (local call) reverted in server: ${
-                    (e as Error).message
+                `relayCall (local call) reverted in server: ${(e as Error).message
                 }`
             );
         }
@@ -521,9 +533,9 @@ export class RelayServer extends EventEmitter {
             this.workerAddress
         );
 
-        const { feePercentage } = this.config;
+        if (this.sponsoredTransaction(req)) {
 
-        if (feePercentage) {
+            const { feePercentage } = this.config;
             log.debug(`RelayServer - feePercentage: ${feePercentage}`);
 
             const feeValue: BN = calculateFeeValue(
@@ -594,13 +606,13 @@ export class RelayServer extends EventEmitter {
 
         const method = isDeploy
             ? this.relayHubContract.contract.methods.deployCall(
-                  req.relayRequest as DeployRequest,
-                  req.metadata.signature
-              )
+                req.relayRequest as DeployRequest,
+                req.metadata.signature
+            )
             : this.relayHubContract.contract.methods.relayCall(
-                  req.relayRequest as RelayRequest,
-                  req.metadata.signature
-              );
+                req.relayRequest as RelayRequest,
+                req.metadata.signature
+            );
 
         // Call relayCall as a view function to see if we'll get paid for relaying this tx
         await this.validateViewCallSucceeds(method, req, maxPossibleGas);
@@ -888,7 +900,7 @@ latestBlock timestamp   | ${latestBlock.timestamp}
         if (
             this.alerted &&
             this.alertedBlock + this.config.alertedBlockDelay <
-                currentBlockNumber
+            currentBlockNumber
         ) {
             log.warn(
                 `Relay exited alerted state. Alerted block: ${this.alertedBlock}. Current block number: ${currentBlockNumber}`
@@ -956,7 +968,7 @@ latestBlock timestamp   | ${latestBlock.timestamp}
     _shouldRefreshState(currentBlock: number): boolean {
         return (
             currentBlock - this.lastRefreshBlock >=
-                this.config.refreshStateTimeoutBlocks || !this.isReady()
+            this.config.refreshStateTimeoutBlocks || !this.isReady()
         );
     }
 

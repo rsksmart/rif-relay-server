@@ -72,6 +72,8 @@ export interface ServerConfigParams {
      * @note fractions exceeding the number of decimals of that of the native currency will be rounded up
      */
     feePercentage: string;
+
+    sponsoredDestinations: Array<string>;
 }
 
 export interface ServerDependencies {
