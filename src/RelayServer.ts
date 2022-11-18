@@ -60,10 +60,10 @@ import Timeout = NodeJS.Timeout;
 const VERSION = '2.0.1';
 
 const calculateFeeValue = (
-    feePercentage: string,
+    feePercentage: string | undefined,
     maxPossibleGas: string
 ): BN => {
-    const percentage = new BigNumber(feePercentage);
+    const percentage = new BigNumber(feePercentage ?? 0);
     if (percentage.isZero()) {
         return toBN(0);
     }
@@ -420,7 +420,7 @@ export class RelayServer extends EventEmitter {
         }
 
 
-        if (this.sponsoredTransaction(req.relayRequest)) {
+        if (!this.isSponsoredTx(req.relayRequest)) {
             const { feePercentage } = this.config;
 
             log.debug(`RelayServer - feePercentage: ${feePercentage}`);
@@ -484,15 +484,18 @@ export class RelayServer extends EventEmitter {
         return maxPossibleGas;
     }
 
-    sponsoredTransaction(req: RelayRequest | DeployRequest): boolean {
-        const { disableSponsoredTx } = this.config;
-        if (disableSponsoredTx) {
-            const { sponsoredDestinations } = this.config;
-            if (!sponsoredDestinations.includes(req.request.to)) {
-                return false;
-            }
+    isSponsoredTx(req: RelayRequest | DeployRequest): boolean {
+        const { disableSponsoredTx, sponsoredDestinations } = this.config;
+
+        if(!disableSponsoredTx){
+            return true;
         }
-        return true;
+
+        if (sponsoredDestinations && sponsoredDestinations.includes(req.request.to)) {
+            return true;
+        }
+
+        return false;
     }
 
 
@@ -533,7 +536,7 @@ export class RelayServer extends EventEmitter {
             this.workerAddress
         );
 
-        if (this.sponsoredTransaction(req)) {
+        if (!this.isSponsoredTx(req.relayRequest)) {
 
             const { feePercentage } = this.config;
             log.debug(`RelayServer - feePercentage: ${feePercentage}`);

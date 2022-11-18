@@ -61,7 +61,7 @@ export interface ServerConfigParams {
      * @option false - The smart wallet of the relay user will be charged for the transaction
      * @option true - The relay worker will pay transaction gas.
      */
-    disableSponsoredTx: boolean;
+    disableSponsoredTx?: boolean;
 
     /**
      * Sets the fee value (%) that the server will take from all transactions.
@@ -71,9 +71,12 @@ export interface ServerConfigParams {
      * @note the minus sign is omitted if used
      * @note fractions exceeding the number of decimals of that of the native currency will be rounded up
      */
-    feePercentage: string;
+    feePercentage?: string;
 
-    sponsoredDestinations: Array<string>;
+    /**
+     * Destinations list that will make the relay worker pay for the transaction if @disableSponsoredTx is false
+     */
+    sponsoredDestinations?: Array<string>;
 }
 
 export interface ServerDependencies {
@@ -121,7 +124,8 @@ export const serverDefaultConfiguration: ServerConfigParams = {
     maxGasPrice: (100e9).toString(),
     estimateGasFactor: 1.2,
     disableSponsoredTx: false,
-    feePercentage: '0'
+    feePercentage: '0',
+    sponsoredDestinations: []
 };
 
 const ConfigParamsTypes = {
