@@ -4,7 +4,12 @@ import {
     RelayMetadata,
     RelayTransactionRequest
 } from '@rsksmart/rif-relay-common';
-import { DeployRequest, ForwardRequest, RelayData, RelayRequest } from '@rsksmart/rif-relay-contracts';
+import {
+    DeployRequest,
+    ForwardRequest,
+    RelayData,
+    RelayRequest
+} from '@rsksmart/rif-relay-contracts';
 import {
     ERC20Instance,
     IRelayHubInstance
@@ -428,14 +433,17 @@ describe('RelayServer', () => {
         });
     });
 
-
     describe('isSponsoredTx', function () {
-
         describe('disabledSponsoredTx(true)', function () {
-
             let server: RelayServer;
             beforeEach(function () {
-                server = new RelayServer({ disableSponsoredTx: true, sponsoredDestinations: ['0x1'] }, mockDependencies);
+                server = new RelayServer(
+                    {
+                        disableSponsoredTx: true,
+                        sponsoredDestinations: ['0x1']
+                    },
+                    mockDependencies
+                );
             });
 
             afterEach(function () {
@@ -443,11 +451,11 @@ describe('RelayServer', () => {
             });
 
             it('shold not sponsor relay transaction', function () {
-                const relayRequest: RelayRequest = { 
+                const relayRequest: RelayRequest = {
                     request: {
                         to: ''
                     }
-                 } as RelayRequest;
+                } as RelayRequest;
                 expect(server.isSponsoredTx(relayRequest)).to.be.false;
             });
 
@@ -461,11 +469,11 @@ describe('RelayServer', () => {
             });
 
             it('should sponsor relay transaction if its sponsored destination', function () {
-                const relayRequest: RelayRequest = { 
+                const relayRequest: RelayRequest = {
                     request: {
                         to: '0x1'
                     }
-                 } as RelayRequest;
+                } as RelayRequest;
                 expect(server.isSponsoredTx(relayRequest)).to.be.true;
             });
 
@@ -481,19 +489,22 @@ describe('RelayServer', () => {
 
         describe('disabledSponsoredTx(false)', function () {
             let server: RelayServer;
-            const relayRequest: RelayRequest = { 
+            const relayRequest: RelayRequest = {
                 request: {
                     to: ''
                 }
-             } as RelayRequest;
+            } as RelayRequest;
             const deployRequest: DeployRequest = {
                 request: {
                     to: ''
                 }
             } as DeployRequest;
 
-            beforeEach(function(){
-                server = new RelayServer({ disableSponsoredTx: false }, mockDependencies);
+            beforeEach(function () {
+                server = new RelayServer(
+                    { disableSponsoredTx: false },
+                    mockDependencies
+                );
             });
 
             it('should sponsor relay transaction', function () {
@@ -505,5 +516,4 @@ describe('RelayServer', () => {
             });
         });
     });
-
 });
