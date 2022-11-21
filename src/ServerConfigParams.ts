@@ -61,7 +61,7 @@ export interface ServerConfigParams {
      * @option false - The smart wallet of the relay user will be charged for the transaction
      * @option true - The relay worker will pay transaction gas.
      */
-    disableSponsoredTx?: boolean;
+    disableSponsoredTx: boolean;
 
     /**
      * Sets the fee value (%) that the server will take from all transactions.
@@ -71,12 +71,12 @@ export interface ServerConfigParams {
      * @note the minus sign is omitted if used
      * @note fractions exceeding the number of decimals of that of the native currency will be rounded up
      */
-    feePercentage?: string;
+    feePercentage: string;
 
     /**
-     * Destinations list that will make the relay worker pay for the transaction if @disableSponsoredTx is false
+     * * List of destination contract addresses for which the transactions will be [sponsored](https://developers.rsk.co/rif/relay/architecture/#glossary)
      */
-    sponsoredDestinations?: Array<string>;
+    sponsoredDestinations: Array<string>;
 }
 
 export interface ServerDependencies {

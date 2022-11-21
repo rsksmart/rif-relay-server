@@ -442,62 +442,105 @@ describe('RelayServer', () => {
     });
 
     describe('isSponsoredTx', function () {
+        const relayRequest: RelayRequest = {
+            request: {
+                to: ''
+            }
+        } as RelayRequest;
+        const deployRequest: DeployRequest = {
+            request: {
+                to: ''
+            }
+        } as DeployRequest;
+
         describe('disabledSponsoredTx(true)', function () {
             let server: RelayServer;
-            beforeEach(function () {
+
+            describe('', function () {
+                beforeEach(function () {
+                    server = new RelayServer(
+                        {
+                            disableSponsoredTx: true,
+                            sponsoredDestinations: ['0x1']
+                        },
+                        mockDependencies
+                    );
+                });
+
+                it('shold not sponsor relay transactions if the destination contract address is not among the sponsored ones', function () {
+                    relayRequest.request.to = '0x2';
+                    expect(
+                        server.isSponsoredTx(relayRequest),
+                        'Tx is sponsored'
+                    ).to.be.false;
+                });
+
+                it('shold not sponsor deploy transactions if the destination contract address is not among the sponsored ones', function () {
+                    deployRequest.request.to = '0x2';
+                    expect(
+                        server.isSponsoredTx(deployRequest),
+                        'Tx is sponsored'
+                    ).to.be.false;
+                });
+
+                it('should sponsor relay transactions if the destination contract address is among the sponsored ones', function () {
+                    relayRequest.request.to = '0x1';
+                    expect(
+                        server.isSponsoredTx(relayRequest),
+                        'Tx is not sponsored'
+                    ).to.be.true;
+                });
+
+                it('should sponsor deploy transactions if the destination contract address is among the sponsored ones', function () {
+                    deployRequest.request.to = '0x1';
+                    expect(
+                        server.isSponsoredTx(deployRequest),
+                        'Tx is not sponsored'
+                    ).to.be.true;
+                });
+            });
+
+            it('should not sponsor transactions if sponsoredDestinations its undefined', function () {
+                deployRequest.request.to = '0x1';
                 server = new RelayServer(
                     {
-                        disableSponsoredTx: true,
-                        sponsoredDestinations: ['0x1']
+                        disableSponsoredTx: true
                     },
                     mockDependencies
                 );
-            });
-
-            afterEach(function () {
-                restore();
-            });
-
-            it('shold not sponsor relay transaction', function () {
-                const relayRequest: RelayRequest = {
-                    request: {
-                        to: ''
-                    }
-                } as RelayRequest;
-                expect(server.isSponsoredTx(relayRequest), 'Tx is sponsored').to
-                    .be.false;
-            });
-
-            it('shold not sponsor deploy transaction', function () {
-                const deployRequest: DeployRequest = {
-                    request: {
-                        to: ''
-                    }
-                } as DeployRequest;
                 expect(server.isSponsoredTx(deployRequest), 'Tx is sponsored')
                     .to.be.false;
             });
 
-            it('should sponsor relay transaction if its sponsored destination', function () {
-                const relayRequest: RelayRequest = {
-                    request: {
-                        to: '0x1'
-                    }
-                } as RelayRequest;
-                expect(
-                    server.isSponsoredTx(relayRequest),
-                    'Tx is not sponsored'
-                ).to.be.true;
+            it('should not sponsor transactions if sponsoredDestinations its empty', function () {
+                deployRequest.request.to = '0x1';
+                server = new RelayServer(
+                    {
+                        disableSponsoredTx: true,
+                        sponsoredDestinations: []
+                    },
+                    mockDependencies
+                );
+                expect(server.isSponsoredTx(deployRequest), 'Tx is sponsored')
+                    .to.be.false;
             });
 
-            it('should sponsor deploy transaction if its sponsored destination', function () {
-                const deployRequest: DeployRequest = {
-                    request: {
-                        to: '0x1'
-                    }
-                } as DeployRequest;
+            it('should sponsor transactions if the destination contract address is among the sponsored ones(multiple addresses)', function () {
+                relayRequest.request.to = '0x1';
+                deployRequest.request.to = '0x2';
+                server = new RelayServer(
+                    {
+                        disableSponsoredTx: true,
+                        sponsoredDestinations: ['0x1', '0x2']
+                    },
+                    mockDependencies
+                );
                 expect(
                     server.isSponsoredTx(deployRequest),
+                    'Tx is not sponsored'
+                ).to.be.true;
+                expect(
+                    server.isSponsoredTx(relayRequest),
                     'Tx is not sponsored'
                 ).to.be.true;
             });
@@ -505,17 +548,6 @@ describe('RelayServer', () => {
 
         describe('disabledSponsoredTx(false)', function () {
             let server: RelayServer;
-            const relayRequest: RelayRequest = {
-                request: {
-                    to: ''
-                }
-            } as RelayRequest;
-            const deployRequest: DeployRequest = {
-                request: {
-                    to: ''
-                }
-            } as DeployRequest;
-
             beforeEach(function () {
                 server = new RelayServer(
                     { disableSponsoredTx: false },
@@ -524,6 +556,7 @@ describe('RelayServer', () => {
             });
 
             it('should sponsor relay transaction', function () {
+                relayRequest.request.to = '0x1';
                 expect(
                     server.isSponsoredTx(relayRequest),
                     'Tx is not sponsored'
@@ -531,6 +564,7 @@ describe('RelayServer', () => {
             });
 
             it('should sponsor deploy transaction', function () {
+                deployRequest.request.to = '0x1';
                 expect(
                     server.isSponsoredTx(deployRequest),
                     'Tx is not sponsored'

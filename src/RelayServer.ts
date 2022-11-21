@@ -490,10 +490,7 @@ export class RelayServer extends EventEmitter {
             return true;
         }
 
-        if (
-            sponsoredDestinations &&
-            sponsoredDestinations.includes(req.request.to)
-        ) {
+        if (sponsoredDestinations.includes(req.request.to)) {
             return true;
         }
 
