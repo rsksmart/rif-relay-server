@@ -467,7 +467,7 @@ describe('RelayServer', () => {
                     );
                 });
 
-                it('shold not sponsor relay transactions if the destination contract address is not among the sponsored ones', function () {
+                it('should not sponsor relay transactions if the destination contract address is not among the sponsored ones', function () {
                     relayRequest.request.to = '0x2';
                     expect(
                         server.isSponsoredTx(relayRequest),
@@ -475,7 +475,7 @@ describe('RelayServer', () => {
                     ).to.be.false;
                 });
 
-                it('shold not sponsor deploy transactions if the destination contract address is not among the sponsored ones', function () {
+                it('should not sponsor deploy transactions if the destination contract address is not among the sponsored ones', function () {
                     deployRequest.request.to = '0x2';
                     expect(
                         server.isSponsoredTx(deployRequest),
