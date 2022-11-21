@@ -45,9 +45,6 @@ use(sinonChai);
 use(chaiAsPromised);
 
 describe('RelayServer', () => {
-    let erc20Instance: SinonStubbedInstance<ERC20Instance>;
-
-    let token: ExchangeToken;
     let fakeManagerKeyManager: SinonStubbedInstance<KeyManager> & KeyManager;
     let fakeWorkersKeyManager: SinonStubbedInstance<KeyManager> & KeyManager;
     let contractInteractor: SinonStubbedInstance<ContractInteractor> &
@@ -57,12 +54,6 @@ describe('RelayServer', () => {
     let mockDependencies: ServerDependencies;
 
     beforeEach(() => {
-        token = {
-            instance: erc20Instance,
-            name: 'tRif',
-            symbol: 'RIF',
-            decimals: 18
-        };
         fakeManagerKeyManager = createStubInstance(KeyManager, {
             getAddress: stub()
         });
@@ -72,9 +63,7 @@ describe('RelayServer', () => {
             getAddress: stub()
         });
         fakeWorkersKeyManager.getAddress.returns('fake_address');
-        contractInteractor = createStubInstance(ContractInteractor, {
-            getERC20Token: Promise.resolve(token)
-        });
+        contractInteractor = createStubInstance(ContractInteractor);
         contractInteractor.relayHubInstance = {
             address: 'relayHubAddress'
         } as IRelayHubInstance;
@@ -136,6 +125,12 @@ describe('RelayServer', () => {
     });
 
     describe('getMaxPossibleGas', async () => {
+        const token: ExchangeToken = {
+            instance: {} as ERC20Instance,
+            name: 'tRif',
+            symbol: 'RIF',
+            decimals: 18
+        };
         const fakeRelayTransactionRequest: RelayTransactionRequest = {
             relayRequest: {
                 relayData: {
@@ -161,6 +156,7 @@ describe('RelayServer', () => {
             stub(RelayPricer.prototype, 'getExchangeRate').returns(
                 Promise.resolve(xRateRifRbtc)
             );
+            contractInteractor.getERC20Token.returns(Promise.resolve(token));
         });
 
         const fakeMaxGasEstimation = (price?: number) =>
@@ -384,6 +380,12 @@ describe('RelayServer', () => {
         });
 
         it('should estimate transaction with fee', async function () {
+            const token: ExchangeToken = {
+                instance: {} as ERC20Instance,
+                name: 'tRif',
+                symbol: 'RIF',
+                decimals: 18
+            };
             const percentage = new BigNumber('0.1');
             server = new RelayServer(
                 {
@@ -414,6 +416,12 @@ describe('RelayServer', () => {
         });
 
         it('should estimate transaction without fee', async function () {
+            const token: ExchangeToken = {
+                instance: {} as ERC20Instance,
+                name: 'tRif',
+                symbol: 'RIF',
+                decimals: 18
+            };
             server = new RelayServer({}, mockDependencies);
             const { requiredTokenAmount } = await server.estimateMaxPossibleGas(
                 relayTransactionRequest
@@ -456,7 +464,8 @@ describe('RelayServer', () => {
                         to: ''
                     }
                 } as RelayRequest;
-                expect(server.isSponsoredTx(relayRequest)).to.be.false;
+                expect(server.isSponsoredTx(relayRequest), 'Tx is sponsored').to
+                    .be.false;
             });
 
             it('shold not sponsor deploy transaction', function () {
@@ -465,7 +474,8 @@ describe('RelayServer', () => {
                         to: ''
                     }
                 } as DeployRequest;
-                expect(server.isSponsoredTx(deployRequest)).to.be.false;
+                expect(server.isSponsoredTx(deployRequest), 'Tx is sponsored')
+                    .to.be.false;
             });
 
             it('should sponsor relay transaction if its sponsored destination', function () {
@@ -474,7 +484,10 @@ describe('RelayServer', () => {
                         to: '0x1'
                     }
                 } as RelayRequest;
-                expect(server.isSponsoredTx(relayRequest)).to.be.true;
+                expect(
+                    server.isSponsoredTx(relayRequest),
+                    'Tx is not sponsored'
+                ).to.be.true;
             });
 
             it('should sponsor deploy transaction if its sponsored destination', function () {
@@ -483,7 +496,10 @@ describe('RelayServer', () => {
                         to: '0x1'
                     }
                 } as DeployRequest;
-                expect(server.isSponsoredTx(deployRequest)).to.be.true;
+                expect(
+                    server.isSponsoredTx(deployRequest),
+                    'Tx is not sponsored'
+                ).to.be.true;
             });
         });
 
@@ -508,11 +524,17 @@ describe('RelayServer', () => {
             });
 
             it('should sponsor relay transaction', function () {
-                expect(server.isSponsoredTx(relayRequest)).to.be.true;
+                expect(
+                    server.isSponsoredTx(relayRequest),
+                    'Tx is not sponsored'
+                ).to.be.true;
             });
 
             it('should sponsor deploy transaction', function () {
-                expect(server.isSponsoredTx(deployRequest)).to.be.true;
+                expect(
+                    server.isSponsoredTx(deployRequest),
+                    'Tx is not sponsored'
+                ).to.be.true;
             });
         });
     });
