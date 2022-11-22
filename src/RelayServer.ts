@@ -486,11 +486,8 @@ export class RelayServer extends EventEmitter {
     isSponsoredTx(req: RelayRequest | DeployRequest): boolean {
         const { disableSponsoredTx, sponsoredDestinations } = this.config;
 
-        if (!disableSponsoredTx) {
-            return true;
-        }
 
-        if (sponsoredDestinations.includes(req.request.to)) {
+        if (!disableSponsoredTx || sponsoredDestinations.includes(req.request.to)) {
             return true;
         }
 
