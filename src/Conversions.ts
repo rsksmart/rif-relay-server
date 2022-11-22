@@ -1,8 +1,8 @@
-import BigNumber from 'bignumber.js';
-import BN from 'bn.js';
-import { toBN } from 'web3-utils';
-import ExchangeToken from './definitions/token.type';
+import type ExchangeToken from './definitions/token.type';
 import { RelayPricer } from '@rsksmart/rif-relay-client';
+import { BigNumber as BigNumberJs } from 'bignumber.js';
+import { BigNumber, constants } from 'ethers';
+import type { BigNumberish } from 'ethers';
 
 export const TARGET_CURRENCY = 'RBTC';
 
@@ -11,6 +11,8 @@ export const MAX_ETH_GAS_BLOCK_SIZE = 30_000_000;
 
 const relayPricer = new RelayPricer();
 
+type BigNumberishJs = BigNumberish | BigNumberJs;
+
 /**
  * Multiplies base to power of precision
  * @param precision order of magnitude of the precision i.e. number of zeroes. Defaults to system's native currency precision
@@ -18,21 +20,16 @@ const relayPricer = new RelayPricer();
  * @returns BigNumber
  */
 export const getPrecision = (
-    precision: BigNumberish = RBTC_CHAIN_DECIMALS,
-    base = 10
-): BigNumber => new BigNumber(base).pow(precision);
-
-/**
- * Input param that can be converted to BigNumber
- */
-type BigNumberish = BigNumber | string | number;
+  precision: BigNumberishJs = RBTC_CHAIN_DECIMALS,
+  base = 10
+): BigNumber => parseToBigNumber(BigNumberJs(base).pow(precision.toString()));
 
 /**
  * value and precision for the value to be converted to
  */
 export type ToPrecisionParams = {
-    value: BigNumberish;
-    precision?: number;
+  value: BigNumberish;
+  precision?: number;
 };
 
 /**
@@ -42,28 +39,18 @@ export type ToPrecisionParams = {
  * @returns BigNumber representation of the calculated precision
  */
 export const toPrecision = ({
-    value,
-    precision
+  value,
+  precision = 0,
 }: ToPrecisionParams): BigNumber => {
-    const bigValue = new BigNumber(value);
-    const bigPrecision = new BigNumber(precision);
-    const precisionMultiplier = getPrecision(bigPrecision.absoluteValue());
-    const operation = bigPrecision.isNegative() ? 'dividedBy' : 'multipliedBy';
+  const bigValue = BigNumberJs(value.toString());
+  const bigPrecision = BigNumberJs(precision);
+  const precisionMultiplier = BigNumberJs(
+    getPrecision(bigPrecision.absoluteValue()).toString()
+  );
+  const operation = bigPrecision.isNegative() ? 'dividedBy' : 'multipliedBy';
 
-    return bigValue[operation](precisionMultiplier);
+  return parseToBigNumber(bigValue[operation](precisionMultiplier));
 };
-
-/**
- * Converts to BN.js format after changing precision
- * @note it is possible to lose precision for small numbers converting to smaller (negative) precision. This is due to BN.js limitation of rejecting floating point numbers
- * @param ToPrecisionParams
- * @returns BN representation of the calculated precision
- */
-export const toBNWithPrecision = ({
-    value,
-    precision
-}: ToPrecisionParams): BN =>
-    toBN(toPrecision({ value: value, precision }).toFixed(0));
 
 /**
  * Retreives exchange rate for given token
@@ -71,13 +58,14 @@ export const toBNWithPrecision = ({
  * @returns BigNumber representation of the exchange rate
  */
 export const getXRateFor = async ({
-    symbol
-}: ExchangeToken): Promise<BigNumber> => {
-    const exchangeRate = await relayPricer.getExchangeRate(
-        symbol,
-        TARGET_CURRENCY
-    );
-    return exchangeRate;
+  symbol,
+}: ExchangeToken): Promise<string> => {
+  const exchangeRate = await relayPricer.getExchangeRate(
+    symbol,
+    TARGET_CURRENCY
+  );
+
+  return exchangeRate.toString();
 };
 
 /**
@@ -85,23 +73,29 @@ export const getXRateFor = async ({
  * @param token object containing the amount, decimals and exchange rate of the token
  * @returns 'WEI' representation of the token converted to native currency and decimal system
  */
-export const toNativeWeiFrom = async ({
-    amount,
-    decimals = 18,
-    xRate
-}: ExchangeToken): Promise<BigNumber> => {
-    if (!amount || !xRate || amount.isZero() || xRate.isZero()) {
-        return new BigNumber(0);
-    }
-    const amountAsFraction = toPrecision({
-        value: amount,
-        precision: -decimals
-    });
+export const toNativeWeiFrom = ({
+  amount,
+  decimals = 18,
+  xRate,
+}: ExchangeToken): BigNumber => {
+  const bigAmount = BigNumberJs(amount ?? '0');
+  const bigxRate = BigNumberJs(xRate ?? '0');
 
-    return toPrecision({
-        value: amountAsFraction.multipliedBy(xRate),
-        precision: RBTC_CHAIN_DECIMALS
-    });
+  if (bigAmount.isZero() || bigxRate.isZero()) {
+    return constants.Zero;
+  }
+
+  const amountAsFraction = toPrecision({
+    value: bigAmount.toString(),
+    precision: -decimals,
+  });
+
+  const bigAmountFraction = BigNumberJs(amountAsFraction.toString());
+
+  return toPrecision({
+    value: bigAmountFraction.multipliedBy(bigxRate).toFixed(0),
+    precision: RBTC_CHAIN_DECIMALS,
+  });
 };
 
 /**
@@ -112,26 +106,32 @@ export const toNativeWeiFrom = async ({
  * @returns 'WEI' representation of the gas converted to token
  */
 export const convertGasToToken = (
-    estimation: BigNumberish,
-    { decimals = 18, xRate }: ExchangeToken,
-    gasPrice: BigNumberish
+  estimation: BigNumberish,
+  { decimals = 18, xRate }: ExchangeToken,
+  gasPrice: BigNumberish
 ): BigNumber => {
-    const bigEstimation = new BigNumber(estimation);
-    const bigPrice = new BigNumber(gasPrice);
-    if (
-        isInvalidNumber(bigEstimation) ||
-        isInvalidNumber(xRate) ||
-        isInvalidNumber(bigPrice) ||
-        xRate.isZero()
-    ) {
-        return new BigNumber(0);
-    }
-    const precision = RBTC_CHAIN_DECIMALS - decimals;
-    const total = toPrecision({
-        value: bigEstimation.multipliedBy(bigPrice),
-        precision
-    });
-    return total.dividedBy(xRate);
+  const bigEstimation = BigNumberJs(estimation.toString());
+  const bigPrice = BigNumberJs(gasPrice.toString());
+  const bigRate = BigNumberJs(xRate ?? '0');
+
+  if (
+    isInvalidNumber(bigEstimation) ||
+    isInvalidNumber(bigRate) ||
+    isInvalidNumber(bigPrice) ||
+    bigRate.isZero()
+  ) {
+    return constants.Zero;
+  }
+
+  const precision = RBTC_CHAIN_DECIMALS - decimals;
+  const total = toPrecision({
+    value: bigEstimation.multipliedBy(bigPrice).toString(),
+    precision,
+  });
+
+  const bigTotal = BigNumberJs(total.toString());
+
+  return parseToBigNumber(bigTotal.dividedBy(bigRate).toFixed(0));
 };
 
 /**
@@ -141,15 +141,16 @@ export const convertGasToToken = (
  * @returns 'WEI' representation of the gas converted to native
  */
 export const convertGasToNative = (
-    estimation: BigNumberish,
-    gasPrice: BigNumberish
+  estimation: BigNumberish,
+  gasPrice: BigNumberish
 ): BigNumber => {
-    const bigEstimation = new BigNumber(estimation);
-    const bigPrice = new BigNumber(gasPrice);
-    if (isInvalidNumber(bigEstimation) || isInvalidNumber(bigPrice)) {
-        return new BigNumber(0);
-    }
-    return bigEstimation.multipliedBy(bigPrice);
+  const bigEstimation = BigNumberJs(estimation.toString());
+  const bigPrice = BigNumberJs(gasPrice.toString());
+  if (isInvalidNumber(bigEstimation) || isInvalidNumber(bigPrice)) {
+    return constants.Zero;
+  }
+
+  return parseToBigNumber(bigEstimation.multipliedBy(bigPrice));
 };
 
 /**
@@ -157,9 +158,13 @@ export const convertGasToNative = (
  * @param value BigNumber value
  * @returns `true` if value is  either negative, infinite or a NaN; `false` otherwise
  */
-const isInvalidNumber = (value: BigNumber): boolean => {
-    if (value.isNegative() || value.isNaN() || !value.isFinite()) {
-        return true;
-    }
-    return false;
+const isInvalidNumber = (value: BigNumberJs): boolean => {
+  if (value.isNegative() || value.isNaN() || !value.isFinite()) {
+    return true;
+  }
+
+  return false;
 };
+
+export const parseToBigNumber = (value: BigNumberishJs): BigNumber =>
+  BigNumber.from(value.toString());
