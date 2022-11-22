@@ -1,4 +1,4 @@
-import { RelayPricer } from '@rsksmart/rif-relay-client';
+/* import { RelayPricer } from '@rsksmart/rif-relay-client';
 import {
     ContractInteractor,
     RelayMetadata,
@@ -685,3 +685,4 @@ describe('RelayServer', () => {
         });
     });
 });
+ */
