@@ -160,7 +160,8 @@ const ConfigParamsTypes = {
     feesReceiver: 'string',
 
     disableSponsoredTx: 'boolean',
-    feePercentage: 'string'
+    feePercentage: 'string',
+    sponsoredDestinations: 'array'
 } as any;
 
 // by default: no waiting period - use VersionRegistry entries immediately.

@@ -441,7 +441,7 @@ describe('RelayServer', () => {
         });
     });
 
-    describe('isSponsoredTx', function () {
+    describe('isSponsorshipAllowed', function () {
         const relayRequest: RelayRequest = {
             request: {
                 to: ''
@@ -470,7 +470,7 @@ describe('RelayServer', () => {
                 it('should not sponsor relay transactions if the destination contract address is not among the sponsored ones', function () {
                     relayRequest.request.to = '0x2';
                     expect(
-                        server.isSponsoredTx(relayRequest),
+                        server.isSponsorshipAllowed(relayRequest),
                         'Tx is sponsored'
                     ).to.be.false;
                 });
@@ -478,7 +478,7 @@ describe('RelayServer', () => {
                 it('should not sponsor deploy transactions if the destination contract address is not among the sponsored ones', function () {
                     deployRequest.request.to = '0x2';
                     expect(
-                        server.isSponsoredTx(deployRequest),
+                        server.isSponsorshipAllowed(deployRequest),
                         'Tx is sponsored'
                     ).to.be.false;
                 });
@@ -486,7 +486,7 @@ describe('RelayServer', () => {
                 it('should sponsor relay transactions if the destination contract address is among the sponsored ones', function () {
                     relayRequest.request.to = '0x1';
                     expect(
-                        server.isSponsoredTx(relayRequest),
+                        server.isSponsorshipAllowed(relayRequest),
                         'Tx is not sponsored'
                     ).to.be.true;
                 });
@@ -494,7 +494,7 @@ describe('RelayServer', () => {
                 it('should sponsor deploy transactions if the destination contract address is among the sponsored ones', function () {
                     deployRequest.request.to = '0x1';
                     expect(
-                        server.isSponsoredTx(deployRequest),
+                        server.isSponsorshipAllowed(deployRequest),
                         'Tx is not sponsored'
                     ).to.be.true;
                 });
@@ -508,8 +508,10 @@ describe('RelayServer', () => {
                     },
                     mockDependencies
                 );
-                expect(server.isSponsoredTx(deployRequest), 'Tx is sponsored')
-                    .to.be.false;
+                expect(
+                    server.isSponsorshipAllowed(deployRequest),
+                    'Tx is sponsored'
+                ).to.be.false;
             });
 
             it('should not sponsor transactions if sponsoredDestinations its empty', function () {
@@ -521,8 +523,10 @@ describe('RelayServer', () => {
                     },
                     mockDependencies
                 );
-                expect(server.isSponsoredTx(deployRequest), 'Tx is sponsored')
-                    .to.be.false;
+                expect(
+                    server.isSponsorshipAllowed(deployRequest),
+                    'Tx is sponsored'
+                ).to.be.false;
             });
 
             it('should sponsor transactions if the destination contract address is among the sponsored ones(multiple addresses)', function () {
@@ -536,11 +540,11 @@ describe('RelayServer', () => {
                     mockDependencies
                 );
                 expect(
-                    server.isSponsoredTx(deployRequest),
+                    server.isSponsorshipAllowed(deployRequest),
                     'Tx is not sponsored'
                 ).to.be.true;
                 expect(
-                    server.isSponsoredTx(relayRequest),
+                    server.isSponsorshipAllowed(relayRequest),
                     'Tx is not sponsored'
                 ).to.be.true;
             });
@@ -558,7 +562,7 @@ describe('RelayServer', () => {
             it('should sponsor relay transaction', function () {
                 relayRequest.request.to = '0x1';
                 expect(
-                    server.isSponsoredTx(relayRequest),
+                    server.isSponsorshipAllowed(relayRequest),
                     'Tx is not sponsored'
                 ).to.be.true;
             });
@@ -566,7 +570,7 @@ describe('RelayServer', () => {
             it('should sponsor deploy transaction', function () {
                 deployRequest.request.to = '0x1';
                 expect(
-                    server.isSponsoredTx(deployRequest),
+                    server.isSponsorshipAllowed(deployRequest),
                     'Tx is not sponsored'
                 ).to.be.true;
             });

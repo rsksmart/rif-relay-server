@@ -60,8 +60,8 @@ import Timeout = NodeJS.Timeout;
 const VERSION = '2.0.1';
 
 const calculateFeeValue = (
-    feePercentage: string | undefined,
-    maxPossibleGas: string
+    maxPossibleGas: string,
+    feePercentage?: string
 ): BN => {
     const percentage = new BigNumber(feePercentage ?? 0);
     if (percentage.isZero()) {
@@ -419,14 +419,14 @@ export class RelayServer extends EventEmitter {
             );
         }
 
-        if (!this.isSponsoredTx(req.relayRequest)) {
+        if (!this.isSponsorshipAllowed(req.relayRequest)) {
             const { feePercentage } = this.config;
 
             log.debug(`RelayServer - feePercentage: ${feePercentage}`);
 
             const feeValue: BN = calculateFeeValue(
-                feePercentage,
-                maxPossibleGas.toString()
+                maxPossibleGas.toString(),
+                feePercentage
             );
 
             maxPossibleGas = maxPossibleGas.add(feeValue);
@@ -483,17 +483,13 @@ export class RelayServer extends EventEmitter {
         return maxPossibleGas;
     }
 
-    isSponsoredTx(req: RelayRequest | DeployRequest): boolean {
+    isSponsorshipAllowed(req: RelayRequest | DeployRequest): boolean {
         const { disableSponsoredTx, sponsoredDestinations } = this.config;
 
-        if (
+        return (
             !disableSponsoredTx ||
             sponsoredDestinations.includes(req.request.to)
-        ) {
-            return true;
-        }
-
-        return false;
+        );
     }
 
     async validateViewCallSucceeds(
@@ -534,13 +530,13 @@ export class RelayServer extends EventEmitter {
             this.workerAddress
         );
 
-        if (!this.isSponsoredTx(req.relayRequest)) {
+        if (!this.isSponsorshipAllowed(req.relayRequest)) {
             const { feePercentage } = this.config;
             log.debug(`RelayServer - feePercentage: ${feePercentage}`);
 
             const feeValue: BN = calculateFeeValue(
-                feePercentage,
-                estimation.toString()
+                estimation.toString(),
+                feePercentage
             );
 
             estimation = estimation.plus(feeValue.toString());
