@@ -4,7 +4,12 @@ import {
     RelayMetadata,
     RelayTransactionRequest
 } from '@rsksmart/rif-relay-common';
-import { ForwardRequest, RelayData } from '@rsksmart/rif-relay-contracts';
+import {
+    DeployRequest,
+    ForwardRequest,
+    RelayData,
+    RelayRequest
+} from '@rsksmart/rif-relay-contracts';
 import {
     ERC20Instance,
     IRelayHubInstance
@@ -40,9 +45,6 @@ use(sinonChai);
 use(chaiAsPromised);
 
 describe('RelayServer', () => {
-    let erc20Instance: SinonStubbedInstance<ERC20Instance>;
-
-    let token: ExchangeToken;
     let fakeManagerKeyManager: SinonStubbedInstance<KeyManager> & KeyManager;
     let fakeWorkersKeyManager: SinonStubbedInstance<KeyManager> & KeyManager;
     let contractInteractor: SinonStubbedInstance<ContractInteractor> &
@@ -52,12 +54,6 @@ describe('RelayServer', () => {
     let mockDependencies: ServerDependencies;
 
     beforeEach(() => {
-        token = {
-            instance: erc20Instance,
-            name: 'tRif',
-            symbol: 'RIF',
-            decimals: 18
-        };
         fakeManagerKeyManager = createStubInstance(KeyManager, {
             getAddress: stub()
         });
@@ -67,9 +63,7 @@ describe('RelayServer', () => {
             getAddress: stub()
         });
         fakeWorkersKeyManager.getAddress.returns('fake_address');
-        contractInteractor = createStubInstance(ContractInteractor, {
-            getERC20Token: Promise.resolve(token)
-        });
+        contractInteractor = createStubInstance(ContractInteractor);
         contractInteractor.relayHubInstance = {
             address: 'relayHubAddress'
         } as IRelayHubInstance;
@@ -131,6 +125,12 @@ describe('RelayServer', () => {
     });
 
     describe('getMaxPossibleGas', async () => {
+        const token: ExchangeToken = {
+            instance: {} as ERC20Instance,
+            name: 'tRif',
+            symbol: 'RIF',
+            decimals: 18
+        };
         const fakeRelayTransactionRequest: RelayTransactionRequest = {
             relayRequest: {
                 relayData: {
@@ -156,6 +156,7 @@ describe('RelayServer', () => {
             stub(RelayPricer.prototype, 'getExchangeRate').returns(
                 Promise.resolve(xRateRifRbtc)
             );
+            contractInteractor.getERC20Token.returns(Promise.resolve(token));
         });
 
         const fakeMaxGasEstimation = (price?: number) =>
@@ -379,6 +380,12 @@ describe('RelayServer', () => {
         });
 
         it('should estimate transaction with fee', async function () {
+            const token: ExchangeToken = {
+                instance: {} as ERC20Instance,
+                name: 'tRif',
+                symbol: 'RIF',
+                decimals: 18
+            };
             const percentage = new BigNumber('0.1');
             server = new RelayServer(
                 {
@@ -409,6 +416,12 @@ describe('RelayServer', () => {
         });
 
         it('should estimate transaction without fee', async function () {
+            const token: ExchangeToken = {
+                instance: {} as ERC20Instance,
+                name: 'tRif',
+                symbol: 'RIF',
+                decimals: 18
+            };
             server = new RelayServer({}, mockDependencies);
             const { requiredTokenAmount } = await server.estimateMaxPossibleGas(
                 relayTransactionRequest
@@ -425,6 +438,142 @@ describe('RelayServer', () => {
                 expectedRequiredTokenAmount == requiredTokenAmount,
                 `${expectedRequiredTokenAmount.toString()} should equal ${requiredTokenAmount}`
             ).to.be.true;
+        });
+    });
+
+    describe('isSponsorshipAllowed', function () {
+        const relayRequest: RelayRequest = {
+            request: {
+                to: ''
+            }
+        } as RelayRequest;
+        const deployRequest: DeployRequest = {
+            request: {
+                to: ''
+            }
+        } as DeployRequest;
+
+        describe('disabledSponsoredTx(true)', function () {
+            let server: RelayServer;
+
+            describe('', function () {
+                beforeEach(function () {
+                    server = new RelayServer(
+                        {
+                            disableSponsoredTx: true,
+                            sponsoredDestinations: ['0x1']
+                        },
+                        mockDependencies
+                    );
+                });
+
+                it('should not sponsor relay transactions if the destination contract address is not among the sponsored ones', function () {
+                    relayRequest.request.to = '0x2';
+                    expect(
+                        server.isSponsorshipAllowed(relayRequest),
+                        'Tx is sponsored'
+                    ).to.be.false;
+                });
+
+                it('should not sponsor deploy transactions if the destination contract address is not among the sponsored ones', function () {
+                    deployRequest.request.to = '0x2';
+                    expect(
+                        server.isSponsorshipAllowed(deployRequest),
+                        'Tx is sponsored'
+                    ).to.be.false;
+                });
+
+                it('should sponsor relay transactions if the destination contract address is among the sponsored ones', function () {
+                    relayRequest.request.to = '0x1';
+                    expect(
+                        server.isSponsorshipAllowed(relayRequest),
+                        'Tx is not sponsored'
+                    ).to.be.true;
+                });
+
+                it('should sponsor deploy transactions if the destination contract address is among the sponsored ones', function () {
+                    deployRequest.request.to = '0x1';
+                    expect(
+                        server.isSponsorshipAllowed(deployRequest),
+                        'Tx is not sponsored'
+                    ).to.be.true;
+                });
+            });
+
+            it('should not sponsor transactions if sponsoredDestinations its undefined', function () {
+                deployRequest.request.to = '0x1';
+                server = new RelayServer(
+                    {
+                        disableSponsoredTx: true
+                    },
+                    mockDependencies
+                );
+                expect(
+                    server.isSponsorshipAllowed(deployRequest),
+                    'Tx is sponsored'
+                ).to.be.false;
+            });
+
+            it('should not sponsor transactions if sponsoredDestinations its empty', function () {
+                deployRequest.request.to = '0x1';
+                server = new RelayServer(
+                    {
+                        disableSponsoredTx: true,
+                        sponsoredDestinations: []
+                    },
+                    mockDependencies
+                );
+                expect(
+                    server.isSponsorshipAllowed(deployRequest),
+                    'Tx is sponsored'
+                ).to.be.false;
+            });
+
+            it('should sponsor transactions if the destination contract address is among the sponsored ones(multiple addresses)', function () {
+                relayRequest.request.to = '0x1';
+                deployRequest.request.to = '0x2';
+                server = new RelayServer(
+                    {
+                        disableSponsoredTx: true,
+                        sponsoredDestinations: ['0x1', '0x2']
+                    },
+                    mockDependencies
+                );
+                expect(
+                    server.isSponsorshipAllowed(deployRequest),
+                    'Tx is not sponsored'
+                ).to.be.true;
+                expect(
+                    server.isSponsorshipAllowed(relayRequest),
+                    'Tx is not sponsored'
+                ).to.be.true;
+            });
+        });
+
+        describe('disabledSponsoredTx(false)', function () {
+            let server: RelayServer;
+            beforeEach(function () {
+                server = new RelayServer(
+                    { disableSponsoredTx: false },
+                    mockDependencies
+                );
+            });
+
+            it('should sponsor relay transaction', function () {
+                relayRequest.request.to = '0x1';
+                expect(
+                    server.isSponsorshipAllowed(relayRequest),
+                    'Tx is not sponsored'
+                ).to.be.true;
+            });
+
+            it('should sponsor deploy transaction', function () {
+                deployRequest.request.to = '0x1';
+                expect(
+                    server.isSponsorshipAllowed(deployRequest),
+                    'Tx is not sponsored'
+                ).to.be.true;
+            });
         });
     });
 });

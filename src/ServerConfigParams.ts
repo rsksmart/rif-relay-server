@@ -72,6 +72,11 @@ export interface ServerConfigParams {
      * @note fractions exceeding the number of decimals of that of the native currency will be rounded up
      */
     feePercentage: string;
+
+    /**
+     * * List of destination contract addresses for which the transactions will be [sponsored](https://developers.rsk.co/rif/relay/architecture/#glossary)
+     */
+    sponsoredDestinations: Array<string>;
 }
 
 export interface ServerDependencies {
@@ -119,7 +124,8 @@ export const serverDefaultConfiguration: ServerConfigParams = {
     maxGasPrice: (100e9).toString(),
     estimateGasFactor: 1.2,
     disableSponsoredTx: false,
-    feePercentage: '0'
+    feePercentage: '0',
+    sponsoredDestinations: []
 };
 
 const ConfigParamsTypes = {
@@ -154,7 +160,8 @@ const ConfigParamsTypes = {
     feesReceiver: 'string',
 
     disableSponsoredTx: 'boolean',
-    feePercentage: 'string'
+    feePercentage: 'string',
+    sponsoredDestinations: 'array'
 } as any;
 
 // by default: no waiting period - use VersionRegistry entries immediately.
