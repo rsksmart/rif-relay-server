@@ -82,7 +82,7 @@ const serverDefaultConfiguration: ServerConfigParams = {
     checkInterval: 10000,
     disableSponsoredTx: false,
     feePercentage: '0',
-    sponsoredDestinations: []
+    sponsoredDestinations: [],
   },
   contracts: {
     versionRegistryAddress: constants.AddressZero,
