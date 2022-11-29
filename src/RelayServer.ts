@@ -170,7 +170,10 @@ export class RelayServer extends EventEmitter {
       this.transactionManager.managerKeyManager.getAddress(0) ?? '';
     this.workerAddress =
       this.transactionManager.workersKeyManager.getAddress(0) ?? '';
-    this.feesReceiver = this.config.contracts.feesReceiver === constants.AddressZero ? this.workerAddress : this.config.contracts.feesReceiver;
+    this.feesReceiver =
+      this.config.contracts.feesReceiver === constants.AddressZero
+        ? this.workerAddress
+        : this.config.contracts.feesReceiver;
     this.customReplenish = this.config.app.customReplenish;
     this.workerBalanceRequired = new AmountRequired(
       'Worker Balance',
@@ -509,14 +512,18 @@ export class RelayServer extends EventEmitter {
     return maxPossibleGas;
   }
 
-  isSponsorshipAllowed(req: EnvelopingTypes.RelayRequestStruct | EnvelopingTypes.DeployRequestStruct): boolean {
+  isSponsorshipAllowed(
+    req:
+      | EnvelopingTypes.RelayRequestStruct
+      | EnvelopingTypes.DeployRequestStruct
+  ): boolean {
     const { disableSponsoredTx, sponsoredDestinations } = this.config.app;
-    
+
     return (
-        !disableSponsoredTx ||
-        sponsoredDestinations.includes(req.request.to as string)
+      !disableSponsoredTx ||
+      sponsoredDestinations.includes(req.request.to as string)
     );
-}
+  }
 
   async validateViewCallSucceeds(
     transaction: PopulatedTransaction,
