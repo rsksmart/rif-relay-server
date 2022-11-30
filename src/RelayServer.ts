@@ -574,7 +574,7 @@ export class RelayServer extends EventEmitter {
 
     async createRelayTransaction(
         req: RelayTransactionRequest | DeployTransactionRequest
-    ): Promise<SignedTransactionDetails> {
+    ): Promise<SignedTransactionDetails & { maxPossibleGas: number }> {
         log.debug(`dump request params: ${JSON.stringify(req)}`);
         if (!this.isReady()) {
             throw new Error('relay not ready');
@@ -627,7 +627,8 @@ export class RelayServer extends EventEmitter {
         );
         // after sending a transaction is a good time to check the worker's balance, and replenish it.
         await this.replenishServer(0, currentBlock);
-        return txDetails;
+
+        return { ...txDetails, maxPossibleGas: maxPossibleGas.toNumber() };
     }
 
     async intervalHandler(): Promise<void> {
