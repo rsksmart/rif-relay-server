@@ -29,6 +29,6 @@ jobs:
               run: |
                   aws ssm send-command \
                       --document-name "AWS-RunRemoteScript" \
-                      --instance-ids "${{ secrets.QA_EC2_ID }}" \
+                      --instance-ids "i-077a12f03f753e342" \
                       --region=${{ secrets.QA_AWS_REGION }} \
                       --parameters '{"sourceType":["GitHub"],"sourceInfo":["{\"owner\":\"rootstock\", \"repository\":\"ask-devops\", \"path\": \"rif-relay/\", \"tokenInfo\":\"{{ssm-secure:github-token}}\"}"],"commandLine":["deploy-rwt.sh"]}'
