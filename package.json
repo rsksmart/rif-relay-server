@@ -70,8 +70,8 @@
   },
   "dependencies": {
     "@rsksmart/rif-relay-client": "1.0.0-alpha.3",
-    "@rsksmart/rif-relay-common": "github:rsksmart/rif-relay-common#PP-355/update-rif-relay-server",
-    "@rsksmart/rif-relay-contracts": "github:rsksmart/rif-relay-contracts#feature/PP-278/PP-329/PP-355/upgrade_contracts",
+    "@rsksmart/rif-relay-common": "github:rsksmart/rif-relay-common#feature/PP-278/PP-339/upgrade_with_ethers",
+    "@rsksmart/rif-relay-contracts": "github:rsksmart/rif-relay-contracts#feature/PP-278/PP-329/upgrade_contracts",
     "async-mutex": "^0.4.0",
     "bignumber.js": "^9.1.0",
     "body-parser": "^1.20.0",
