@@ -7,10 +7,10 @@ on:
             - '**beta-rifwallet**'
 
 jobs:
-    deploy-qa:
+    deploy-rif-wallet-testnet:
         runs-on: ubuntu-latest
         environment:
-            name: QA
+            name: RIF-Wallet-Testnet
 
         steps:
             - name: Checkout
@@ -21,14 +21,14 @@ jobs:
             - name: Configure AWS credentials
               uses: aws-actions/configure-aws-credentials@v1
               with:
-                  aws-access-key-id: ${{ secrets.QA_AWS_ACCESS_KEY_ID }}
-                  aws-secret-access-key: ${{ secrets.QA_AWS_SECRET_ACCESS_KEY }}
-                  aws-region: ${{ secrets.QA_AWS_REGION }}
+                  aws-access-key-id: ${{ secrets.RWT_AWS_ACCESS_KEY_ID }}
+                  aws-secret-access-key: ${{ secrets.RWT_AWS_SECRET_ACCESS_KEY }}
+                  aws-region: ${{ secrets.RWT_AWS_REGION }}
 
-            - name: Deploy rif-relay-server on QA
+            - name: Deploy rif-relay-server on RWT
               run: |
                   aws ssm send-command \
                       --document-name "AWS-RunRemoteScript" \
-                      --instance-ids "i-077a12f03f753e342" \
-                      --region=${{ secrets.QA_AWS_REGION }} \
+                      --instance-ids ""${{ secrets.RWT_EC2_ID }}"" \
+                      --region=${{ secrets.RWT_AWS_REGION }} \
                       --parameters '{"sourceType":["GitHub"],"sourceInfo":["{\"owner\":\"rootstock\", \"repository\":\"ask-devops\", \"path\": \"rif-relay/\", \"tokenInfo\":\"{{ssm-secure:github-token}}\"}"],"commandLine":["deploy-rwt.sh"]}'
