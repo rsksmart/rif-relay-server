@@ -1,9 +1,11 @@
 ---
-name: CD for QA
+name: CD for RIF-Wallet-Testnet
 
 on:
     push:
-        branches: [master]
+        branches: [master, PP-612/rif-wallet-testnet-cd]
+        tags:
+            - '**beta-rifwallet**'
 
 jobs:
     deploy-qa:
@@ -30,4 +32,4 @@ jobs:
                       --document-name "AWS-RunRemoteScript" \
                       --instance-ids "${{ secrets.QA_EC2_ID }}" \
                       --region=${{ secrets.QA_AWS_REGION }} \
-                      --parameters '{"sourceType":["GitHub"],"sourceInfo":["{\"owner\":\"rootstock\", \"repository\":\"ask-devops\", \"path\": \"rif-relay/qa/\", \"tokenInfo\":\"{{ssm-secure:github-token}}\"}"],"commandLine":["deploy-rifrelay.sh"]}'
+                      --parameters '{"sourceType":["GitHub"],"sourceInfo":["{\"owner\":\"rootstock\", \"repository\":\"ask-devops\", \"path\": \"rif-relay/rif-wallet-testnet/\", \"tokenInfo\":\"{{ssm-secure:github-token}}\"}"],"commandLine":["deploy-rifrelay.sh"]}'
