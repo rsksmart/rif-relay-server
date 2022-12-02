@@ -202,14 +202,14 @@ export const applyInternalCorrection = (
 export const applyGasCorrectionFactor = (
   estimation: BigNumberish
 ): BigNumber => {
-  if (!ESTIMATED_GAS_CORRECTION_FACTOR.eq(1)) {
-    const bigValue = BigNumberJs(estimation.toString());
-    const result = bigValue.multipliedBy(
-      ESTIMATED_GAS_CORRECTION_FACTOR.toString()
-    );
+  let bigEstimation = BigNumberJs(estimation.toString());
+  const bigGasCorrection = BigNumberJs(
+    ESTIMATED_GAS_CORRECTION_FACTOR.toString()
+  );
 
-    return parseToBigNumber(result);
+  if (!bigGasCorrection.isEqualTo(1)) {
+    bigEstimation = bigEstimation.multipliedBy(bigGasCorrection);
   }
 
-  return parseToBigNumber(estimation);
+  return parseToBigNumber(bigEstimation.toFixed());
 };
