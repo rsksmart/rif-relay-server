@@ -3,9 +3,8 @@ name: CD for RIF-Wallet-Testnet
 
 on:
     push:
-        branches: [master, PP-612/rif-wallet-testnet-cd]
-        # tags:
-        #     - '**beta-rifwallet**'
+        tags:
+            - '**beta-rifwallet**'
 
 jobs:
     deploy-qa:
