@@ -38,7 +38,10 @@ import {
 } from '../../src';
 import * as conversions from '../../src/Conversions';
 import * as gasEstimator from '../../src/GasEstimator';
-import { INSUFFICIENT_TOKEN_AMOUNT } from '../../src/definitions/errorMessages.const';
+import {
+    GAS_LIMIT_EXCEEDED,
+    INSUFFICIENT_TOKEN_AMOUNT
+} from '../../src/definitions/errorMessages.const';
 import ExchangeToken from '../../src/definitions/token.type';
 
 use(sinonChai);
@@ -552,6 +555,7 @@ describe('RelayServer', () => {
 
         describe('disabledSponsoredTx(false)', function () {
             let server: RelayServer;
+
             beforeEach(function () {
                 server = new RelayServer(
                     { disableSponsoredTx: false },
@@ -574,6 +578,80 @@ describe('RelayServer', () => {
                     'Tx is not sponsored'
                 ).to.be.true;
             });
+        });
+    });
+
+    describe('validateViewCallSucceeds', function () {
+        const maxPossibleGas = '115000';
+        let server: RelayServer;
+
+        const req: RelayTransactionRequest = {
+            relayRequest: {
+                relayData: {
+                    gasPrice: '60000000'
+                }
+            }
+        } as RelayTransactionRequest;
+
+        beforeEach(function () {
+            server = new RelayServer({}, mockDependencies);
+        });
+
+        it('should return an accepted gas limit', async function () {
+            const methodStub = {
+                call: stub().returns(true)
+            };
+            const gasLimit = await server.validateViewCallSucceeds(
+                methodStub,
+                req,
+                maxPossibleGas
+            );
+            expect(gasLimit.toString()).to.be.equal(maxPossibleGas);
+        });
+
+        it('should return an accepted gas limit after applying factor', async function () {
+            const methodCallStub = stub();
+            methodCallStub.onCall(0).throws(Error('Not enough gas left'));
+            methodCallStub.onCall(1).returns(true);
+            const methodStub = {
+                call: methodCallStub
+            };
+            const gasLimit = await server.validateViewCallSucceeds(
+                methodStub,
+                req,
+                maxPossibleGas
+            );
+            const expectedGasLimit =
+                BigNumber(1.25).multipliedBy(maxPossibleGas);
+            expect(gasLimit.toString()).to.be.equal(
+                expectedGasLimit.toString()
+            );
+        });
+
+        it('should fail if the gas limit is exceeded', async function () {
+            const error = Error('Not enough gas left');
+            const methodStub = {
+                call: stub().throws(error)
+            };
+            const gasLimit = server.validateViewCallSucceeds(
+                methodStub,
+                req,
+                maxPossibleGas
+            );
+            await expect(gasLimit).to.be.rejectedWith(GAS_LIMIT_EXCEEDED);
+        });
+
+        it('should fail with a different error', async function () {
+            const error = Error('Fake error');
+            const methodStub = {
+                call: stub().throws(error)
+            };
+            const gasLimit = server.validateViewCallSucceeds(
+                methodStub,
+                req,
+                maxPossibleGas
+            );
+            await expect(gasLimit).to.be.rejectedWith(error.message);
         });
     });
 });

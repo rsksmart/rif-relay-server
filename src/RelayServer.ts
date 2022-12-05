@@ -38,7 +38,10 @@ import {
     getXRateFor,
     toNativeWeiFrom
 } from './Conversions';
-import { INSUFFICIENT_TOKEN_AMOUNT } from './definitions/errorMessages.const';
+import {
+    GAS_LIMIT_EXCEEDED,
+    INSUFFICIENT_TOKEN_AMOUNT
+} from './definitions/errorMessages.const';
 import ExchangeToken from './definitions/token.type';
 import { estimateRelayMaxPossibleGas } from './GasEstimator';
 import { RegistrationManager } from './RegistrationManager';
@@ -58,6 +61,8 @@ import { TxStoreManager } from './TxStoreManager';
 import Timeout = NodeJS.Timeout;
 
 const VERSION = '2.0.1';
+const INITIAL_FACTOR_TO_TRY = 0.25;
+const LIMIT_MAX_FACTOR_TO_TRY = 2;
 
 const calculateFeeValue = (
     maxPossibleGas: string,
@@ -495,26 +500,42 @@ export class RelayServer extends EventEmitter {
     async validateViewCallSucceeds(
         method: any,
         req: RelayTransactionRequest | DeployTransactionRequest,
-        maxPossibleGas: BN
-    ): Promise<void> {
+        maxPossibleGas: string
+    ): Promise<BigNumber> {
         log.debug('Relay Server - Request sent to the worker');
         log.debug('Relay Server - req: ', req);
-        try {
-            await method.call(
-                {
-                    from: this.workerAddress,
-                    gasPrice: req.relayRequest.relayData.gasPrice,
-                    gas: maxPossibleGas.toString()
-                },
-                'pending'
-            );
-        } catch (e) {
-            throw new Error(
-                `relayCall (local call) reverted in server: ${
-                    (e as Error).message
-                }`
-            );
-        }
+        const commonErrorMessage = 'relayCall (local call) reverted in server:';
+        let gasLimit = BigNumber(maxPossibleGas);
+        let factor = INITIAL_FACTOR_TO_TRY;
+        do {
+            try {
+                log.debug(
+                    `RelayServer - attempting with gasLimit : ${gasLimit.toString()}`
+                );
+                await method.call(
+                    {
+                        from: this.workerAddress,
+                        gasPrice: req.relayRequest.relayData.gasPrice,
+                        gas: gasLimit.toString()
+                    },
+                    'pending'
+                );
+
+                return gasLimit;
+            } catch (e) {
+                const error = e as Error;
+                if (!error.message.includes('Not enough gas left')) {
+                    throw `${commonErrorMessage} ${error.message}`;
+                }
+                const bigFactor = BigNumber(1).plus(factor);
+                gasLimit = bigFactor
+                    .multipliedBy(maxPossibleGas.toString())
+                    .dp(0, BigNumber.ROUND_DOWN);
+                factor = factor * 2;
+            }
+        } while (factor <= LIMIT_MAX_FACTOR_TO_TRY);
+
+        throw Error(`${commonErrorMessage} ${GAS_LIMIT_EXCEEDED}`);
     }
 
     async estimateMaxPossibleGas(
@@ -574,7 +595,7 @@ export class RelayServer extends EventEmitter {
 
     async createRelayTransaction(
         req: RelayTransactionRequest | DeployTransactionRequest
-    ): Promise<SignedTransactionDetails & { maxPossibleGas: number }> {
+    ): Promise<SignedTransactionDetails> {
         log.debug(`dump request params: ${JSON.stringify(req)}`);
         if (!this.isReady()) {
             throw new Error('relay not ready');
@@ -611,14 +632,18 @@ export class RelayServer extends EventEmitter {
               );
 
         // Call relayCall as a view function to see if we'll get paid for relaying this tx
-        await this.validateViewCallSucceeds(method, req, maxPossibleGas);
+        const gasLimit = await this.validateViewCallSucceeds(
+            method,
+            req,
+            maxPossibleGas.toString()
+        );
         const currentBlock = await this.contractInteractor.getBlockNumber();
         const details: SendTransactionDetails = {
             signer: this.workerAddress,
             serverAction: ServerAction.RELAY_CALL,
             method,
             destination: req.metadata.relayHubAddress,
-            gasLimit: maxPossibleGas.toNumber(),
+            gasLimit: gasLimit.toNumber(),
             creationBlockNumber: currentBlock,
             gasPrice: req.relayRequest.relayData.gasPrice
         };
@@ -628,7 +653,7 @@ export class RelayServer extends EventEmitter {
         // after sending a transaction is a good time to check the worker's balance, and replenish it.
         await this.replenishServer(0, currentBlock);
 
-        return { ...txDetails, maxPossibleGas: maxPossibleGas.toNumber() };
+        return txDetails;
     }
 
     async intervalHandler(): Promise<void> {
