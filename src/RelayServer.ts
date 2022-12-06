@@ -497,7 +497,7 @@ export class RelayServer extends EventEmitter {
         );
     }
 
-    async validateViewCallSucceeds(
+    async findMaxPossibleGasWithViewCall(
         method: any,
         req: RelayTransactionRequest | DeployTransactionRequest,
         maxPossibleGas: string
@@ -505,30 +505,30 @@ export class RelayServer extends EventEmitter {
         log.debug('Relay Server - Request sent to the worker');
         log.debug('Relay Server - req: ', req);
         const commonErrorMessage = 'relayCall (local call) reverted in server:';
-        let gasLimit = BigNumber(maxPossibleGas);
+        let bigMaxPossibleGas = BigNumber(maxPossibleGas);
         let factor = INITIAL_FACTOR_TO_TRY;
         do {
             try {
                 log.debug(
-                    `RelayServer - attempting with gasLimit : ${gasLimit.toString()}`
+                    `RelayServer - attempting with gasLimit : ${bigMaxPossibleGas.toString()}`
                 );
                 await method.call(
                     {
                         from: this.workerAddress,
                         gasPrice: req.relayRequest.relayData.gasPrice,
-                        gas: gasLimit.toString()
+                        gas: bigMaxPossibleGas.toString()
                     },
                     'pending'
                 );
 
-                return gasLimit;
+                return bigMaxPossibleGas;
             } catch (e) {
                 const error = e as Error;
                 if (!error.message.includes('Not enough gas left')) {
                     throw `${commonErrorMessage} ${error.message}`;
                 }
                 const bigFactor = BigNumber(1).plus(factor);
-                gasLimit = bigFactor
+                bigMaxPossibleGas = bigFactor
                     .multipliedBy(maxPossibleGas.toString())
                     .dp(0, BigNumber.ROUND_DOWN);
                 factor = factor * 2;
@@ -632,18 +632,25 @@ export class RelayServer extends EventEmitter {
               );
 
         // Call relayCall as a view function to see if we'll get paid for relaying this tx
-        const gasLimit = await this.validateViewCallSucceeds(
-            method,
-            req,
-            maxPossibleGas.toString()
+        const maxPossibleGasWithViewCall =
+            await this.findMaxPossibleGasWithViewCall(
+                method,
+                req,
+                maxPossibleGas.toString()
+            );
+
+        log.debug(
+            'maxPossibleGasWithViewCall is',
+            maxPossibleGasWithViewCall.toString()
         );
+
         const currentBlock = await this.contractInteractor.getBlockNumber();
         const details: SendTransactionDetails = {
             signer: this.workerAddress,
             serverAction: ServerAction.RELAY_CALL,
             method,
             destination: req.metadata.relayHubAddress,
-            gasLimit: gasLimit.toNumber(),
+            gasLimit: maxPossibleGasWithViewCall.toNumber(),
             creationBlockNumber: currentBlock,
             gasPrice: req.relayRequest.relayData.gasPrice
         };

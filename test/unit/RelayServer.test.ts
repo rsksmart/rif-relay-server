@@ -581,7 +581,7 @@ describe('RelayServer', () => {
         });
     });
 
-    describe('validateViewCallSucceeds', function () {
+    describe('findMaxPossibleGasWithViewCall', function () {
         const maxPossibleGas = '115000';
         let server: RelayServer;
 
@@ -597,33 +597,37 @@ describe('RelayServer', () => {
             server = new RelayServer({}, mockDependencies);
         });
 
-        it('should return an accepted gas limit', async function () {
+        it('should return an accepted max possible gas', async function () {
             const methodStub = {
                 call: stub().returns(true)
             };
-            const gasLimit = await server.validateViewCallSucceeds(
-                methodStub,
-                req,
+            const maxPossibleGasWithViewCall =
+                await server.findMaxPossibleGasWithViewCall(
+                    methodStub,
+                    req,
+                    maxPossibleGas
+                );
+            expect(maxPossibleGasWithViewCall.toString()).to.be.equal(
                 maxPossibleGas
             );
-            expect(gasLimit.toString()).to.be.equal(maxPossibleGas);
         });
 
-        it('should return an accepted gas limit after applying factor', async function () {
+        it('should return an accepted max possible gas after applying factor', async function () {
             const methodCallStub = stub();
             methodCallStub.onCall(0).throws(Error('Not enough gas left'));
             methodCallStub.onCall(1).returns(true);
             const methodStub = {
                 call: methodCallStub
             };
-            const gasLimit = await server.validateViewCallSucceeds(
-                methodStub,
-                req,
-                maxPossibleGas
-            );
+            const maxPossibleGasWithViewCall =
+                await server.findMaxPossibleGasWithViewCall(
+                    methodStub,
+                    req,
+                    maxPossibleGas
+                );
             const expectedGasLimit =
                 BigNumber(1.25).multipliedBy(maxPossibleGas);
-            expect(gasLimit.toString()).to.be.equal(
+            expect(maxPossibleGasWithViewCall.toString()).to.be.equal(
                 expectedGasLimit.toString()
             );
         });
@@ -633,12 +637,15 @@ describe('RelayServer', () => {
             const methodStub = {
                 call: stub().throws(error)
             };
-            const gasLimit = server.validateViewCallSucceeds(
-                methodStub,
-                req,
-                maxPossibleGas
+            const maxPossibleGasWithViewCall =
+                server.findMaxPossibleGasWithViewCall(
+                    methodStub,
+                    req,
+                    maxPossibleGas
+                );
+            await expect(maxPossibleGasWithViewCall).to.be.rejectedWith(
+                GAS_LIMIT_EXCEEDED
             );
-            await expect(gasLimit).to.be.rejectedWith(GAS_LIMIT_EXCEEDED);
         });
 
         it('should fail with a different error', async function () {
@@ -646,12 +653,15 @@ describe('RelayServer', () => {
             const methodStub = {
                 call: stub().throws(error)
             };
-            const gasLimit = server.validateViewCallSucceeds(
-                methodStub,
-                req,
-                maxPossibleGas
+            const maxPossibleGasWithViewCall =
+                server.findMaxPossibleGasWithViewCall(
+                    methodStub,
+                    req,
+                    maxPossibleGas
+                );
+            await expect(maxPossibleGasWithViewCall).to.be.rejectedWith(
+                error.message
             );
-            await expect(gasLimit).to.be.rejectedWith(error.message);
         });
     });
 });
