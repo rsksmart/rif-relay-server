@@ -318,6 +318,7 @@ describe('RelayServer', () => {
     describe('validateInput', () => {
         const fakeRelayHubAddress = 'fake_relay_hub_address';
         const fakeFeesReceiverAddress = 'fakeFeesReceiver';
+        const timestamp = new Date().getTime() / 1000;
         const fakeRelayTransactionRequest: RelayTransactionRequest = {
             relayRequest: {
                 relayData: {
@@ -325,7 +326,8 @@ describe('RelayServer', () => {
                 } as RelayData,
                 request: {
                     to: 'fake_address',
-                    data: 'fake_data'
+                    data: 'fake_data',
+                    validUntilTime: timestamp.toString()
                 } as ForwardRequest
             },
             metadata: {
@@ -337,6 +339,24 @@ describe('RelayServer', () => {
             const server = new RelayServer(
                 {
                     feesReceiver: 'fake_different_relay_hub_address'
+                },
+                mockDependencies
+            );
+            server.relayHubContract = {
+                address: fakeRelayHubAddress
+            } as IRelayHubInstance;
+
+            expect(() =>
+                server.validateInput(fakeRelayTransactionRequest)
+            ).to.throw(
+                `Wrong fees receiver address: ${fakeFeesReceiverAddress}\n`
+            );
+        });
+
+        it('should throw error if request is expired', () => {
+            const server = new RelayServer(
+                {
+                    requestMinValidSeconds: 0
                 },
                 mockDependencies
             );

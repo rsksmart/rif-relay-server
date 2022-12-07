@@ -53,7 +53,8 @@ describe('GasEstimator', function () {
             tokenGas: createRandomeValue(1000),
             value: createRandomeValue(1e16),
             index: createRandomeValue(100),
-            recoverer: createRandomAddress()
+            recoverer: createRandomAddress(),
+            validUntilTime: (Date.now() / 1000).toString()
         },
         relayData: {
             gasPrice: createRandomeValue(1000),
@@ -73,7 +74,8 @@ describe('GasEstimator', function () {
             tokenContract: createRandomAddress(),
             tokenGas: createRandomeValue(1000),
             value: createRandomeValue(1e16),
-            gas: createRandomeValue(1000)
+            gas: createRandomeValue(1000),
+            validUntilTime: (Date.now() / 1000).toString()
         },
         relayData: {
             gasPrice: createRandomeValue(1000),

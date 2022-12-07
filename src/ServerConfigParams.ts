@@ -56,6 +56,7 @@ export interface ServerConfigParams {
     maxGasPrice: string;
     defaultGasLimit: number;
     estimateGasFactor: number;
+    requestMinValidSeconds: number;
     /**
      * Forces relay users to pay for transaction gas
      * @option false - The smart wallet of the relay user will be charged for the transaction
@@ -125,7 +126,8 @@ export const serverDefaultConfiguration: ServerConfigParams = {
     estimateGasFactor: 1.2,
     disableSponsoredTx: false,
     feePercentage: '0',
-    sponsoredDestinations: []
+    sponsoredDestinations: [],
+    requestMinValidSeconds: 43200 // roughly 12 hours, quarter of client's default of 172800 seconds (2 days)
 };
 
 const ConfigParamsTypes = {
@@ -161,7 +163,8 @@ const ConfigParamsTypes = {
 
     disableSponsoredTx: 'boolean',
     feePercentage: 'string',
-    sponsoredDestinations: 'array'
+    sponsoredDestinations: 'array',
+    requestMinValidSeconds: 'number'
 } as any;
 
 // by default: no waiting period - use VersionRegistry entries immediately.

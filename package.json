@@ -1,6 +1,6 @@
 {
   "name": "rif-relay-server",
-  "version": "1.0.0-alpha.3",
+  "version": "1.0.0-alpha.4",
   "description": "This project contains all the server code for the rif relay system.",
   "main": "dist/index.js",
   "scripts": {
@@ -23,9 +23,9 @@
   "license": "MIT",
   "dependencies": {
     "@openzeppelin/test-helpers": "^0.5.16",
-    "@rsksmart/rif-relay-client": "1.0.0-alpha.4",
-    "@rsksmart/rif-relay-common": "1.0.0-alpha.3",
-    "@rsksmart/rif-relay-contracts": "1.0.0-alpha.4",
+    "@rsksmart/rif-relay-client": "1.0.0-alpha.5",
+    "@rsksmart/rif-relay-common": "1.0.0-alpha.4",
+    "@rsksmart/rif-relay-contracts": "1.0.0-alpha.5",
     "@truffle/abi-utils": "~0.2.3",
     "@truffle/hdwallet-provider": "1.6.0",
     "@trufflesuite/web3-provider-engine": "15.0.13-1",
