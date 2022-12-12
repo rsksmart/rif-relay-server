@@ -124,12 +124,9 @@ import swaggerUi from 'swagger-ui-express';
  *       properties:
  *         gasPrice:
  *           type: string
- *         domainSeparator:
- *           type: string
- *           description: Domain used when signing this request.
- *         relayWorker:
+ *         feesReceiver:
  *           type: address
- *           description: The address of the [relay worker](https://developers.rsk.co/rif/relay/architecture/#relay-worker).
+ *           description: The address of the [fees receiver](https://developers.rsk.co/rif/relay/architecture/#glossary).
  *         callForwarder:
  *           type: address
  *           description: The address of the smart contract that forwards the request (SmartWallet factory address for deploy transactions and SmartWallet address for relayed transactions).

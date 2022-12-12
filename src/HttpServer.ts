@@ -60,6 +60,7 @@ export class HttpServer {
         this.app.get('/tokens', this.tokenHandler.bind(this));
         this.app.get('/verifiers', this.verifierHandler.bind(this));
         this.app.post('/relay', this.relayHandler.bind(this));
+        this.app.post('/estimate', this.estimateHandler.bind(this));
         configureDocumentation(this.app, backend.config.url);
         this.backend.once('removed', this.stop.bind(this));
         this.backend.once('unstaked', this.close.bind(this));
@@ -218,10 +219,10 @@ export class HttpServer {
      *           examples:
      *             deploy:
      *               summary: "Deploy request example"
-     *               value: {"relayRequest":{"request":{"relayHub":"0x66Fa9FEAfB8Db66Fe2160ca7aEAc7FC24e254387","to":"0x0000000000000000000000000000000000000000","data":"0x","from":"0xCB8F8130E289946aec9a17b29819716B1E9e4998","value":"0","nonce":"5","tokenAmount":"0","tokenGas":"0x00","tokenContract":"0xF5859303f76596dD558B438b18d0Ce0e1660F3ea","recoverer":"0x0000000000000000000000000000000000000000","index":"6"},"relayData":{"gasPrice":"65164000","callVerifier":"0x5C6e96a84271AC19974C3e99d6c4bE4318BfE483","domainSeparator":"0xa81483953da7601ef828906dbab2e4baf21ddfd3d3c484fe7c43c55836c6c772","callForwarder":"0xeaB5b9fA91aeFFaA9c33F9b33d12AB7088fa7f6f","relayWorker":"0x74105590d404df3f384a099c2e55135281ca6b40"}},"metadata":{"relayHubAddress":"0x66Fa9FEAfB8Db66Fe2160ca7aEAc7FC24e254387","signature":"0x1285a1fa3217b0b8ca9b23ee2404324c965af9bb3908199ffc8bc7a47f59cef9160a142da5269fa5b7bfa8a688c1a507bedeba0650f1d617b93c8ece598aba651c","relayMaxNonce":30}}
+     *               value: {"relayRequest":{"request":{"relayHub":"0x66Fa9FEAfB8Db66Fe2160ca7aEAc7FC24e254387","to":"0x0000000000000000000000000000000000000000","data":"0x","from":"0xCB8F8130E289946aec9a17b29819716B1E9e4998","value":"0","nonce":"5","tokenAmount":"0","tokenGas":"0x00","tokenContract":"0xF5859303f76596dD558B438b18d0Ce0e1660F3ea","recoverer":"0x0000000000000000000000000000000000000000","index":"6"},"relayData":{"gasPrice":"65164000","callVerifier":"0x5C6e96a84271AC19974C3e99d6c4bE4318BfE483","callForwarder":"0xeaB5b9fA91aeFFaA9c33F9b33d12AB7088fa7f6f","feesReceiver":"0x74105590d404df3f384a099c2e55135281ca6b40"}},"metadata":{"relayHubAddress":"0x66Fa9FEAfB8Db66Fe2160ca7aEAc7FC24e254387","signature":"0x1285a1fa3217b0b8ca9b23ee2404324c965af9bb3908199ffc8bc7a47f59cef9160a142da5269fa5b7bfa8a688c1a507bedeba0650f1d617b93c8ece598aba651c","relayMaxNonce":30}}
      *             forward:
      *               summary: "Forward request example"
-     *               value: {"relayRequest":{"request":{"relayHub":"0x66Fa9FEAfB8Db66Fe2160ca7aEAc7FC24e254387","to":"0xF5859303f76596dD558B438b18d0Ce0e1660F3ea","data":"0xa9059cbb000000000000000000000000cb8f8130e289946aec9a17b29819716b1e9e49980000000000000000000000000000000000000000000000000429d069189e0000","from":"0xCB8F8130E289946aec9a17b29819716B1E9e4998","value":"0","nonce":"1","gas":"16559","tokenAmount":"100000000000000000","tokenGas":"16559","tokenContract":"0xF5859303f76596dD558B438b18d0Ce0e1660F3ea"},"relayData":{"gasPrice":"65164000","callVerifier":"0x56ccdB6D312307Db7A4847c3Ea8Ce2449e9B79e9","domainSeparator":"0x6c2c692f3161d8587aaceabe51a7569e16f267d57e928ee6947559582f9be4ea","callForwarder":"0xc3D55e5244b4aB3cFbF5BD41ad1A6C5bfF2381AD","relayWorker":"0x74105590d404df3f384a099c2e55135281ca6b40"}},"metadata":{"relayHubAddress":"0x66Fa9FEAfB8Db66Fe2160ca7aEAc7FC24e254387","signature":"0x40c462a5a5ad1b87f0ff1a685b5f0884c712c9fb211763601efcf723c005122637e18d4483edd1164f759c38a3b0a39803898caa2a88a144038556ad34949d171b","relayMaxNonce":31}}
+     *               value: {"relayRequest":{"request":{"relayHub":"0x66Fa9FEAfB8Db66Fe2160ca7aEAc7FC24e254387","to":"0xF5859303f76596dD558B438b18d0Ce0e1660F3ea","data":"0xa9059cbb000000000000000000000000cb8f8130e289946aec9a17b29819716b1e9e49980000000000000000000000000000000000000000000000000429d069189e0000","from":"0xCB8F8130E289946aec9a17b29819716B1E9e4998","value":"0","nonce":"1","gas":"16559","tokenAmount":"100000000000000000","tokenGas":"16559","tokenContract":"0xF5859303f76596dD558B438b18d0Ce0e1660F3ea"},"relayData":{"gasPrice":"65164000","callVerifier":"0x56ccdB6D312307Db7A4847c3Ea8Ce2449e9B79e9","callForwarder":"0xc3D55e5244b4aB3cFbF5BD41ad1A6C5bfF2381AD","feesReceiver":"0x74105590d404df3f384a099c2e55135281ca6b40"}},"metadata":{"relayHubAddress":"0x66Fa9FEAfB8Db66Fe2160ca7aEAc7FC24e254387","signature":"0x40c462a5a5ad1b87f0ff1a685b5f0884c712c9fb211763601efcf723c005122637e18d4483edd1164f759c38a3b0a39803898caa2a88a144038556ad34949d171b","relayMaxNonce":31}}
      *     responses:
      *       '200':
      *         description: "An hash of the signed transaction."
@@ -244,6 +245,71 @@ export class HttpServer {
             const { signedTx, transactionHash } =
                 await this.backend.createRelayTransaction(req.body);
             res.send({ signedTx, transactionHash });
+        } catch (e) {
+            if (e instanceof Error) {
+                res.send({ error: e.message });
+                log.info('tx failed:', e);
+            } else {
+                log.error(e);
+            }
+        }
+    }
+
+    /**
+     * @openapi
+     * /estimate:
+     *   post:
+     *     summary: It estimate the mas possible gas in relay transaction.
+     *     description: It receives transactions to be estimated (deploy or forward requests) and after performing all the checks, it estimates the gas consumption.
+     *     requestBody:
+     *       description: Deploy transaction or forward transaction.
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             oneOf:
+     *               - $ref: '#/components/schemas/DeployTransactionRequest'
+     *               - $ref: '#/components/schemas/RelayTransactionRequest'
+     *           examples:
+     *             deploy:
+     *               summary: "Deploy request example"
+     *               value: {"relayRequest":{"request":{"relayHub":"0x66Fa9FEAfB8Db66Fe2160ca7aEAc7FC24e254387","to":"0x0000000000000000000000000000000000000000","data":"0x","from":"0xCB8F8130E289946aec9a17b29819716B1E9e4998","value":"0","nonce":"5","tokenAmount":"0","tokenGas":"0x00","tokenContract":"0xF5859303f76596dD558B438b18d0Ce0e1660F3ea","recoverer":"0x0000000000000000000000000000000000000000","index":"6"},"relayData":{"gasPrice":"65164000","callVerifier":"0x5C6e96a84271AC19974C3e99d6c4bE4318BfE483","callForwarder":"0xeaB5b9fA91aeFFaA9c33F9b33d12AB7088fa7f6f","feesReceiver":"0x74105590d404df3f384a099c2e55135281ca6b40"}},"metadata":{"relayHubAddress":"0x66Fa9FEAfB8Db66Fe2160ca7aEAc7FC24e254387","signature":"0x1285a1fa3217b0b8ca9b23ee2404324c965af9bb3908199ffc8bc7a47f59cef9160a142da5269fa5b7bfa8a688c1a507bedeba0650f1d617b93c8ece598aba651c","relayMaxNonce":30}}
+     *             forward:
+     *               summary: "Forward request example"
+     *               value: {"relayRequest":{"request":{"relayHub":"0x66Fa9FEAfB8Db66Fe2160ca7aEAc7FC24e254387","to":"0xF5859303f76596dD558B438b18d0Ce0e1660F3ea","data":"0xa9059cbb000000000000000000000000cb8f8130e289946aec9a17b29819716b1e9e49980000000000000000000000000000000000000000000000000429d069189e0000","from":"0xCB8F8130E289946aec9a17b29819716B1E9e4998","value":"0","nonce":"1","gas":"16559","tokenAmount":"100000000000000000","tokenGas":"16559","tokenContract":"0xF5859303f76596dD558B438b18d0Ce0e1660F3ea"},"relayData":{"gasPrice":"65164000","callVerifier":"0x56ccdB6D312307Db7A4847c3Ea8Ce2449e9B79e9","callForwarder":"0xc3D55e5244b4aB3cFbF5BD41ad1A6C5bfF2381AD","feesReceiver":"0x74105590d404df3f384a099c2e55135281ca6b40"}},"metadata":{"relayHubAddress":"0x66Fa9FEAfB8Db66Fe2160ca7aEAc7FC24e254387","signature":"0x40c462a5a5ad1b87f0ff1a685b5f0884c712c9fb211763601efcf723c005122637e18d4483edd1164f759c38a3b0a39803898caa2a88a144038556ad34949d171b","relayMaxNonce":31}}
+     *     responses:
+     *       '200':
+     *         description: "Object with data about the estimation and the requiredTokenAmount"
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 gasPrice:
+     *                   type: string
+     *                 estimation:
+     *                   type: string
+     *                 requiredTokenAmount:
+     *                   type: string
+     *                 requiredNativeAmount:
+     *                   type: string
+     *                 exchangeRate:
+     *                   type: string
+     *               example:
+     *                  {
+     *                    gasPrice: 60000000,
+     *                    estimation: 193889,
+     *                    requiredTokenAmount: 3500381604736193689,
+     *                    exchangeRate: 0.00000332344907316948,
+     *                    requiredNativeToken: 11633340000000
+     *                  }
+     */
+    async estimateHandler(req: Request, res: Response): Promise<void> {
+        try {
+            const estimation = await this.backend.estimateMaxPossibleGas(
+                req.body
+            );
+            res.send(estimation);
         } catch (e) {
             if (e instanceof Error) {
                 res.send({ error: e.message });

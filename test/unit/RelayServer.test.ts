@@ -4,13 +4,28 @@ import {
     RelayMetadata,
     RelayTransactionRequest
 } from '@rsksmart/rif-relay-common';
-import { ForwardRequest, RelayData } from '@rsksmart/rif-relay-contracts';
-import { IRelayHubInstance } from '@rsksmart/rif-relay-contracts/types/truffle-contracts';
+import {
+    DeployRequest,
+    ForwardRequest,
+    RelayData,
+    RelayRequest
+} from '@rsksmart/rif-relay-contracts';
+import {
+    ERC20Instance,
+    IRelayHubInstance
+} from '@rsksmart/rif-relay-contracts/types/truffle-contracts';
 import BigNumber from 'bignumber.js';
 import BN from 'bn.js';
 import { expect, use } from 'chai';
 import chaiAsPromised from 'chai-as-promised';
-import Sinon, { createStubInstance, SinonStubbedInstance, stub } from 'sinon';
+import {
+    createStubInstance,
+    SinonStubbedInstance,
+    stub,
+    restore,
+    replace,
+    fake
+} from 'sinon';
 import sinonChai from 'sinon-chai';
 import { stubInterface } from 'ts-sinon';
 import { toBN } from 'web3-utils';
@@ -22,22 +37,20 @@ import {
     TxStoreManager
 } from '../../src';
 import * as conversions from '../../src/Conversions';
-import { INSUFFICIENT_TOKEN_AMOUNT } from '../../src/definitions/errorMessages.const';
+import * as gasEstimator from '../../src/GasEstimator';
+import {
+    GAS_LIMIT_EXCEEDED,
+    INSUFFICIENT_TOKEN_AMOUNT
+} from '../../src/definitions/errorMessages.const';
 import ExchangeToken from '../../src/definitions/token.type';
 
 use(sinonChai);
 use(chaiAsPromised);
 
 describe('RelayServer', () => {
-    const token: ExchangeToken = {
-        contractAddress: 'address',
-        name: 'tRif',
-        symbol: 'RIF',
-        decimals: 18
-    };
     let fakeManagerKeyManager: SinonStubbedInstance<KeyManager> & KeyManager;
     let fakeWorkersKeyManager: SinonStubbedInstance<KeyManager> & KeyManager;
-    let fakeContractInteractor: SinonStubbedInstance<ContractInteractor> &
+    let contractInteractor: SinonStubbedInstance<ContractInteractor> &
         ContractInteractor;
     let fakeTxStoreManager: SinonStubbedInstance<TxStoreManager> &
         TxStoreManager;
@@ -53,10 +66,8 @@ describe('RelayServer', () => {
             getAddress: stub()
         });
         fakeWorkersKeyManager.getAddress.returns('fake_address');
-        fakeContractInteractor = createStubInstance(ContractInteractor, {
-            getERC20Token: Promise.resolve(token)
-        });
-        fakeContractInteractor.relayHubInstance = {
+        contractInteractor = createStubInstance(ContractInteractor);
+        contractInteractor.relayHubInstance = {
             address: 'relayHubAddress'
         } as IRelayHubInstance;
 
@@ -65,13 +76,13 @@ describe('RelayServer', () => {
         mockDependencies = {
             managerKeyManager: fakeManagerKeyManager,
             workersKeyManager: fakeWorkersKeyManager,
-            contractInteractor: fakeContractInteractor,
+            contractInteractor: contractInteractor,
             txStoreManager: fakeTxStoreManager
         };
     });
 
     afterEach(() => {
-        Sinon.restore();
+        restore();
     });
 
     describe('constructor', () => {
@@ -117,6 +128,12 @@ describe('RelayServer', () => {
     });
 
     describe('getMaxPossibleGas', async () => {
+        const token: ExchangeToken = {
+            instance: {} as ERC20Instance,
+            name: 'tRif',
+            symbol: 'RIF',
+            decimals: 18
+        };
         const fakeRelayTransactionRequest: RelayTransactionRequest = {
             relayRequest: {
                 relayData: {
@@ -139,13 +156,14 @@ describe('RelayServer', () => {
         const xRateRifRbtc = BigNumber('0.00000332344907316948');
 
         beforeEach(() => {
-            Sinon.stub(RelayPricer.prototype, 'getExchangeRate').returns(
+            stub(RelayPricer.prototype, 'getExchangeRate').returns(
                 Promise.resolve(xRateRifRbtc)
             );
+            contractInteractor.getERC20Token.returns(Promise.resolve(token));
         });
 
         const fakeMaxGasEstimation = (price?: number) =>
-            fakeContractInteractor.estimateRelayTransactionMaxPossibleGasWithTransactionRequest.returns(
+            contractInteractor.estimateRelayTransactionMaxPossibleGasWithTransactionRequest.returns(
                 Promise.resolve(price ?? MAX_POSSIBLE_GAS.toNumber())
             ); // 3e7 gas is ethereum total block size gas limit)
 
@@ -158,10 +176,10 @@ describe('RelayServer', () => {
                 xRate
             };
             fakeMaxGasEstimation();
-            const fakeToNativeWeiFrom = Sinon.fake.returns(
+            const fakeToNativeWeiFrom = fake.returns(
                 Promise.resolve(new BigNumber(tokenAmount.multipliedBy(xRate)))
             );
-            Sinon.replace(conversions, 'toNativeWeiFrom', fakeToNativeWeiFrom);
+            replace(conversions, 'toNativeWeiFrom', fakeToNativeWeiFrom);
 
             const server = new RelayServer(
                 {
@@ -300,6 +318,7 @@ describe('RelayServer', () => {
     describe('validateInput', () => {
         const fakeRelayHubAddress = 'fake_relay_hub_address';
         const fakeFeesReceiverAddress = 'fakeFeesReceiver';
+        const timestamp = new Date().getTime() / 1000;
         const fakeRelayTransactionRequest: RelayTransactionRequest = {
             relayRequest: {
                 relayData: {
@@ -307,7 +326,8 @@ describe('RelayServer', () => {
                 } as RelayData,
                 request: {
                     to: 'fake_address',
-                    data: 'fake_data'
+                    data: 'fake_data',
+                    validUntilTime: timestamp.toString()
                 } as ForwardRequest
             },
             metadata: {
@@ -330,6 +350,337 @@ describe('RelayServer', () => {
                 server.validateInput(fakeRelayTransactionRequest)
             ).to.throw(
                 `Wrong fees receiver address: ${fakeFeesReceiverAddress}\n`
+            );
+        });
+
+        it('should throw error if request is expired', () => {
+            const server = new RelayServer(
+                {
+                    requestMinValidSeconds: 0
+                },
+                mockDependencies
+            );
+            server.relayHubContract = {
+                address: fakeRelayHubAddress
+            } as IRelayHubInstance;
+
+            expect(() =>
+                server.validateInput(fakeRelayTransactionRequest)
+            ).to.throw(
+                `Wrong fees receiver address: ${fakeFeesReceiverAddress}\n`
+            );
+        });
+    });
+
+    describe('estimateRelayTransaction', function () {
+        const gasPrice = new BigNumber('60000000');
+        const xRateRifRbtc = new BigNumber('0.00000332344907316948');
+        const standardRelayEstimation = new BigNumber(99466);
+        const relayTransactionRequest: RelayTransactionRequest = {
+            relayRequest: {
+                relayData: {
+                    gasPrice: gasPrice.toString()
+                } as RelayData,
+                request: {} as ForwardRequest
+            },
+            metadata: {
+                signature: '0x1'
+            } as RelayMetadata
+        };
+
+        let server: RelayServer;
+        beforeEach(function () {
+            replace(
+                gasEstimator,
+                'estimateRelayMaxPossibleGas',
+                fake.returns(Promise.resolve(standardRelayEstimation))
+            );
+            replace(
+                conversions,
+                'getXRateFor',
+                fake.returns(Promise.resolve(xRateRifRbtc))
+            );
+        });
+
+        it('should estimate transaction with fee', async function () {
+            const token: ExchangeToken = {
+                instance: {} as ERC20Instance,
+                name: 'tRif',
+                symbol: 'RIF',
+                decimals: 18
+            };
+            const percentage = new BigNumber('0.1');
+            server = new RelayServer(
+                {
+                    disableSponsoredTx: true,
+                    feePercentage: percentage.toString()
+                },
+                mockDependencies
+            );
+            const { requiredTokenAmount } = await server.estimateMaxPossibleGas(
+                relayTransactionRequest
+            );
+            const expectedRequiredTokenAmount = conversions
+                .convertGasToToken(
+                    standardRelayEstimation.plus(
+                        percentage
+                            .multipliedBy(standardRelayEstimation)
+                            .toFixed(0)
+                    ),
+                    { ...token, xRate: xRateRifRbtc },
+                    gasPrice
+                )
+                .toFixed(0);
+
+            expect(
+                expectedRequiredTokenAmount == requiredTokenAmount,
+                `${expectedRequiredTokenAmount.toString()} should equal ${requiredTokenAmount}`
+            ).to.be.true;
+        });
+
+        it('should estimate transaction without fee', async function () {
+            const token: ExchangeToken = {
+                instance: {} as ERC20Instance,
+                name: 'tRif',
+                symbol: 'RIF',
+                decimals: 18
+            };
+            server = new RelayServer({}, mockDependencies);
+            const { requiredTokenAmount } = await server.estimateMaxPossibleGas(
+                relayTransactionRequest
+            );
+            const expectedRequiredTokenAmount = conversions
+                .convertGasToToken(
+                    standardRelayEstimation,
+                    { ...token, xRate: xRateRifRbtc },
+                    gasPrice
+                )
+                .toFixed(0);
+
+            expect(
+                expectedRequiredTokenAmount == requiredTokenAmount,
+                `${expectedRequiredTokenAmount.toString()} should equal ${requiredTokenAmount}`
+            ).to.be.true;
+        });
+    });
+
+    describe('isSponsorshipAllowed', function () {
+        const relayRequest: RelayRequest = {
+            request: {
+                to: ''
+            }
+        } as RelayRequest;
+        const deployRequest: DeployRequest = {
+            request: {
+                to: ''
+            }
+        } as DeployRequest;
+
+        describe('disabledSponsoredTx(true)', function () {
+            let server: RelayServer;
+
+            describe('', function () {
+                beforeEach(function () {
+                    server = new RelayServer(
+                        {
+                            disableSponsoredTx: true,
+                            sponsoredDestinations: ['0x1']
+                        },
+                        mockDependencies
+                    );
+                });
+
+                it('should not sponsor relay transactions if the destination contract address is not among the sponsored ones', function () {
+                    relayRequest.request.to = '0x2';
+                    expect(
+                        server.isSponsorshipAllowed(relayRequest),
+                        'Tx is sponsored'
+                    ).to.be.false;
+                });
+
+                it('should not sponsor deploy transactions if the destination contract address is not among the sponsored ones', function () {
+                    deployRequest.request.to = '0x2';
+                    expect(
+                        server.isSponsorshipAllowed(deployRequest),
+                        'Tx is sponsored'
+                    ).to.be.false;
+                });
+
+                it('should sponsor relay transactions if the destination contract address is among the sponsored ones', function () {
+                    relayRequest.request.to = '0x1';
+                    expect(
+                        server.isSponsorshipAllowed(relayRequest),
+                        'Tx is not sponsored'
+                    ).to.be.true;
+                });
+
+                it('should sponsor deploy transactions if the destination contract address is among the sponsored ones', function () {
+                    deployRequest.request.to = '0x1';
+                    expect(
+                        server.isSponsorshipAllowed(deployRequest),
+                        'Tx is not sponsored'
+                    ).to.be.true;
+                });
+            });
+
+            it('should not sponsor transactions if sponsoredDestinations its undefined', function () {
+                deployRequest.request.to = '0x1';
+                server = new RelayServer(
+                    {
+                        disableSponsoredTx: true
+                    },
+                    mockDependencies
+                );
+                expect(
+                    server.isSponsorshipAllowed(deployRequest),
+                    'Tx is sponsored'
+                ).to.be.false;
+            });
+
+            it('should not sponsor transactions if sponsoredDestinations its empty', function () {
+                deployRequest.request.to = '0x1';
+                server = new RelayServer(
+                    {
+                        disableSponsoredTx: true,
+                        sponsoredDestinations: []
+                    },
+                    mockDependencies
+                );
+                expect(
+                    server.isSponsorshipAllowed(deployRequest),
+                    'Tx is sponsored'
+                ).to.be.false;
+            });
+
+            it('should sponsor transactions if the destination contract address is among the sponsored ones(multiple addresses)', function () {
+                relayRequest.request.to = '0x1';
+                deployRequest.request.to = '0x2';
+                server = new RelayServer(
+                    {
+                        disableSponsoredTx: true,
+                        sponsoredDestinations: ['0x1', '0x2']
+                    },
+                    mockDependencies
+                );
+                expect(
+                    server.isSponsorshipAllowed(deployRequest),
+                    'Tx is not sponsored'
+                ).to.be.true;
+                expect(
+                    server.isSponsorshipAllowed(relayRequest),
+                    'Tx is not sponsored'
+                ).to.be.true;
+            });
+        });
+
+        describe('disabledSponsoredTx(false)', function () {
+            let server: RelayServer;
+
+            beforeEach(function () {
+                server = new RelayServer(
+                    { disableSponsoredTx: false },
+                    mockDependencies
+                );
+            });
+
+            it('should sponsor relay transaction', function () {
+                relayRequest.request.to = '0x1';
+                expect(
+                    server.isSponsorshipAllowed(relayRequest),
+                    'Tx is not sponsored'
+                ).to.be.true;
+            });
+
+            it('should sponsor deploy transaction', function () {
+                deployRequest.request.to = '0x1';
+                expect(
+                    server.isSponsorshipAllowed(deployRequest),
+                    'Tx is not sponsored'
+                ).to.be.true;
+            });
+        });
+    });
+
+    describe('findMaxPossibleGasWithViewCall', function () {
+        const maxPossibleGas = '115000';
+        let server: RelayServer;
+
+        const req: RelayTransactionRequest = {
+            relayRequest: {
+                relayData: {
+                    gasPrice: '60000000'
+                }
+            }
+        } as RelayTransactionRequest;
+
+        beforeEach(function () {
+            server = new RelayServer({}, mockDependencies);
+        });
+
+        it('should return an accepted max possible gas', async function () {
+            const methodStub = {
+                call: stub().returns(true)
+            };
+            const maxPossibleGasWithViewCall =
+                await server.findMaxPossibleGasWithViewCall(
+                    methodStub,
+                    req,
+                    maxPossibleGas
+                );
+            expect(maxPossibleGasWithViewCall.toString()).to.be.equal(
+                maxPossibleGas
+            );
+        });
+
+        it('should return an accepted max possible gas after applying factor', async function () {
+            const methodCallStub = stub();
+            methodCallStub.onCall(0).throws(Error('Not enough gas left'));
+            methodCallStub.onCall(1).returns(true);
+            const methodStub = {
+                call: methodCallStub
+            };
+            const maxPossibleGasWithViewCall =
+                await server.findMaxPossibleGasWithViewCall(
+                    methodStub,
+                    req,
+                    maxPossibleGas
+                );
+            const expectedGasLimit =
+                BigNumber(1.25).multipliedBy(maxPossibleGas);
+            expect(maxPossibleGasWithViewCall.toString()).to.be.equal(
+                expectedGasLimit.toString()
+            );
+        });
+
+        it('should fail if the gas limit is exceeded', async function () {
+            const error = Error('Not enough gas left');
+            const methodStub = {
+                call: stub().throws(error)
+            };
+            const maxPossibleGasWithViewCall =
+                server.findMaxPossibleGasWithViewCall(
+                    methodStub,
+                    req,
+                    maxPossibleGas
+                );
+            await expect(maxPossibleGasWithViewCall).to.be.rejectedWith(
+                GAS_LIMIT_EXCEEDED
+            );
+        });
+
+        it('should fail with a different error', async function () {
+            const error = Error('Fake error');
+            const methodStub = {
+                call: stub().throws(error)
+            };
+            const maxPossibleGasWithViewCall =
+                server.findMaxPossibleGasWithViewCall(
+                    methodStub,
+                    req,
+                    maxPossibleGas
+                );
+            await expect(maxPossibleGasWithViewCall).to.be.rejectedWith(
+                error.message
             );
         });
     });

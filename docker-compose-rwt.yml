@@ -1,0 +1,11 @@
+version: '3'
+
+services:
+    rif-relay:
+        build:
+            context: .
+        entrypoint: 'node dist/commands/Start.js --config server-config.rwt.json'
+        ports:
+            - '8090:8090'
+        volumes:
+            - './environment:/srv/app/environment'

@@ -56,6 +56,7 @@ export interface ServerConfigParams {
     maxGasPrice: string;
     defaultGasLimit: number;
     estimateGasFactor: number;
+    requestMinValidSeconds: number;
     /**
      * Forces relay users to pay for transaction gas
      * @option false - The smart wallet of the relay user will be charged for the transaction
@@ -72,6 +73,11 @@ export interface ServerConfigParams {
      * @note fractions exceeding the number of decimals of that of the native currency will be rounded up
      */
     feePercentage: string;
+
+    /**
+     * * List of destination contract addresses for which the transactions will be [sponsored](https://developers.rsk.co/rif/relay/architecture/#glossary)
+     */
+    sponsoredDestinations: Array<string>;
 }
 
 export interface ServerDependencies {
@@ -119,7 +125,9 @@ export const serverDefaultConfiguration: ServerConfigParams = {
     maxGasPrice: (100e9).toString(),
     estimateGasFactor: 1.2,
     disableSponsoredTx: false,
-    feePercentage: '0'
+    feePercentage: '0',
+    sponsoredDestinations: [],
+    requestMinValidSeconds: 43200 // roughly 12 hours, quarter of client's default of 172800 seconds (2 days)
 };
 
 const ConfigParamsTypes = {
@@ -154,7 +162,9 @@ const ConfigParamsTypes = {
     feesReceiver: 'string',
 
     disableSponsoredTx: 'boolean',
-    feePercentage: 'string'
+    feePercentage: 'string',
+    sponsoredDestinations: 'array',
+    requestMinValidSeconds: 'number'
 } as any;
 
 // by default: no waiting period - use VersionRegistry entries immediately.

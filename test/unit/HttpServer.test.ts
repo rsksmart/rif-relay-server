@@ -5,7 +5,7 @@ import {
     SinonStubbedInstance,
     SinonSpy
 } from 'sinon';
-import { use, assert } from 'chai';
+import { use, expect } from 'chai';
 import chaiAsPromised from 'chai-as-promised';
 import { Request, Response } from 'express';
 import {
@@ -14,8 +14,9 @@ import {
     ServerConfigParams,
     RootHandlerRequest,
     WhitelistedRelayMethod,
-    SignedTransactionDetails
-} from '../src';
+    SignedTransactionDetails,
+    RelayEstimation
+} from '../../src';
 import jsonrpc from 'jsonrpc-lite';
 
 use(chaiAsPromised);
@@ -44,7 +45,7 @@ describe('HttpServer', () => {
                 'getMinGasPrice',
                 []
             );
-            assert.equal(result, gasPrice);
+            expect(result).to.be.equal(gasPrice);
         });
 
         it('should fail if method does not exist', async () => {
@@ -52,10 +53,9 @@ describe('HttpServer', () => {
             const error = new Error(
                 `Implementation of method ${method} not available on backend!`
             );
-            await assert.isRejected(
-                httpServer.processRootHandler(method, []),
-                error.message
-            );
+            await expect(
+                httpServer.processRootHandler(method, [])
+            ).to.be.rejectedWith(error.message);
         });
     });
 
@@ -85,10 +85,10 @@ describe('HttpServer', () => {
                 fakeRequestExpress as Request,
                 fakeResponseExpress as Response
             );
-            assert.isTrue(
+            expect(
                 jsonrpcSpy.calledOnceWith(bodyRequest.id),
                 'Responded with different id'
-            );
+            ).to.be.true;
         });
 
         it('should fail if no id or method is provided in the request', async () => {
@@ -98,10 +98,10 @@ describe('HttpServer', () => {
                 fakeRequestExpress as Request,
                 fakeResponseExpress as Response
             );
-            assert.isTrue(
+            expect(
                 jsonrpcSpy.calledOnceWith(-1),
                 'Responded with id different from -1'
-            );
+            ).to.be.true;
         });
 
         it('should return a response with proper id and method result', async () => {
@@ -118,7 +118,8 @@ describe('HttpServer', () => {
                 fakeRequestExpress as Request,
                 fakeResponseExpress as Response
             );
-            assert.isTrue(jsonrpcSpy.calledOnceWith(bodyRequest.id, gasPrice));
+            expect(jsonrpcSpy.calledOnceWith(bodyRequest.id, gasPrice)).to.be
+                .true;
         });
 
         it('should return a response with proper id and code 200 if method returns null', async () => {
@@ -135,13 +136,12 @@ describe('HttpServer', () => {
                 fakeRequestExpress as Request,
                 fakeResponseExpress as Response
             );
-            assert.isTrue(
-                jsonrpcSpy.calledOnceWith(bodyRequest.id, { code: 200 })
-            );
+            expect(jsonrpcSpy.calledOnceWith(bodyRequest.id, { code: 200 })).to
+                .be.true;
         });
     });
 
-    describe('RelayHandler', () => {
+    describe('relayHandler', () => {
         const fakeResponseExpress: SinonStubbedInstance<
             Pick<Response, 'send'>
         > = {
@@ -168,9 +168,45 @@ describe('HttpServer', () => {
                 fakeResponseExpress as unknown as Response
             );
 
-            fakeResponseExpress.send.calledOnceWithExactly(
-                fakeResponseRelayTransaction
+            expect(
+                fakeResponseExpress.send.calledOnceWithExactly(
+                    fakeResponseRelayTransaction
+                )
+            ).to.be.true;
+        });
+    });
+
+    describe('estimateHandler', function () {
+        const responseRelayEstimation: RelayEstimation = {
+            estimation: '193889',
+            exchangeRate: '0.00000332344907316948',
+            gasPrice: '60000000',
+            requiredTokenAmount: '3500381604736193689',
+            requiredNativeAmount: '11633340000000'
+        };
+        const fakeResponseExpress: SinonStubbedInstance<
+            Pick<Response, 'send'>
+        > = {
+            send: stub()
+        };
+        const fakeRequestExpress: SinonStubbedInstance<Pick<Request, 'body'>> =
+            {
+                body: {}
+            };
+
+        it('should return response with RelayEstimation in body', async function () {
+            fakeRelayServer.estimateMaxPossibleGas = stub().returns(
+                responseRelayEstimation
             );
+            await httpServer.estimateHandler(
+                fakeRequestExpress as Request,
+                fakeResponseExpress as unknown as Response
+            );
+            expect(
+                fakeResponseExpress.send.calledOnceWithExactly(
+                    responseRelayEstimation
+                )
+            ).to.be.true;
         });
     });
 });
