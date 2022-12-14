@@ -4,7 +4,6 @@
     "relayHubAddress": "0xAd525463961399793f8716b0D85133ff7503a7C2",
     "relayVerifierAddress": "0xB86c972Ff212838C4c396199B27a0DBe45560df8",
     "deployVerifierAddress": "0xc67f193Bb1D64F13FD49E2da6586a2F417e56b16",
-    "feesReceiver": "0x52D107bB12d83EbCBFb4A6Ad0ec866Bb69FdB5Db",
     "gasPriceFactor": 1,
     "rskNodeUrl": "http://172.17.0.1:4444",
     "devMode": true,

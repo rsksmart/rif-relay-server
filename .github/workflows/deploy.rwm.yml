@@ -1,16 +1,16 @@
 ---
-name: CD for RIF-Wallet-Testnet
+name: CD for RIF-Wallet-Mainnet
 
 on:
     push:
         tags:
-            - '**beta-rifwallet**'
+            - '**stable-rifwallet**'
 
 jobs:
-    deploy-rif-wallet-testnet:
+    deploy-rif-wallet-mainnet:
         runs-on: ubuntu-latest
         environment:
-            name: RIF-Wallet-Testnet
+            name: RIF-Wallet-Mainnet
 
         steps:
             - name: Checkout
@@ -21,14 +21,14 @@ jobs:
             - name: Configure AWS credentials
               uses: aws-actions/configure-aws-credentials@v1
               with:
-                  aws-access-key-id: ${{ secrets.RWT_AWS_ACCESS_KEY_ID }}
-                  aws-secret-access-key: ${{ secrets.RWT_AWS_SECRET_ACCESS_KEY }}
-                  aws-region: ${{ secrets.RWT_AWS_REGION }}
+                  aws-access-key-id: ${{ secrets.RWM_AWS_ACCESS_KEY_ID }}
+                  aws-secret-access-key: ${{ secrets.RWM_AWS_SECRET_ACCESS_KEY }}
+                  aws-region: ${{ secrets.RWM_AWS_REGION }}
 
-            - name: Deploy rif-relay-server on RWT
+            - name: Deploy rif-relay-server on RIF-Wallet Mainnet
               run: |
                   aws ssm send-command \
                       --document-name "AWS-RunRemoteScript" \
-                      --instance-ids ""${{ secrets.RWT_EC2_ID }}"" \
-                      --region=${{ secrets.RWT_AWS_REGION }} \
+                      --instance-ids ""${{ secrets.RWM_EC2_ID }}"" \
+                      --region=${{ secrets.RWM_AWS_REGION }} \
                       --parameters '{"sourceType":["GitHub"],"sourceInfo":["{\"owner\":\"rootstock\", \"repository\":\"ask-devops\", \"path\": \"rif-relay/\", \"tokenInfo\":\"{{ssm-secure:github-token}}\"}"],"commandLine":["deploy-rwt.sh"]}'
