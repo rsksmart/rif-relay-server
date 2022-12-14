@@ -1,0 +1,34 @@
+---
+name: CD for Testnet
+
+on:
+    push:
+        tags:
+            - '**beta-testnet**'
+
+jobs:
+    deploy-testnet:
+        runs-on: ubuntu-latest
+        environment:
+            name: Testnet
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v2
+              with:
+                  fetch-depth: 0
+
+            - name: Configure AWS credentials
+              uses: aws-actions/configure-aws-credentials@v1
+              with:
+                  aws-access-key-id: ${{ secrets.TESTNET_AWS_ACCESS_KEY_ID }}
+                  aws-secret-access-key: ${{ secrets.TESTNET_AWS_SECRET_ACCESS_KEY }}
+                  aws-region: ${{ secrets.TESTNET_AWS_REGION }}
+
+            - name: Deploy rif-relay-server on TESTNET
+              run: |
+                  aws ssm send-command \
+                      --document-name "AWS-RunRemoteScript" \
+                      --instance-ids ""${{ secrets.TESTNET_EC2_ID }}"" \
+                      --region=${{ secrets.TESTNET_AWS_REGION }} \
+                      --parameters '{"sourceType":["GitHub"],"sourceInfo":["{\"owner\":\"rootstock\", \"repository\":\"ask-devops\", \"path\": \"rif-relay/\", \"tokenInfo\":\"{{ssm-secure:github-token}}\"}"],"commandLine":["deploy-testnet.sh"]}'
