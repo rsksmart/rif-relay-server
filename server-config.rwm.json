@@ -1,0 +1,15 @@
+{
+    "url": "https://relay.rif-wallet-services.mainnet.rifcomputing.net",
+    "port": 8090,
+    "relayHubAddress": "0x438Ce7f1FEC910588Be0fa0fAcD27D82De1DE0bC",
+    "relayVerifierAddress": "0x5C9c7d96E6C59E55dA4dCf7F791AE58dAF8DBc86",
+    "deployVerifierAddress": "0x2FD633E358bc50Ccf6bf926D621E8612B55264C9",
+    "gasPriceFactor": 1,
+    "rskNodeUrl": "http://172.17.0.1:4444",
+    "devMode": true,
+    "customReplenish": false,
+    "feePercentage": "0",
+    "disableSponsoredTx": false,
+    "logLevel": 0,
+    "workdir": "/srv/app/environment"
+}

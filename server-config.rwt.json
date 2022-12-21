@@ -1,5 +1,5 @@
 {
-    "url": "https://backend.rif-wallet-testnet.relay.rifcomputing.net",
+    "url": "https://relay.rif-wallet-services.testnet.rifcomputing.net",
     "port": 8090,
     "relayHubAddress": "0xAd525463961399793f8716b0D85133ff7503a7C2",
     "relayVerifierAddress": "0xB86c972Ff212838C4c396199B27a0DBe45560df8",
