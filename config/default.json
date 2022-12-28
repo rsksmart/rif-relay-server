@@ -10,7 +10,7 @@
         "devMode": true,
         "customReplenish": false,
         "logLevel": 1,
-        "workdir": "/home/user/workspace/enveloping/environment"
+        "workdir": "/Users/borja/iovlabs/projects/temp/PP-278/rif-relay-server/environment"
     },
     "blockchain": {
         "gasPriceFactor": 1,

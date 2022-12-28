@@ -7,20 +7,9 @@ import {
   IDeployVerifier,
   IRelayVerifier,
   ERC20__factory,
+  RelayHub__factory,
 } from '@rsksmart/rif-relay-contracts';
-import type {
-  EnvelopingTypes,
-  TypedEvent,
-} from '@rsksmart/rif-relay-contracts';
-import {
-  ContractInteractor,
-  RelayTransactionRequest,
-  DeployTransactionRequest,
-  deployTransactionRequestShape,
-  relayTransactionRequestShape,
-  MAX_ESTIMATED_GAS_DEVIATION,
-  // VersionsManager
-} from '@rsksmart/rif-relay-common';
+import type { TypedEvent } from '@rsksmart/rif-relay-contracts';
 import { replenishStrategy } from './ReplenishFunction';
 import { RegistrationManager } from './RegistrationManager';
 import {
@@ -30,17 +19,12 @@ import {
 } from './TransactionManager';
 import { ServerAction } from './StoredTransaction';
 import type { TxStoreManager } from './TxStoreManager';
-import {
-  configureServer,
+import type {
   ServerDependencies,
   ServerConfigParams,
-  ContractsConfig,
-  AppConfig,
-  BlockchainConfig,
 } from './ServerConfigParams';
 import Timeout = NodeJS.Timeout;
 import EventEmitter from 'events';
-import config from 'config';
 import {
   utils,
   constants,
@@ -48,21 +32,39 @@ import {
   PopulatedTransaction,
   BigNumberish,
   BigNumber,
+  providers,
 } from 'ethers';
 import { BigNumber as BigNumberJs } from 'bignumber.js';
 import ow from 'ow';
-import { getLatestEventData, randomInRange, sleep } from './Utils';
+import {
+  deployTransactionRequestShape,
+  getLatestEventData,
+  getPastEventsForHub,
+  getProvider,
+  getServerConfig,
+  isContractDeployed,
+  randomInRange,
+  relayTransactionRequestShape,
+  sleep,
+} from './Utils';
 import { AmountRequired } from './AmountRequired';
 import { INSUFFICIENT_TOKEN_AMOUNT } from './definitions/errorMessages.const';
 import {
   convertGasToNative,
   convertGasToToken,
   getXRateFor,
-  parseToBigNumber,
   toNativeWeiFrom,
 } from './Conversions';
 import type ExchangeToken from './definitions/token.type';
-import { estimateRelayMaxPossibleGas } from './GasEstimator';
+import {
+  EnvelopingRequest,
+  EnvelopingTxRequest,
+  estimateRelayMaxPossibleGas,
+  isDeployTransaction,
+  RelayRequest,
+  standardMaxPossibleGasEstimation,
+} from '@rsksmart/rif-relay-client';
+import { MAX_ESTIMATED_GAS_DEVIATION } from './definitions/server.conts';
 
 const VERSION = '2.0.1';
 
@@ -92,7 +94,9 @@ const calculateFeeValue = (
   const bigMaxPossibleGas = BigNumberJs(maxPossibleGas.toString());
   const bigFeePercentage = BigNumberJs(feePercentage.toString());
 
-  return parseToBigNumber(bigMaxPossibleGas.multipliedBy(bigFeePercentage));
+  return BigNumber.from(
+    bigMaxPossibleGas.multipliedBy(bigFeePercentage).toFixed(0)
+  );
 };
 
 export type RelayEstimation = {
@@ -118,7 +122,7 @@ export class RelayServer extends EventEmitter {
 
   readonly feesReceiver: string;
 
-  gasPrice = BigNumber.from(0);
+  gasPrice = constants.Zero;
 
   _workerSemaphoreOn = false;
 
@@ -127,8 +131,6 @@ export class RelayServer extends EventEmitter {
   alertedBlock = 0;
 
   private _initialized = false;
-
-  readonly contractInteractor: ContractInteractor;
 
   // private readonly versionManager: VersionsManager;
 
@@ -154,16 +156,14 @@ export class RelayServer extends EventEmitter {
 
   private readonly customReplenish: boolean;
 
+  private readonly _provider: providers.Provider;
+
   constructor(dependencies: ServerDependencies) {
     super();
-    const contractsConfig: ContractsConfig = config.get('contracts');
-    const appConfig: AppConfig = config.get('app');
-    const blockchainConfig: BlockchainConfig = config.get('blockchain');
-    // this.versionManager = new VersionsManager(VERSION);
-    this.config = configureServer(contractsConfig, appConfig, blockchainConfig);
-    this.contractInteractor = dependencies.contractInteractor;
+    this._provider = getProvider();
+    this.config = getServerConfig();
     this.txStoreManager = dependencies.txStoreManager;
-    this.transactionManager = new TransactionManager(dependencies, this.config);
+    this.transactionManager = new TransactionManager(dependencies);
     this.managerAddress =
       this.transactionManager.managerKeyManager.getAddress(0) ?? '';
     this.workerAddress =
@@ -200,7 +200,7 @@ export class RelayServer extends EventEmitter {
     return {
       relayWorkerAddress: this.workerAddress,
       relayManagerAddress: this.managerAddress,
-      relayHubAddress: this.contractInteractor.relayHub.address,
+      relayHubAddress: this.config.contracts.relayHubAddress,
       minGasPrice: this.getMinGasPrice().toString(),
       chainId: this.chainId?.toString(),
       networkId: this.networkId?.toString(),
@@ -227,7 +227,7 @@ export class RelayServer extends EventEmitter {
     for (const verifier of verifiersToQuery) {
       const tokenHandlerInstance = TokenHandler__factory.connect(
         verifier,
-        this.contractInteractor.provider
+        this._provider
       );
       const acceptedTokens = await tokenHandlerInstance.getAcceptedTokens();
       res[utils.getAddress(verifier)] = acceptedTokens;
@@ -242,30 +242,30 @@ export class RelayServer extends EventEmitter {
     };
   }
 
-  isDeployRequest(
-    req: RelayTransactionRequest | DeployTransactionRequest
-  ): boolean {
-    return 'index' in req.relayRequest.request;
-  }
-
-  validateInputTypes(
-    req: RelayTransactionRequest | DeployTransactionRequest
-  ): void {
-    if (this.isDeployRequest(req)) {
-      ow(req, ow.object.exactShape(deployTransactionRequestShape));
+  validateInputTypes(envelopingTransaction: EnvelopingTxRequest): void {
+    if (isDeployTransaction(envelopingTransaction)) {
+      ow(
+        envelopingTransaction,
+        ow.object.exactShape(deployTransactionRequestShape)
+      );
     } else {
-      ow(req, ow.object.exactShape(relayTransactionRequestShape));
+      ow(
+        envelopingTransaction,
+        ow.object.exactShape(relayTransactionRequestShape)
+      );
     }
   }
 
-  validateInput(req: RelayTransactionRequest | DeployTransactionRequest): void {
+  validateInput(req: EnvelopingTxRequest): void {
     // Check that the relayHub is the correct one
     if (
-      req.metadata.relayHubAddress.toLowerCase() !==
-      this.contractInteractor.relayHub.address.toLowerCase()
+      req.metadata.relayHubAddress.toString().toLocaleLowerCase() !==
+      this.config.contracts.relayHubAddress.toLowerCase()
     ) {
       throw new Error(
-        `Wrong hub address.\nRelay server's hub address: ${this.contractInteractor.relayHub.address}, request's hub address: ${req.metadata.relayHubAddress}\n`
+        `Wrong hub address.\nRelay server's hub address: ${
+          this.config.contracts.relayHubAddress
+        }, request's hub address: ${req.metadata.relayHubAddress.toString()}\n`
       );
     }
 
@@ -284,19 +284,18 @@ export class RelayServer extends EventEmitter {
     }
   }
 
-  validateVerifier(
-    req: RelayTransactionRequest | DeployTransactionRequest
-  ): void {
-    const callVerifier = req.relayRequest.relayData.callVerifier as string;
+  validateVerifier(envelopingRequest: EnvelopingTxRequest): void {
+    const callVerifier =
+      envelopingRequest.relayRequest.relayData.callVerifier.toString();
     if (!this.isTrustedVerifier(callVerifier)) {
       throw new Error(`Invalid verifier: ${callVerifier}`);
     }
   }
 
-  async validateMaxNonce(relayMaxNonce: number): Promise<void> {
+  async validateMaxNonce(relayMaxNonce: string): Promise<void> {
     // Check that max nonce is valid
     const nonce = await this.transactionManager.pollNonce(this.workerAddress);
-    if (nonce > relayMaxNonce) {
+    if (nonce > Number(relayMaxNonce)) {
       throw new Error(
         `Unacceptable relayMaxNonce: ${relayMaxNonce}. current nonce: ${nonce}`
       );
@@ -304,27 +303,27 @@ export class RelayServer extends EventEmitter {
   }
 
   async validateRequestWithVerifier(
-    req: RelayTransactionRequest | DeployTransactionRequest
+    envelopingTransaction: EnvelopingTxRequest
   ): Promise<{ maxPossibleGas: BigNumber }> {
-    const verifier = req.relayRequest.relayData.callVerifier as string;
+    const verifier =
+      envelopingTransaction.relayRequest.relayData.callVerifier.toString();
 
     if (!this.isTrustedVerifier(verifier)) {
       throw new Error('Invalid verifier');
     }
 
     let verifierContract: IRelayVerifier | IDeployVerifier;
-    const isDeployRequest: boolean = this.isDeployRequest(req);
 
     try {
-      if (isDeployRequest) {
+      if (isDeployTransaction(envelopingTransaction)) {
         verifierContract = IDeployVerifier__factory.connect(
           verifier,
-          this.contractInteractor.provider
+          this._provider
         );
       } else {
         verifierContract = IRelayVerifier__factory.connect(
           verifier,
-          this.contractInteractor.provider
+          this._provider
         );
       }
     } catch (e) {
@@ -342,27 +341,27 @@ export class RelayServer extends EventEmitter {
       throw new Error(message);
     }
 
-    const maxPossibleGas = await this.getMaxPossibleGas(req, isDeployRequest);
+    const maxPossibleGas = await this.getMaxPossibleGas(envelopingTransaction);
 
     try {
       let verifyMethod: PopulatedTransaction;
-      if (this.isDeployRequest(req)) {
+      if (isDeployTransaction(envelopingTransaction)) {
         verifyMethod = await (
-          verifierContract as IRelayVerifier
+          verifierContract as IDeployVerifier
         ).populateTransaction.verifyRelayedCall(
-          (req as RelayTransactionRequest).relayRequest,
-          req.metadata.signature,
+          envelopingTransaction.relayRequest,
+          envelopingTransaction.metadata.signature,
           { from: this.workerAddress }
         );
       } else {
         verifyMethod = await (
-          verifierContract as IDeployVerifier
+          verifierContract as IRelayVerifier
         ).populateTransaction.verifyRelayedCall(
-          (req as DeployTransactionRequest).relayRequest,
-          req.metadata.signature
+          envelopingTransaction.relayRequest as RelayRequest,
+          envelopingTransaction.metadata.signature
         );
       }
-      await this.contractInteractor.provider.call(verifyMethod, 'pending');
+      await this._provider.call(verifyMethod, 'pending');
     } catch (e) {
       const error = e as Error;
       throw new Error(`Verification by verifier failed: ${error.message}`);
@@ -372,28 +371,14 @@ export class RelayServer extends EventEmitter {
   }
 
   async getMaxPossibleGas(
-    req: RelayTransactionRequest | DeployTransactionRequest,
-    isDeployRequest: boolean
+    envelopingTransaction: EnvelopingTxRequest
   ): Promise<BigNumber> {
-    let maxPossibleGas: BigNumber;
+    log.debug(
+      'RequestFees - request data:',
+      JSON.stringify(envelopingTransaction, undefined, 4)
+    );
 
-    log.debug('RequestFees - request data:', JSON.stringify(req, undefined, 4));
-
-    if (isDeployRequest) {
-      const deployReq = req as DeployTransactionRequest;
-      // Actual Maximum gas needed to send to the deploy request tx
-      maxPossibleGas =
-        await this.contractInteractor.walletFactoryEstimateGasOfDeployCall(
-          deployReq,
-          this.workerAddress
-        );
-
-      // TODO: For RIF team
-      // Here the server has the last chance to compare the maxPossibleGas the deploy transaction needs with
-      // the aggreement signed between the client and the relayer. Take this into account during the Arbiter integration.
-    } else {
-      const relayReq = req as RelayTransactionRequest;
-
+    if (!isDeployTransaction(envelopingTransaction)) {
       // TODO: For RIF Team
       // The maxPossibleGas must be compared against the commitment signed with the user.
       // The relayServer must not allow a call that requires more gas than it was agreed with the user
@@ -404,12 +389,14 @@ export class RelayServer extends EventEmitter {
       // If the Relayer agreeed with the Client a certain percentage of deviation from the original maxGas, then it must honor that agreement
       // and not the current hardcoded deviation
 
+      const relayRequest = envelopingTransaction.relayRequest as RelayRequest;
+
       const estimatedDesinationGasCost: BigNumber =
-        await this.contractInteractor.estimateDestinationContractCallGas({
-          from: relayReq.relayRequest.relayData.callForwarder as string,
-          to: relayReq.relayRequest.request.to as string,
-          gasPrice: relayReq.relayRequest.relayData.gasPrice.toString(),
-          data: relayReq.relayRequest.request.data.toString(),
+        await this._provider.estimateGas({
+          from: relayRequest.relayData.callForwarder as string,
+          to: relayRequest.request.to as string,
+          gasPrice: relayRequest.relayData.gasPrice,
+          data: relayRequest.request.data,
         });
 
       const bigMaxEstimatedGasDeviation = BigNumberJs(
@@ -417,7 +404,7 @@ export class RelayServer extends EventEmitter {
       );
       const bigOne = BigNumberJs('1');
       const bigGasFromRequest = BigNumberJs(
-        relayReq.relayRequest.request.gas.toString()
+        relayRequest.request.gas.toString()
       );
       const bigGasFromRequestMaxAgreed = bigMaxEstimatedGasDeviation
         .plus(bigOne)
@@ -430,16 +417,21 @@ export class RelayServer extends EventEmitter {
           "Request payload's gas parameters deviate too much fom the estimated gas for this transaction"
         );
       }
-
-      // Actual maximum gas needed to  send the relay transaction
-      maxPossibleGas =
-        await this.contractInteractor.estimateRelayTransactionMaxPossibleGasWithTransactionRequest(
-          relayReq,
-          this.workerAddress
-        );
     }
 
-    if (!this.isSponsorshipAllowed(req.relayRequest)) {
+    // TODO: For RIF team
+    // Here the server has the last chance to compare the maxPossibleGas the deploy transaction needs with
+    // the aggreement signed between the client and the relayer. Take this into account during the Arbiter integration
+
+    const { tokenGas } = envelopingTransaction.relayRequest.request;
+    // Actual maximum gas needed to  send the relay transaction
+    let maxPossibleGas = await standardMaxPossibleGasEstimation(
+      envelopingTransaction,
+      this.workerAddress,
+      tokenGas.toString()
+    );
+
+    if (!this.isSponsorshipAllowed(envelopingTransaction.relayRequest)) {
       const { feePercentage } = this.config.app;
 
       log.debug(`RelayServer - feePercentage: ${feePercentage}`);
@@ -451,16 +443,19 @@ export class RelayServer extends EventEmitter {
 
       const bigFee = BigNumberJs(feeValue.toString());
 
-      maxPossibleGas = parseToBigNumber(bigFee.plus(maxPossibleGas.toString()));
+      maxPossibleGas = BigNumber.from(
+        bigFee.plus(maxPossibleGas.toString()).toFixed(0)
+      );
 
-      const tokenAmount = req.relayRequest.request.tokenAmount.toString();
+      const tokenAmount =
+        envelopingTransaction.relayRequest.request.tokenAmount.toString();
       const gasPrice = BigNumberJs(
-        req.relayRequest.relayData.gasPrice.toString()
+        envelopingTransaction.relayRequest.relayData.gasPrice.toString()
       );
 
       const tokenInstance = ERC20__factory.connect(
-        req.relayRequest.request.tokenContract as string,
-        this.contractInteractor.provider
+        envelopingTransaction.relayRequest.request.tokenContract.toString(),
+        this._provider
       );
 
       const token: ExchangeToken = {
@@ -510,11 +505,7 @@ export class RelayServer extends EventEmitter {
     return maxPossibleGas;
   }
 
-  isSponsorshipAllowed(
-    req:
-      | EnvelopingTypes.RelayRequestStruct
-      | EnvelopingTypes.DeployRequestStruct
-  ): boolean {
+  isSponsorshipAllowed(req: EnvelopingRequest): boolean {
     const { disableSponsoredTx, sponsoredDestinations } = this.config.app;
 
     return (
@@ -525,17 +516,17 @@ export class RelayServer extends EventEmitter {
 
   async validateViewCallSucceeds(
     transaction: PopulatedTransaction,
-    req: RelayTransactionRequest | DeployTransactionRequest,
+    envelopingRequest: EnvelopingTxRequest,
     maxPossibleGas: BigNumber
   ): Promise<void> {
     log.debug('Relay Server - Request sent to the worker');
-    log.debug('Relay Server - req: ', req);
+    log.debug('Relay Server - req: ', envelopingRequest);
     try {
-      await this.contractInteractor.provider.call(
+      await this._provider.call(
         {
           ...transaction,
           from: this.workerAddress,
-          gasPrice: req.relayRequest.relayData.gasPrice,
+          gasPrice: envelopingRequest.relayRequest.relayData.gasPrice,
           gasLimit: maxPossibleGas.toString(),
         },
         'pending'
@@ -548,19 +539,18 @@ export class RelayServer extends EventEmitter {
   }
 
   async estimateMaxPossibleGas(
-    req: RelayTransactionRequest | DeployTransactionRequest
+    envelopingRequest: EnvelopingTxRequest
   ): Promise<RelayEstimation> {
     const {
       relayData: { gasPrice },
-    } = req.relayRequest;
+    } = envelopingRequest.relayRequest;
 
     let estimation = await estimateRelayMaxPossibleGas(
-      this.contractInteractor.provider,
-      req,
+      envelopingRequest,
       this.workerAddress
     );
 
-    if (!this.isSponsorshipAllowed(req.relayRequest)) {
+    if (!this.isSponsorshipAllowed(envelopingRequest.relayRequest)) {
       const { feePercentage } = this.config.app;
 
       log.debug(`RelayServer - feePercentage: ${feePercentage}`);
@@ -572,12 +562,14 @@ export class RelayServer extends EventEmitter {
 
       const bigFee = BigNumberJs(feeValue.toString());
 
-      estimation = parseToBigNumber(bigFee.plus(estimation.toString()));
+      estimation = BigNumber.from(
+        bigFee.plus(estimation.toString()).toFixed(0)
+      );
     }
 
     const tokenInstance = ERC20__factory.connect(
-      req.relayRequest.request.tokenContract as string,
-      this.contractInteractor.provider
+      envelopingRequest.relayRequest.request.tokenContract.toString(),
+      this._provider
     );
 
     const token: ExchangeToken = {
@@ -610,13 +602,13 @@ export class RelayServer extends EventEmitter {
   }
 
   async createRelayTransaction(
-    req: RelayTransactionRequest | DeployTransactionRequest
+    envelopingTransaction: EnvelopingTxRequest
   ): Promise<SignedTransactionDetails> {
-    log.debug(`dump request params: ${JSON.stringify(req)}`);
+    log.debug(`dump request params: ${JSON.stringify(envelopingTransaction)}`);
     if (!this.isReady()) {
       throw new Error('relay not ready');
     }
-    this.validateInputTypes(req);
+    this.validateInputTypes(envelopingTransaction);
 
     if (this.alerted) {
       log.error('Alerted state: slowing down traffic');
@@ -627,37 +619,49 @@ export class RelayServer extends EventEmitter {
         )
       );
     }
-    this.validateInput(req);
-    await this.validateMaxNonce(req.metadata.relayMaxNonce);
+    this.validateInput(envelopingTransaction);
+    await this.validateMaxNonce(
+      envelopingTransaction.metadata.relayMaxNonce.toString()
+    );
 
-    const { maxPossibleGas } = await this.validateRequestWithVerifier(req);
+    const { maxPossibleGas } = await this.validateRequestWithVerifier(
+      envelopingTransaction
+    );
 
     // Send relayed transaction
     log.debug('maxPossibleGas is', maxPossibleGas.toString());
 
-    const isDeploy = this.isDeployRequest(req);
+    const relayHub = RelayHub__factory.connect(
+      this.config.contracts.relayHubAddress,
+      this._provider
+    );
 
-    const method = isDeploy
-      ? await this.contractInteractor.relayHub.populateTransaction.deployCall(
-          req.relayRequest as EnvelopingTypes.DeployRequestStruct,
-          req.metadata.signature
+    const method = isDeployTransaction(envelopingTransaction)
+      ? await relayHub.populateTransaction.deployCall(
+          envelopingTransaction.relayRequest,
+          envelopingTransaction.metadata.signature
         )
-      : await this.contractInteractor.relayHub.populateTransaction.relayCall(
-          req.relayRequest as EnvelopingTypes.RelayRequestStruct,
-          req.metadata.signature
+      : await relayHub.populateTransaction.relayCall(
+          envelopingTransaction.relayRequest as RelayRequest,
+          envelopingTransaction.metadata.signature
         );
 
     // Call relayCall as a view function to see if we'll get paid for relaying this tx
-    await this.validateViewCallSucceeds(method, req, maxPossibleGas);
-    const currentBlock = await this.contractInteractor.getBlockNumber();
+    await this.validateViewCallSucceeds(
+      method,
+      envelopingTransaction,
+      maxPossibleGas
+    );
+    const currentBlock = await this._provider.getBlockNumber();
     const details: SendTransactionDetails = {
       signer: this.workerAddress,
       serverAction: ServerAction.RELAY_CALL,
       method,
-      destination: req.metadata.relayHubAddress,
+      destination: envelopingTransaction.metadata.relayHubAddress.toString(),
       gasLimit: maxPossibleGas,
       creationBlockNumber: currentBlock,
-      gasPrice: req.relayRequest.relayData.gasPrice as BigNumber,
+      gasPrice: envelopingTransaction.relayRequest.relayData
+        .gasPrice as BigNumber,
     };
     const txDetails = await this.transactionManager.sendTransaction(details);
     // after sending a transaction is a good time to check the worker's balance, and replenish it.
@@ -679,7 +683,7 @@ export class RelayServer extends EventEmitter {
     }
 
     return new Promise<void>((resolve, reject) => {
-      this.contractInteractor
+      this._provider
         .getBlock('latest')
         .then((block) => {
           if (block.number > this.lastScannedBlock) {
@@ -788,28 +792,24 @@ export class RelayServer extends EventEmitter {
     log.debug('Relay Server - Relay Server initializing');
     log.debug('Relay Server - Transaction Manager initialized');
     this._initTrustedVerifiers(this.config.contracts.trustedVerifiers);
-    const relayHubAddress = this.contractInteractor.relayHub.address;
+    const relayHubAddress = this.config.contracts.relayHubAddress;
     log.debug(`Relay Server - Relay hub: ${relayHubAddress}`);
-    const code = await this.contractInteractor.isContractDeployed(
-      relayHubAddress
-    );
+    const code = await isContractDeployed(relayHubAddress);
     if (!code) {
       this.fatal(`No RelayHub deployed at address ${relayHubAddress}.`);
     }
 
     this.registrationManager = new RegistrationManager(
-      this.contractInteractor,
       this.transactionManager,
       this.txStoreManager,
       this,
-      this.config,
       this.managerAddress,
       this.workerAddress
     );
     await this.registrationManager.init();
     log.debug('Relay Server - Registration manager initialized');
 
-    const { chainId } = await this.contractInteractor.provider.getNetwork();
+    const { chainId } = await this._provider.getNetwork();
     this.chainId = chainId;
     this.networkId = chainId;
     log.debug(`Relay Server - chainId: ${this.chainId}`);
@@ -822,7 +822,7 @@ export class RelayServer extends EventEmitter {
     }
     */
 
-    const latestBlock = await this.contractInteractor.getBlock('latest');
+    const latestBlock = await this._provider.getBlock('latest');
     log.info(`Current network info:
 chainId                 | ${this.chainId}
 networkId               | ${this.networkId}
@@ -872,7 +872,7 @@ latestBlock timestamp   | ${latestBlock.timestamp}
   }
 
   async _refreshGasPrice(): Promise<void> {
-    this.gasPrice = await this.contractInteractor.provider.getGasPrice();
+    this.gasPrice = await this._provider.getGasPrice();
     if (this.gasPrice.eq(constants.Zero)) {
       throw new Error('Could not get gasPrice from node');
     }
@@ -932,19 +932,13 @@ latestBlock timestamp   | ${latestBlock.timestamp}
   }
 
   async getManagerBalance(): Promise<BigNumber> {
-    return await this.contractInteractor.getBalance(
-      this.managerAddress,
-      'pending'
-    );
+    return await this._provider.getBalance(this.managerAddress, 'pending');
   }
 
   async getWorkerBalance(workerIndex: number): Promise<BigNumber> {
     log.debug('getWorkerBalance: workerIndex', workerIndex);
 
-    return await this.contractInteractor.getBalance(
-      this.workerAddress,
-      'pending'
-    );
+    return await this._provider.getBalance(this.workerAddress, 'pending');
   }
 
   async _shouldRegisterAgain(
@@ -1017,10 +1011,7 @@ latestBlock timestamp   | ${latestBlock.timestamp}
       fromBlock: this.lastScannedBlock + 1,
       toBlock: 'latest',
     };
-    const events = await this.contractInteractor.getPastEventsForHub(
-      [this.managerAddress],
-      options
-    );
+    const events = await getPastEventsForHub([this.managerAddress], options);
     if (events.length !== 0) {
       log.debug(`Found ${events.length} events since last scan`);
     }
@@ -1065,10 +1056,12 @@ latestBlock timestamp   | ${latestBlock.timestamp}
   }
 
   async _queryLatestActiveEvent(): Promise<TypedEvent | undefined> {
-    const events: Array<TypedEvent> =
-      await this.contractInteractor.getPastEventsForHub([this.managerAddress], {
+    const events: Array<TypedEvent> = await getPastEventsForHub(
+      [this.managerAddress],
+      {
         fromBlock: 1,
-      });
+      }
+    );
 
     return getLatestEventData(events);
   }

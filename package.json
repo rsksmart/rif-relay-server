@@ -69,9 +69,8 @@
     "package.json": "npx sort-package-json"
   },
   "dependencies": {
-    "@rsksmart/rif-relay-client": "1.0.0-alpha.3",
-    "@rsksmart/rif-relay-common": "github:rsksmart/rif-relay-common#feature/PP-278/PP-339/upgrade_with_ethers",
-    "@rsksmart/rif-relay-contracts": "github:rsksmart/rif-relay-contracts#feature/PP-278/PP-329/upgrade_contracts",
+    "@rsksmart/rif-relay-client": "/Users/borja/iovlabs/projects/temp/PP-278/rif-relay-client",
+    "@rsksmart/rif-relay-contracts": "github:rsksmart/rif-relay-contracts#PP-602/RelayClient-validateSmartWallet",
     "async-mutex": "^0.4.0",
     "bignumber.js": "^9.1.0",
     "body-parser": "^1.20.0",

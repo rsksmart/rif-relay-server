@@ -1,5 +1,3 @@
-import type { ContractInteractor } from '@rsksmart/rif-relay-common';
-
 import { constants } from 'ethers';
 import type { LogLevelNumbers } from 'loglevel';
 
@@ -66,7 +64,6 @@ export interface ServerDependencies {
   // TODO: rename as this name is terrible
   managerKeyManager: KeyManager;
   workersKeyManager: KeyManager;
-  contractInteractor: ContractInteractor;
   txStoreManager: TxStoreManager;
 }
 
@@ -122,11 +119,10 @@ function error(err: string): never {
 }
 
 // resolve params, and validate the resulting struct
-export async function resolveServerConfig(
+export function resolveServerConfig(
   contractsConfig: ContractsConfig,
-  appConfig: AppConfig,
-  contractInteractor: ContractInteractor
-): Promise<ServerConfigParams> {
+  appConfig: AppConfig
+): ServerConfigParams {
   /* if (contractsConfig.versionRegistryAddress != null) {
         if (contractsConfig.relayHubAddress != null) {
             error(
@@ -181,15 +177,6 @@ export async function resolveServerConfig(
   );
   /*  } */
 
-  if (
-    !(await contractInteractor.isContractDeployed(
-      contractsConfig.relayHubAddress
-    ))
-  ) {
-    error(
-      `RelayHub: no contract at address ${contractsConfig.relayHubAddress}`
-    );
-  }
   if (appConfig.url == null) error('missing param: url');
   if (appConfig.workdir == null) error('missing param: workdir');
 

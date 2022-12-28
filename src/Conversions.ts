@@ -22,7 +22,8 @@ type BigNumberishJs = BigNumberish | BigNumberJs;
 export const getPrecision = (
   precision: BigNumberishJs = RBTC_CHAIN_DECIMALS,
   base = 10
-): BigNumber => parseToBigNumber(BigNumberJs(base).pow(precision.toString()));
+): BigNumber =>
+  BigNumber.from(BigNumberJs(base).pow(precision.toString()).toFixed(0));
 
 /**
  * value and precision for the value to be converted to
@@ -49,7 +50,7 @@ export const toPrecision = ({
   );
   const operation = bigPrecision.isNegative() ? 'dividedBy' : 'multipliedBy';
 
-  return parseToBigNumber(bigValue[operation](precisionMultiplier));
+  return BigNumber.from(bigValue[operation](precisionMultiplier).toFixed(0));
 };
 
 /**
@@ -131,7 +132,7 @@ export const convertGasToToken = (
 
   const bigTotal = BigNumberJs(total.toString());
 
-  return parseToBigNumber(bigTotal.dividedBy(bigRate).toFixed(0));
+  return BigNumber.from(bigTotal.dividedBy(bigRate).toFixed(0));
 };
 
 /**
@@ -150,7 +151,7 @@ export const convertGasToNative = (
     return constants.Zero;
   }
 
-  return parseToBigNumber(bigEstimation.multipliedBy(bigPrice));
+  return BigNumber.from(bigEstimation.multipliedBy(bigPrice).toFixed(0));
 };
 
 /**
@@ -165,6 +166,3 @@ const isInvalidNumber = (value: BigNumberJs): boolean => {
 
   return false;
 };
-
-export const parseToBigNumber = (value: BigNumberishJs): BigNumber =>
-  BigNumber.from(value.toString());

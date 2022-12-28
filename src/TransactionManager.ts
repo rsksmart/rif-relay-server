@@ -1,10 +1,15 @@
 import chalk from 'chalk';
 import log from 'loglevel';
 import { Mutex } from 'async-mutex';
-import { utils, BigNumber, PopulatedTransaction, constants } from 'ethers';
+import {
+  utils,
+  BigNumber,
+  PopulatedTransaction,
+  constants,
+  providers,
+} from 'ethers';
 import type { TransactionResponse } from '@ethersproject/providers';
 import { BigNumber as BigNumberJs } from 'bignumber.js';
-import type { ContractInteractor } from '@rsksmart/rif-relay-common';
 import type { TxStoreManager } from './TxStoreManager';
 import type { KeyManager } from './KeyManager';
 import type {
@@ -17,7 +22,7 @@ import {
   StoredTransaction,
   StoredTransactionMetadata,
 } from './StoredTransaction';
-import { parseToBigNumber } from './Conversions';
+import { getProvider, getServerConfig } from './Utils';
 
 export interface SignedTransactionDetails {
   txHash: string;
@@ -42,20 +47,20 @@ export class TransactionManager {
 
   workersKeyManager: KeyManager;
 
-  contractInteractor: ContractInteractor;
-
   nonces: Record<string, number> = {};
 
   txStoreManager: TxStoreManager;
 
   config: ServerConfigParams;
 
-  constructor(dependencies: ServerDependencies, config: ServerConfigParams) {
-    this.contractInteractor = dependencies.contractInteractor;
+  private readonly _provider: providers.Provider;
+
+  constructor(dependencies: ServerDependencies) {
     this.txStoreManager = dependencies.txStoreManager;
     this.workersKeyManager = dependencies.workersKeyManager;
     this.managerKeyManager = dependencies.managerKeyManager;
-    this.config = config;
+    this.config = getServerConfig();
+    this._provider = getProvider();
     this._initNonces();
   }
 
@@ -119,7 +124,7 @@ data         | 0x${transaction.data ?? ''}
     from: string
   ): Promise<BigNumber> {
     try {
-      const estimateGas = await this.contractInteractor.provider.estimateGas({
+      const estimateGas = await this._provider.estimateGas({
         ...transaction,
         from,
       });
@@ -128,7 +133,7 @@ data         | 0x${transaction.data ?? ''}
       );
       const mul = bigEstimateGasFactor.multipliedBy(estimateGas.toString());
 
-      return parseToBigNumber(mul.toFixed(0));
+      return BigNumber.from(mul.toFixed(0));
     } catch (e) {
       if (e instanceof Error) {
         log.error(
@@ -153,7 +158,7 @@ data         | 0x${transaction.data ?? ''}
     creationBlockNumber,
     serverAction,
   }: SendTransactionDetails): Promise<SignedTransactionDetails> {
-    const tempGasPrice = await this.contractInteractor.provider.getGasPrice();
+    const tempGasPrice = await this._provider.getGasPrice();
 
     const releaseMutex = await this.nonceMutex.acquire();
     let signedTransaction: SignedTransactionDetails;
@@ -190,7 +195,7 @@ data         | 0x${transaction.data ?? ''}
       releaseMutex();
     }
 
-    const transaction = await this.contractInteractor.broadcastTransaction(
+    const transaction = await this._provider.sendTransaction(
       signedTransaction.signedTx
     );
 
@@ -267,11 +272,9 @@ data         | 0x${transaction.data ?? ''}
       isMaxGasPriceReached
     );
     this.printSendTransactionLog(txToSign, tx.from, signedTransaction.txHash);
-    const currentNonce = await this.contractInteractor.getTransactionCount(
-      tx.from
-    );
+    const currentNonce = await this._provider.getTransactionCount(tx.from);
     log.debug(`Current account nonce for ${tx.from} is ${currentNonce}`);
-    const transaction = await this.contractInteractor.broadcastTransaction(
+    const transaction = await this._provider.sendTransaction(
       signedTransaction.signedTx
     );
     if (transaction.hash.toLowerCase() !== storedTx.txId.toLowerCase()) {
@@ -296,9 +299,9 @@ data         | 0x${transaction.data ?? ''}
 
     const bigNewGasPrice = bigRetryGasPriceFactor.multipliedBy(bigOldGasPrice);
 
-    let newGasPrice = parseToBigNumber(bigNewGasPrice);
+    let newGasPrice = BigNumber.from(bigNewGasPrice.toFixed(0));
 
-    const maxGasPrice = parseToBigNumber(this.config.blockchain.maxGasPrice);
+    const maxGasPrice = BigNumber.from(this.config.blockchain.maxGasPrice);
 
     // Sanity check to ensure we are not burning all our balance in gas fees
     if (newGasPrice.gt(maxGasPrice)) {
@@ -310,7 +313,7 @@ data         | 0x${transaction.data ?? ''}
   }
 
   async pollNonce(signer: string): Promise<number> {
-    const nonce: number = await this.contractInteractor.getTransactionCount(
+    const nonce: number = await this._provider.getTransactionCount(
       signer,
       'pending'
     );
@@ -349,7 +352,7 @@ data         | 0x${transaction.data ?? ''}
           this.config.blockchain.confirmationsNeeded;
       if (shouldRecheck) {
         const receipt: TransactionResponse =
-          await this.contractInteractor.getTransaction(transaction.txId);
+          await this._provider.getTransaction(transaction.txId);
         if (receipt == null) {
           log.warn(
             `warning: failed to fetch receipt for tx ${transaction.txId}`
@@ -408,7 +411,7 @@ data         | 0x${transaction.data ?? ''}
       return boostedTransactions;
     }
     // Check if the tx was mined by comparing its nonce against the latest one
-    const nonce = await this.contractInteractor.getTransactionCount(signer);
+    const nonce = await this._provider.getTransactionCount(signer);
     const oldestPendingTx = sortedTxs[0];
     if (oldestPendingTx) {
       if (oldestPendingTx.nonce && oldestPendingTx.nonce < nonce) {

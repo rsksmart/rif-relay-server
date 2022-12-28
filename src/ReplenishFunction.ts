@@ -84,7 +84,7 @@ async function defaultReplenishFunction(
         signer: relayServer.managerAddress,
         serverAction: ServerAction.VALUE_TRANSFER,
         destination: relayServer.workerAddress,
-        value: BigNumber.from(refill.toString()),
+        value: BigNumber.from(refill.toFixed(0)),
         creationBlockNumber: currentBlock,
         gasLimit,
       };
