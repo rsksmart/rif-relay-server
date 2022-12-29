@@ -7,13 +7,14 @@ import {
   IRelayHub,
   RelayHub__factory,
 } from '@rsksmart/rif-relay-contracts';
-import { AppConfig, BlockchainConfig, configureServer, ContractsConfig, ServerConfigParams } from './ServerConfigParams';
+
 import type {
   DefaultManagerEvent,
   ManagerEvent,
   ManagerEventParameters,
   PastEventOptions,
 } from './definitions/event.type';
+import type { AppConfig } from './ServerConfigParams';
 
 const DEFAULT_MANAGER_EVENTS: DefaultManagerEvent[] = [
   'RelayServerRegistered',
@@ -126,10 +127,10 @@ export function isRegistrationValid(
     return (
       isSameAddress(manager, managerAddress) &&
       relayData.url.toString() ===
-      appConfig.url.toString() +
-      (!portIncluded && appConfig.port > 0
-        ? ':' + appConfig.port.toString()
-        : '')
+        appConfig.url.toString() +
+          (!portIncluded && appConfig.port > 0
+            ? ':' + appConfig.port.toString()
+            : '')
     );
   }
 
@@ -149,16 +150,6 @@ export function getProvider(): providers.Provider {
   const rskNode = config.get<string>('blockchain.rskNodeUrl');
 
   return getDefaultProvider(rskNode);
-}
-
-export function getServerConfig(): ServerConfigParams {
-
-  const contractsConfig: ContractsConfig = config.get('contracts');
-  const appConfig: AppConfig = config.get('app');
-  const blockchainConfig: BlockchainConfig = config.get('blockchain');
-
-  return configureServer(contractsConfig, appConfig, blockchainConfig);
-
 }
 
 export const deployTransactionRequestShape = {

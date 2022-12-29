@@ -1,9 +1,9 @@
 import { constants } from 'ethers';
 import type { LogLevelNumbers } from 'loglevel';
 
-import { validateAddress } from './Utils';
 import type { KeyManager } from './KeyManager';
 import type { TxStoreManager } from './TxStoreManager';
+import config from 'config';
 
 export type AppConfig = {
   url: string;
@@ -46,10 +46,10 @@ export type BlockchainConfig = {
   pendingTransactionTimeoutBlocks: number;
   successfulRoundsForReady: number;
   confirmationsNeeded: number;
-  retryGasPriceFactor: string;
+  retryGasPriceFactor: number;
   maxGasPrice: number;
   defaultGasLimit: number;
-  estimateGasFactor: string;
+  estimateGasFactor: number;
   versionRegistryDelayPeriod?: number;
 };
 
@@ -106,84 +106,13 @@ const serverDefaultConfiguration: ServerConfigParams = {
     pendingTransactionTimeoutBlocks: 30, // around 5 minutes with 10 seconds block times
     successfulRoundsForReady: 3, // successful mined blocks to become ready after exception
     confirmationsNeeded: 12,
-    retryGasPriceFactor: '1.2',
+    retryGasPriceFactor: 1.2,
     defaultGasLimit: 500000,
     maxGasPrice: 100e9,
-    estimateGasFactor: '1.2',
+    estimateGasFactor: 1.2,
   },
 };
 
-// helper function: throw and never return..
-function error(err: string): never {
-  throw new Error(err);
-}
-
-// resolve params, and validate the resulting struct
-export function resolveServerConfig(
-  contractsConfig: ContractsConfig,
-  appConfig: AppConfig
-): ServerConfigParams {
-  /* if (contractsConfig.versionRegistryAddress != null) {
-        if (contractsConfig.relayHubAddress != null) {
-            error(
-                'missing param: must have either relayHubAddress or versionRegistryAddress'
-            );
-        }
-        const relayHubId = contractsConfig.relayHubId ??
-            error('missing param: relayHubId to read from VersionRegistry');
-        validateAddress(
-            contractsConfig.versionRegistryAddress,
-            'Invalid param versionRegistryAddress: '
-        );
-        if (
-            !(await contractInteractor.isContractDeployed(
-                contractsConfig.versionRegistryAddress
-            ))
-        ) {
-            error(
-                'Invalid param versionRegistryAddress: no contract at address ' +
-                contractsConfig.versionRegistryAddress
-            );
-        }
-
-        const versionRegistry = new VersionRegistry(
-            web3provider,
-            contractsConfig.versionRegistryAddress
-        );
-        const { version, value, time } = await versionRegistry.getVersion(
-            relayHubId,
-            appConfig.versionRegistryDelayPeriod ?? defaultRegistryDelayPeriod
-        );
-        validateAddress(
-            value,
-            `Invalid param relayHubId ${relayHubId} @ ${version}: not an address:`
-        );
-
-        log.info(
-            `Using RelayHub ID:${relayHubId} version:${version} address:${value} . created at: ${new Date(
-                time * 1000
-            ).toString()}`
-        );
-        contractsConfig.relayHubAddress = value;
-    } else { */
-  if (contractsConfig.relayHubAddress == null) {
-    error(
-      'missing param: must have either relayHubAddress or versionRegistryAddress'
-    );
-  }
-  validateAddress(
-    contractsConfig.relayHubAddress,
-    'invalid param: "relayHubAddress" is not a valid address:'
-  );
-  /*  } */
-
-  if (appConfig.url == null) error('missing param: url');
-  if (appConfig.workdir == null) error('missing param: workdir');
-
-  return { ...serverDefaultConfiguration, ...contractsConfig, ...appConfig };
-}
-
-//FIXME: the incomming and outgoing type may and likely should differ. For example for all big number values the incoming value should be a string to prevent loss of precision, but outgoing type should be big number so that it doesn't need to be converted everywhere it is used.
 export function configureServer(
   contractsConfig: ContractsConfig,
   appConfig: AppConfig,
@@ -205,4 +134,13 @@ export function configureServer(
   };
 
   return config;
+}
+
+// TODO configuration validations
+export function getServerConfig(): ServerConfigParams {
+  const contractsConfig = config.get<ContractsConfig>('contracts');
+  const appConfig = config.get<AppConfig>('app');
+  const blockchainConfig = config.get<BlockchainConfig>('blockchain');
+
+  return configureServer(contractsConfig, appConfig, blockchainConfig);
 }

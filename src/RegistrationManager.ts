@@ -26,13 +26,12 @@ import {
   getPastEventsForHub,
   getProvider,
   getRelayInfo,
-  getServerConfig,
   isRegistrationValid,
   isSecondEventLater,
 } from './Utils';
 import type { ManagerEvent, PastEventOptions } from './definitions/event.type';
 import config from 'config';
-import type { AppConfig } from './ServerConfigParams';
+import { AppConfig, getServerConfig } from './ServerConfigParams';
 
 export type RelayServerRegistryInfo = {
   url: string;

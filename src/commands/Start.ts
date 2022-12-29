@@ -28,9 +28,6 @@ async function run(): Promise<void> {
     }
     const trustedVerifiers = contractsConfig.trustedVerifiers;
 
-    log.debug('runServer() - provider done');
-    // config = await resolveServerConfig(conf, provider);
-    log.debug('runServer() - config done');
     if (trustedVerifiers && trustedVerifiers.length > 0) {
       contractsConfig.trustedVerifiers = trustedVerifiers;
     }

@@ -12,9 +12,10 @@ import type { TransactionResponse } from '@ethersproject/providers';
 import { BigNumber as BigNumberJs } from 'bignumber.js';
 import type { TxStoreManager } from './TxStoreManager';
 import type { KeyManager } from './KeyManager';
-import type {
+import {
   ServerDependencies,
   ServerConfigParams,
+  getServerConfig,
 } from './ServerConfigParams';
 import {
   createStoredTransaction,
@@ -22,7 +23,7 @@ import {
   StoredTransaction,
   StoredTransactionMetadata,
 } from './StoredTransaction';
-import { getProvider, getServerConfig } from './Utils';
+import { getProvider } from './Utils';
 
 export interface SignedTransactionDetails {
   txHash: string;

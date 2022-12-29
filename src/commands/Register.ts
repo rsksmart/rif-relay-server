@@ -3,11 +3,7 @@ import { BigNumber, utils, constants, Signer } from 'ethers';
 import type { Provider } from '@ethersproject/providers';
 import config from 'config';
 
-import type {
-  AppConfig,
-  BlockchainConfig,
-  ContractsConfig,
-} from '../ServerConfigParams';
+import { getServerConfig } from '../ServerConfigParams';
 
 import { CommandClient } from './helpers/CommandClient';
 import { isSameAddress } from '../Utils';
@@ -64,7 +60,7 @@ export class Register extends CommandClient {
     log.info('Current stake info:');
     log.info('Relayer owner: ', owner);
     log.info('Current unstake delay: ', unstakeDelay.toString());
-    log.info('current stake=', utils.formatUnits(stake.toString(), 'ether'));
+    log.info('current stake=', utils.formatUnits(stake, 'ether'));
 
     const from = await options.signer.getAddress();
     if (owner !== constants.AddressZero && !isSameAddress(owner, from)) {
@@ -123,29 +119,24 @@ export class Register extends CommandClient {
 }
 
 export async function executeRegister(registerOptions?: RegisterOptions) {
-  const appConfig: AppConfig = config.get('app');
-  const contractsConfig: ContractsConfig = config.get('contracts');
-  const blockchainConfig: BlockchainConfig = config.get('blockchain');
+  const { app, contracts, blockchain } = getServerConfig();
   let registerConfig: RegisterConfig | undefined = undefined;
   if (config.has('register')) {
     registerConfig = config.get('register');
   }
-  log.setLevel(appConfig.logLevel);
+  log.setLevel(app.logLevel);
   const register = new Register(
-    blockchainConfig.rskNodeUrl,
+    blockchain.rskNodeUrl,
     registerConfig?.mnemonic
   );
-  const portIncluded: boolean = appConfig.url.indexOf(':') > 0;
+  const portIncluded: boolean = app.url.indexOf(':') > 0;
   const relayUrl =
-    appConfig.url +
-    (!portIncluded && appConfig.port > 0
-      ? ':' + appConfig.port.toString()
-      : '');
+    app.url + (!portIncluded && app.port > 0 ? ':' + app.port.toString() : '');
   await register.execute(
     registerOptions
       ? registerOptions
       : {
-          hub: contractsConfig.relayHubAddress,
+          hub: contracts.relayHubAddress,
           signer: await register.findWealthyAccount(),
           stake: utils.parseEther(registerConfig?.stake ?? '0.01'),
           funds: utils.parseEther(registerConfig?.funds ?? '0.02'),

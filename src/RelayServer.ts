@@ -19,9 +19,10 @@ import {
 } from './TransactionManager';
 import { ServerAction } from './StoredTransaction';
 import type { TxStoreManager } from './TxStoreManager';
-import type {
+import {
   ServerDependencies,
   ServerConfigParams,
+  getServerConfig,
 } from './ServerConfigParams';
 import Timeout = NodeJS.Timeout;
 import EventEmitter from 'events';
@@ -41,7 +42,6 @@ import {
   getLatestEventData,
   getPastEventsForHub,
   getProvider,
-  getServerConfig,
   isContractDeployed,
   randomInRange,
   relayTransactionRequestShape,
