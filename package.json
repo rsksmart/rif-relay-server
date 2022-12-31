@@ -59,7 +59,7 @@
     "yargs": "~17.0.1"
   },
   "devDependencies": {
-    "@0x/subproviders": "6.4.1",
+    "@0x/subproviders": "7.0.0",
     "@openeth/truffle-typings": "0.0.6",
     "@openzeppelin/test-helpers": "0.5.10",
     "@types/chai": "^4.3.1",
