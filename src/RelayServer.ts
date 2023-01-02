@@ -34,7 +34,7 @@ import {
   BigNumberish,
   BigNumber,
   providers,
-  getDefaultProvider
+  getDefaultProvider,
 } from 'ethers';
 import { BigNumber as BigNumberJs } from 'bignumber.js';
 import ow from 'ow';
@@ -63,7 +63,7 @@ import {
   isDeployTransaction,
   RelayRequest,
   standardMaxPossibleGasEstimation,
-  applyInternalEstimationCorrection
+  applyInternalEstimationCorrection,
 } from '@rsksmart/rif-relay-client';
 import { MAX_ESTIMATED_GAS_DEVIATION } from './definitions/server.conts';
 
@@ -402,14 +402,14 @@ export class RelayServer extends EventEmitter {
           data: relayRequest.request.data,
         });
 
-        estimatedDesinationGasCost = applyInternalEstimationCorrection(
-          estimatedDesinationGasCost
-        );
+      estimatedDesinationGasCost = applyInternalEstimationCorrection(
+        estimatedDesinationGasCost
+      );
 
       const bigMaxEstimatedGasDeviation = BigNumberJs(
         MAX_ESTIMATED_GAS_DEVIATION
       );
-     
+
       const bigGasFromRequest = BigNumberJs(
         relayRequest.request.gas.toString()
       );
@@ -417,9 +417,9 @@ export class RelayServer extends EventEmitter {
         .plus(1)
         .multipliedBy(bigGasFromRequest);
 
-        console.log('-------');
-        console.log(estimatedDesinationGasCost.toString());
-        console.log(bigGasFromRequestMaxAgreed.toFixed(0));
+      console.log('-------');
+      console.log(estimatedDesinationGasCost.toString());
+      console.log(bigGasFromRequestMaxAgreed.toFixed(0));
 
       if (
         estimatedDesinationGasCost.gt(bigGasFromRequestMaxAgreed.toFixed(0))
