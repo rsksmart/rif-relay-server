@@ -7,6 +7,7 @@ import {
   PopulatedTransaction,
   constants,
   providers,
+  getDefaultProvider,
 } from 'ethers';
 import type { TransactionResponse } from '@ethersproject/providers';
 import { BigNumber as BigNumberJs } from 'bignumber.js';
@@ -23,7 +24,6 @@ import {
   StoredTransaction,
   StoredTransactionMetadata,
 } from './StoredTransaction';
-import { getProvider } from './Utils';
 
 export interface SignedTransactionDetails {
   txHash: string;
@@ -61,7 +61,7 @@ export class TransactionManager {
     this.workersKeyManager = dependencies.workersKeyManager;
     this.managerKeyManager = dependencies.managerKeyManager;
     this.config = getServerConfig();
-    this._provider = getProvider();
+    this._provider = getDefaultProvider();
     this._initNonces();
   }
 
@@ -173,7 +173,7 @@ data         | 0x${transaction.data ?? ''}
         to: destination,
         value,
         gasLimit,
-        gasPrice: gasPrice ?? tempGasPrice,
+        gasPrice: BigNumber.from(gasPrice ?? tempGasPrice),
         nonce,
       };
       // TODO omg! do not do this!

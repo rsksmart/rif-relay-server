@@ -34,6 +34,7 @@ import {
   BigNumberish,
   BigNumber,
   providers,
+  getDefaultProvider
 } from 'ethers';
 import { BigNumber as BigNumberJs } from 'bignumber.js';
 import ow from 'ow';
@@ -41,7 +42,6 @@ import {
   deployTransactionRequestShape,
   getLatestEventData,
   getPastEventsForHub,
-  getProvider,
   isContractDeployed,
   randomInRange,
   relayTransactionRequestShape,
@@ -63,6 +63,7 @@ import {
   isDeployTransaction,
   RelayRequest,
   standardMaxPossibleGasEstimation,
+  applyInternalEstimationCorrection
 } from '@rsksmart/rif-relay-client';
 import { MAX_ESTIMATED_GAS_DEVIATION } from './definitions/server.conts';
 
@@ -72,6 +73,7 @@ type PingResponse = {
   relayWorkerAddress: string;
   relayManagerAddress: string;
   relayHubAddress: string;
+  feesReceiver: string;
   minGasPrice: string;
   networkId?: string;
   chainId?: string;
@@ -160,7 +162,7 @@ export class RelayServer extends EventEmitter {
 
   constructor(dependencies: ServerDependencies) {
     super();
-    this._provider = getProvider();
+    this._provider = getDefaultProvider();
     this.config = getServerConfig();
     this.txStoreManager = dependencies.txStoreManager;
     this.transactionManager = new TransactionManager(dependencies);
@@ -201,6 +203,7 @@ export class RelayServer extends EventEmitter {
       relayWorkerAddress: this.workerAddress,
       relayManagerAddress: this.managerAddress,
       relayHubAddress: this.config.contracts.relayHubAddress,
+      feesReceiver: this.feesReceiver,
       minGasPrice: this.getMinGasPrice().toString(),
       chainId: this.chainId?.toString(),
       networkId: this.networkId?.toString(),
@@ -391,27 +394,35 @@ export class RelayServer extends EventEmitter {
 
       const relayRequest = envelopingTransaction.relayRequest as RelayRequest;
 
-      const estimatedDesinationGasCost: BigNumber =
+      let estimatedDesinationGasCost: BigNumber =
         await this._provider.estimateGas({
-          from: relayRequest.relayData.callForwarder as string,
-          to: relayRequest.request.to as string,
+          from: relayRequest.relayData.callForwarder.toString(),
+          to: relayRequest.request.to.toString(),
           gasPrice: relayRequest.relayData.gasPrice,
           data: relayRequest.request.data,
         });
 
+        estimatedDesinationGasCost = applyInternalEstimationCorrection(
+          estimatedDesinationGasCost
+        );
+
       const bigMaxEstimatedGasDeviation = BigNumberJs(
         MAX_ESTIMATED_GAS_DEVIATION
       );
-      const bigOne = BigNumberJs('1');
+     
       const bigGasFromRequest = BigNumberJs(
         relayRequest.request.gas.toString()
       );
       const bigGasFromRequestMaxAgreed = bigMaxEstimatedGasDeviation
-        .plus(bigOne)
+        .plus(1)
         .multipliedBy(bigGasFromRequest);
 
+        console.log('-------');
+        console.log(estimatedDesinationGasCost.toString());
+        console.log(bigGasFromRequestMaxAgreed.toFixed(0));
+
       if (
-        estimatedDesinationGasCost.gt(bigGasFromRequestMaxAgreed.toString())
+        estimatedDesinationGasCost.gt(bigGasFromRequestMaxAgreed.toFixed(0))
       ) {
         throw new Error(
           "Request payload's gas parameters deviate too much fom the estimated gas for this transaction"

@@ -1,4 +1,4 @@
-import { getDefaultProvider, providers, utils } from 'ethers';
+import { getDefaultProvider, utils } from 'ethers';
 import chalk from 'chalk';
 import config from 'config';
 import ow from 'ow';
@@ -53,7 +53,7 @@ export async function getPastEventsForHub(
   { fromBlock, toBlock }: PastEventOptions,
   names: ManagerEvent[] = DEFAULT_MANAGER_EVENTS
 ): Promise<Array<TypedEvent>> {
-  const provider = getProvider();
+  const provider = getDefaultProvider();
 
   const relyHubAddress = config.get<string>('contracts.relayHubAddress');
 
@@ -75,7 +75,7 @@ export async function getPastEventsForHub(
 export async function getRelayInfo(
   relayManagers: Set<string>
 ): Promise<IRelayHub.RelayManagerDataStruct[]> {
-  const provider = getProvider();
+  const provider = getDefaultProvider();
 
   const relyHubAddress = config.get<string>('contracts.relayHubAddress');
 
@@ -138,18 +138,12 @@ export function isRegistrationValid(
 }
 
 export async function isContractDeployed(address: string): Promise<boolean> {
-  const provider = getProvider();
+  const provider = getDefaultProvider();
 
   const code = await provider.getCode(address);
 
   // Check added for RSKJ: when the contract does not exist in RSKJ it replies to the getCode call with 0x00
   return code !== '0x' && code !== '0x00';
-}
-
-export function getProvider(): providers.Provider {
-  const rskNode = config.get<string>('blockchain.rskNodeUrl');
-
-  return getDefaultProvider(rskNode);
 }
 
 export const deployTransactionRequestShape = {
@@ -169,7 +163,7 @@ export const deployTransactionRequestShape = {
     },
     relayData: {
       gasPrice: ow.string,
-      relayWorker: ow.string,
+      feesReceiver: ow.string,
       callForwarder: ow.string,
       callVerifier: ow.string,
     },
@@ -197,7 +191,7 @@ export const relayTransactionRequestShape = {
     },
     relayData: {
       gasPrice: ow.string,
-      relayWorker: ow.string,
+      feesReceiver: ow.string,
       callForwarder: ow.string,
       callVerifier: ow.string,
     },

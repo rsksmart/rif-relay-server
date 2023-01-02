@@ -1,6 +1,6 @@
 import log from 'loglevel';
 import type { EventEmitter } from 'events';
-import { constants, BigNumber, providers } from 'ethers';
+import { constants, BigNumber, providers, getDefaultProvider } from 'ethers';
 import { BigNumber as BigNumberJs } from 'bignumber.js';
 import chalk from 'chalk';
 
@@ -24,7 +24,6 @@ import {
   boolString,
   getLatestEventData,
   getPastEventsForHub,
-  getProvider,
   getRelayInfo,
   isRegistrationValid,
   isSecondEventLater,
@@ -120,7 +119,7 @@ export class RegistrationManager {
     this._eventEmitter = eventEmitter;
     this._transactionManager = transactionManager;
     this._txStoreManager = txStoreManager;
-    this._provider = getProvider();
+    this._provider = getDefaultProvider();
   }
 
   async init(): Promise<void> {
