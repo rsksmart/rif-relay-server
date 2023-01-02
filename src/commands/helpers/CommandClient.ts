@@ -1,8 +1,4 @@
-import {
-  ContractInteractor,
-  EnvelopingConfig,
-} from '@rsksmart/rif-relay-common';
-import { HttpClient, HttpWrapper } from '@rsksmart/rif-relay-client';
+import { HttpClient } from '@rsksmart/rif-relay-client';
 import log from 'loglevel';
 import { JsonRpcProvider, Provider } from '@ethersproject/providers';
 import { BigNumber, Wallet, utils, Signer } from 'ethers';
@@ -14,26 +10,15 @@ import { sleep } from '../../Utils';
 export abstract class CommandClient {
   protected readonly _httpClient: HttpClient;
 
-  protected readonly _config: EnvelopingConfig;
-
   protected readonly _provider: Provider | Wallet;
 
-  protected _contractInteractor!: ContractInteractor;
-
-  constructor(host: string, config: EnvelopingConfig, mnemonic?: string) {
+  constructor(host: string, mnemonic?: string) {
     this._provider = new JsonRpcProvider(host);
+
     if (mnemonic) {
       this._provider = Wallet.fromMnemonic(mnemonic);
     }
-    this._httpClient = new HttpClient(new HttpWrapper(), config);
-    this._config = config;
-  }
-
-  async initContractInteractor() {
-    this._contractInteractor = await ContractInteractor.getInstance(
-      this._provider as JsonRpcProvider,
-      this._config
-    );
+    this._httpClient = new HttpClient();
   }
 
   async findWealthyAccount(
@@ -41,10 +26,10 @@ export abstract class CommandClient {
   ): Promise<Signer> {
     let accounts: string[] = [];
     try {
-      const tempProvider = this._provider as JsonRpcProvider;
-      accounts = await tempProvider.listAccounts();
+      const provider = this._provider as JsonRpcProvider;
+      accounts = await provider.listAccounts();
       for (let i = 0; i < accounts.length; i++) {
-        const signer = tempProvider.getSigner(i);
+        const signer = provider.getSigner(i);
         const balance = await signer.getBalance();
         if (balance.gte(requiredBalance)) {
           log.info(`Found funded account ${await signer.getAddress()}`);
@@ -63,7 +48,7 @@ export abstract class CommandClient {
   }
 
   async isRelayReady(relayUrl: string): Promise<boolean> {
-    const response = await this._httpClient.getPingResponse(relayUrl);
+    const response = await this._httpClient.getChainInfo(relayUrl);
 
     return response.ready;
   }

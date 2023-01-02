@@ -1,5 +1,3 @@
-import type { ContractInteractor } from '@rsksmart/rif-relay-common';
-
 import { constants } from 'ethers';
 import type { LogLevelNumbers } from 'loglevel';
 
@@ -67,7 +65,6 @@ export interface ServerDependencies {
   // TODO: rename as this name is terrible
   managerKeyManager: KeyManager;
   workersKeyManager: KeyManager;
-  contractInteractor: ContractInteractor;
   txStoreManager: TxStoreManager;
 }
 
@@ -124,11 +121,10 @@ function error(err: string): never {
 }
 
 // resolve params, and validate the resulting struct
-export async function resolveServerConfig(
+export function resolveServerConfig(
   contractsConfig: ContractsConfig,
-  appConfig: AppConfig,
-  contractInteractor: ContractInteractor
-): Promise<ServerConfigParams> {
+  appConfig: AppConfig
+): ServerConfigParams {
   /* if (contractsConfig.versionRegistryAddress != null) {
         if (contractsConfig.relayHubAddress != null) {
             error(
@@ -151,7 +147,6 @@ export async function resolveServerConfig(
                 contractsConfig.versionRegistryAddress
             );
         }
-
         const versionRegistry = new VersionRegistry(
             web3provider,
             contractsConfig.versionRegistryAddress
@@ -164,7 +159,6 @@ export async function resolveServerConfig(
             value,
             `Invalid param relayHubId ${relayHubId} @ ${version}: not an address:`
         );
-
         log.info(
             `Using RelayHub ID:${relayHubId} version:${version} address:${value} . created at: ${new Date(
                 time * 1000
@@ -183,15 +177,6 @@ export async function resolveServerConfig(
   );
   /*  } */
 
-  if (
-    !(await contractInteractor.isContractDeployed(
-      contractsConfig.relayHubAddress
-    ))
-  ) {
-    error(
-      `RelayHub: no contract at address ${contractsConfig.relayHubAddress}`
-    );
-  }
   if (appConfig.url == null) error('missing param: url');
   if (appConfig.workdir == null) error('missing param: workdir');
 

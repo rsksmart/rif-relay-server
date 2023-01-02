@@ -3,13 +3,9 @@ import { HttpServer } from '../HttpServer';
 import { RelayServer } from '../RelayServer';
 import { KeyManager } from '../KeyManager';
 import { TxStoreManager, TXSTORE_FILENAME } from '../TxStoreManager';
-import { ContractInteractor } from '@rsksmart/rif-relay-common';
 
-// TODO check if this can be removed
-import { configure } from '@rsksmart/rif-relay-client';
 import log from 'loglevel';
 import config from 'config';
-import { JsonRpcProvider } from '@ethersproject/providers';
 import type {
   AppConfig,
   ContractsConfig,
@@ -32,7 +28,6 @@ async function run(): Promise<void> {
     }
     const trustedVerifiers = contractsConfig.trustedVerifiers;
 
-    const provider = new JsonRpcProvider(config.get('blockchain.rskNodeUrl'));
     log.debug('runServer() - provider done');
     // config = await resolveServerConfig(conf, provider);
     log.debug('runServer() - config done');
@@ -51,21 +46,13 @@ async function run(): Promise<void> {
     const workersKeyManager = new KeyManager(1, workdir + '/workers');
     log.debug('runServer() - manager and workers configured');
     const txStoreManager = new TxStoreManager({ workdir });
-    const contractInteractor = await ContractInteractor.getInstance(
-      provider,
-      configure({
-        relayHubAddress: contractsConfig.relayHubAddress,
-        deployVerifierAddress: contractsConfig.deployVerifierAddress,
-        relayVerifierAddress: contractsConfig.relayVerifierAddress,
-      })
-    );
+
     log.debug('runServer() - contract interactor initilized');
 
     const dependencies: ServerDependencies = {
       txStoreManager,
       managerKeyManager,
       workersKeyManager,
-      contractInteractor,
     };
 
     const relayServer = new RelayServer(dependencies);

@@ -1,0 +1,1 @@
+export const MAX_ESTIMATED_GAS_DEVIATION = 0.2;

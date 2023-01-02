@@ -1,11 +1,32 @@
-import { utils, BigNumber } from 'ethers';
-import type { BigNumberish } from 'ethers';
+import { getDefaultProvider, providers, utils } from 'ethers';
 import chalk from 'chalk';
-import type { TypedEvent, IRelayHub } from '@rsksmart/rif-relay-contracts';
-import type { AppConfig } from './ServerConfigParams';
-import { BigNumber as BigNumberJs } from 'bignumber.js';
-import { ESTIMATED_GAS_CORRECTION_FACTOR } from '@rsksmart/rif-relay-common';
-import { parseToBigNumber } from './Conversions';
+import config from 'config';
+import ow from 'ow';
+import {
+  TypedEvent,
+  IRelayHub,
+  RelayHub__factory,
+} from '@rsksmart/rif-relay-contracts';
+import {
+  AppConfig,
+  BlockchainConfig,
+  configureServer,
+  ContractsConfig,
+  ServerConfigParams,
+} from './ServerConfigParams';
+import type {
+  DefaultManagerEvent,
+  ManagerEvent,
+  ManagerEventParameters,
+  PastEventOptions,
+} from './definitions/event.type';
+
+const DEFAULT_MANAGER_EVENTS: DefaultManagerEvent[] = [
+  'RelayServerRegistered',
+  'RelayWorkersAdded',
+  'TransactionRelayed',
+  'TransactionRelayedButRevertedByRecipient',
+];
 
 export function isSameAddress(address1: string, address2: string): boolean {
   return address1.toLowerCase() === address2.toLowerCase();
@@ -30,6 +51,46 @@ export function randomInRange(min: number, max: number): number {
 
 export function boolString(bool: boolean): string {
   return bool ? chalk.green('good'.padEnd(14)) : chalk.red('wrong'.padEnd(14));
+}
+
+export async function getPastEventsForHub(
+  parameters: ManagerEventParameters,
+  { fromBlock, toBlock }: PastEventOptions,
+  names: ManagerEvent[] = DEFAULT_MANAGER_EVENTS
+): Promise<Array<TypedEvent>> {
+  const provider = getProvider();
+
+  const relyHubAddress = config.get<string>('contracts.relayHubAddress');
+
+  const relayHub = RelayHub__factory.connect(relyHubAddress, provider);
+
+  const eventFilters = await Promise.all(
+    names.map((name) => {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      const filter = relayHub.filters[name](...parameters);
+
+      return relayHub.queryFilter(filter, fromBlock, toBlock);
+    })
+  );
+
+  return eventFilters.flat();
+}
+
+export async function getRelayInfo(
+  relayManagers: Set<string>
+): Promise<IRelayHub.RelayManagerDataStruct[]> {
+  const provider = getProvider();
+
+  const relyHubAddress = config.get<string>('contracts.relayHubAddress');
+
+  const relayHub = RelayHub__factory.connect(relyHubAddress, provider);
+
+  const managers: string[] = Array.from(relayManagers);
+  const contractCalls: Array<Promise<IRelayHub.RelayManagerDataStruct>> =
+    managers.map((managerAddress) => relayHub.getRelayInfo(managerAddress));
+
+  return await Promise.all(contractCalls);
 }
 
 export function getLatestEventData(
@@ -59,10 +120,11 @@ export function isSecondEventLater(a: TypedEvent, b: TypedEvent): boolean {
 
 export function isRegistrationValid(
   relayData: IRelayHub.RelayManagerDataStruct | undefined,
-  config: AppConfig,
   managerAddress: string
 ): boolean {
-  const portIncluded: boolean = config.url.indexOf(':') > 0;
+  const appConfig = config.get<AppConfig>('app');
+
+  const portIncluded: boolean = appConfig.url.indexOf(':') > 0;
 
   if (relayData) {
     const manager = relayData.manager as string;
@@ -70,48 +132,90 @@ export function isRegistrationValid(
     return (
       isSameAddress(manager, managerAddress) &&
       relayData.url.toString() ===
-        config.url.toString() +
-          (!portIncluded && config.port > 0 ? ':' + config.port.toString() : '')
+        appConfig.url.toString() +
+          (!portIncluded && appConfig.port > 0
+            ? ':' + appConfig.port.toString()
+            : '')
     );
   }
 
   return false;
 }
 
-/**
- * @returns maximum possible gas consumption by this relay call
- * Note that not using the linear fit would result in an Inadequate amount of gas
- * You can add another kind of estimation (a hardcoded value for example) in that "else" statement
- * if you don't then use this function with usingLinearFit = true
- */
-export function estimateMaxPossibleRelayCallWithLinearFit(
-  relayCallGasLimit: BigNumberish,
-  tokenPaymentGas: BigNumberish,
-  addCushion = false
-): BigNumber {
-  const cushion = addCushion ? ESTIMATED_GAS_CORRECTION_FACTOR : 1.0;
+export async function isContractDeployed(address: string): Promise<boolean> {
+  const provider = getProvider();
 
-  const bigRelay = BigNumberJs(relayCallGasLimit.toString());
-  const bigTokenPayment = BigNumberJs(tokenPaymentGas.toString());
+  const code = await provider.getCode(address);
 
-  let estimatedCost: BigNumberJs;
-
-  if (bigTokenPayment.isZero()) {
-    // Subsidized case
-    // y = a0 + a1 * x = 85090.977 + 1.067 * x
-    const a0 = BigNumberJs('85090.977');
-    const a1 = BigNumberJs('1.067');
-    estimatedCost = a1.multipliedBy(bigRelay).plus(a0);
-  } else {
-    // y = a0 + a1 * x = 72530.9611 + 1.1114 * x
-    const a0 = BigNumberJs('72530.9611');
-    const a1 = BigNumberJs('1.1114');
-    estimatedCost = a1.multipliedBy(bigRelay.plus(bigTokenPayment)).plus(a0);
-  }
-
-  const costWithCushion = estimatedCost
-    .multipliedBy(cushion.toString())
-    .decimalPlaces(0, BigNumberJs.ROUND_CEIL);
-
-  return parseToBigNumber(costWithCushion);
+  // Check added for RSKJ: when the contract does not exist in RSKJ it replies to the getCode call with 0x00
+  return code !== '0x' && code !== '0x00';
 }
+
+export function getServerConfig(): ServerConfigParams {
+  const contractsConfig: ContractsConfig = config.get('contracts');
+  const appConfig: AppConfig = config.get('app');
+  const blockchainConfig: BlockchainConfig = config.get('blockchain');
+
+  return configureServer(contractsConfig, appConfig, blockchainConfig);
+}
+
+export function getProvider(): providers.Provider {
+  return getDefaultProvider(config.get<string>('blockchain.rskNodeUrl'));
+}
+
+export const deployTransactionRequestShape = {
+  relayRequest: {
+    request: {
+      relayHub: ow.string,
+      from: ow.string,
+      to: ow.string,
+      value: ow.string,
+      nonce: ow.string,
+      data: ow.string,
+      tokenContract: ow.string,
+      tokenAmount: ow.string,
+      tokenGas: ow.string,
+      recoverer: ow.string,
+      index: ow.string,
+    },
+    relayData: {
+      gasPrice: ow.string,
+      relayWorker: ow.string,
+      callForwarder: ow.string,
+      callVerifier: ow.string,
+    },
+  },
+  metadata: {
+    relayHubAddress: ow.string,
+    relayMaxNonce: ow.number,
+    signature: ow.string,
+  },
+};
+
+export const relayTransactionRequestShape = {
+  relayRequest: {
+    request: {
+      relayHub: ow.string,
+      from: ow.string,
+      to: ow.string,
+      value: ow.string,
+      gas: ow.string,
+      nonce: ow.string,
+      data: ow.string,
+      tokenContract: ow.string,
+      tokenAmount: ow.string,
+      tokenGas: ow.string,
+    },
+    relayData: {
+      gasPrice: ow.string,
+      relayWorker: ow.string,
+      callForwarder: ow.string,
+      callVerifier: ow.string,
+    },
+  },
+  metadata: {
+    relayHubAddress: ow.string,
+    relayMaxNonce: ow.number,
+    signature: ow.string,
+  },
+};
