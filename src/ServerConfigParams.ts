@@ -19,6 +19,7 @@ export type AppConfig = {
   feePercentage: string;
   disableSponsoredTx: boolean;
   sponsoredDestinations: Array<string>;
+  requestMinValidSeconds: number;
 };
 
 export type ContractsConfig = {
@@ -83,6 +84,7 @@ const serverDefaultConfiguration: ServerConfigParams = {
     disableSponsoredTx: false,
     feePercentage: '0',
     sponsoredDestinations: [],
+    requestMinValidSeconds: 43200,
   },
   contracts: {
     versionRegistryAddress: constants.AddressZero,
