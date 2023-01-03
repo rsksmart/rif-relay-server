@@ -2,16 +2,10 @@ import log from 'loglevel';
 import { BigNumber, utils, constants, Signer } from 'ethers';
 import type { Provider } from '@ethersproject/providers';
 import config from 'config';
-
-import type {
-  AppConfig,
-  BlockchainConfig,
-  ContractsConfig,
-} from '../ServerConfigParams';
-
 import { CommandClient } from './helpers/CommandClient';
 import { isSameAddress } from '../Utils';
 import { RelayHub__factory } from '@rsksmart/rif-relay-contracts';
+import { getServerConfig } from '../ServerConfigParams';
 
 export type RegisterOptions = {
   hub: string;
@@ -123,29 +117,24 @@ export class Register extends CommandClient {
 }
 
 export async function executeRegister(registerOptions?: RegisterOptions) {
-  const appConfig: AppConfig = config.get('app');
-  const contractsConfig: ContractsConfig = config.get('contracts');
-  const blockchainConfig: BlockchainConfig = config.get('blockchain');
+  const { app, contracts, blockchain } = getServerConfig();
   let registerConfig: RegisterConfig | undefined = undefined;
   if (config.has('register')) {
     registerConfig = config.get('register');
   }
-  log.setLevel(appConfig.logLevel);
+  log.setLevel(app.logLevel);
   const register = new Register(
-    blockchainConfig.rskNodeUrl,
+    blockchain.rskNodeUrl,
     registerConfig?.mnemonic
   );
-  const portIncluded: boolean = appConfig.url.indexOf(':') > 0;
+  const portIncluded: boolean = app.url.indexOf(':') > 0;
   const relayUrl =
-    appConfig.url +
-    (!portIncluded && appConfig.port > 0
-      ? ':' + appConfig.port.toString()
-      : '');
+    app.url + (!portIncluded && app.port > 0 ? ':' + app.port.toString() : '');
   await register.execute(
     registerOptions
       ? registerOptions
       : {
-          hub: contractsConfig.relayHubAddress,
+          hub: contracts.relayHubAddress,
           signer: await register.findWealthyAccount(),
           stake: utils.parseEther(registerConfig?.stake ?? '0.01'),
           funds: utils.parseEther(registerConfig?.funds ?? '0.02'),

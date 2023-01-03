@@ -19,9 +19,10 @@ import {
 } from './TransactionManager';
 import { ServerAction } from './StoredTransaction';
 import type { TxStoreManager } from './TxStoreManager';
-import type {
+import {
   ServerDependencies,
   ServerConfigParams,
+  getServerConfig,
 } from './ServerConfigParams';
 import Timeout = NodeJS.Timeout;
 import EventEmitter from 'events';
@@ -41,7 +42,6 @@ import {
   getLatestEventData,
   getPastEventsForHub,
   getProvider,
-  getServerConfig,
   isContractDeployed,
   randomInRange,
   relayTransactionRequestShape,
@@ -166,8 +166,8 @@ export class RelayServer extends EventEmitter {
 
   constructor(dependencies: ServerDependencies) {
     super();
-    this._provider = getProvider();
     this.config = getServerConfig();
+    this._provider = getProvider();
     this.txStoreManager = dependencies.txStoreManager;
     this.transactionManager = new TransactionManager(dependencies);
     this.managerAddress =

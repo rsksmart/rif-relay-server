@@ -26,13 +26,11 @@ import {
   getPastEventsForHub,
   getProvider,
   getRelayInfo,
-  getServerConfig,
   isRegistrationValid,
   isSecondEventLater,
 } from './Utils';
 import type { ManagerEvent, PastEventOptions } from './definitions/event.type';
-import config from 'config';
-import type { AppConfig } from './ServerConfigParams';
+import { getServerConfig, ServerConfigParams } from './ServerConfigParams';
 
 export type RelayServerRegistryInfo = {
   url: string;
@@ -79,6 +77,8 @@ export class RegistrationManager {
 
   private _delayedEvents: Array<{ block: number; eventData: TypedEvent }> = [];
 
+  private _config: ServerConfigParams;
+
   get isStakeLocked(): boolean {
     return this._isStakeLocked;
   }
@@ -100,7 +100,8 @@ export class RegistrationManager {
     managerAddress: string,
     workerAddress: string
   ) {
-    const { blockchain } = getServerConfig();
+    this._config = getServerConfig();
+    const { blockchain, contracts } = this._config;
     const listener = (): void => {
       this.printNotRegisteredMessage();
     };
@@ -115,7 +116,7 @@ export class RegistrationManager {
       listener
     );
 
-    this._hubAddress = config.get<string>('contracts.relayHubAddress');
+    this._hubAddress = contracts.relayHubAddress;
     this._managerAddress = managerAddress;
     this._workerAddress = workerAddress;
     this._eventEmitter = eventEmitter;
@@ -389,14 +390,12 @@ export class RegistrationManager {
       transactions = transactions.concat(txHash);
     }
 
-    const appConfig = config.get<AppConfig>('app');
+    const { app } = this._config;
 
-    const portIncluded: boolean = appConfig.url.indexOf(':') > 0;
+    const portIncluded: boolean = app.url.indexOf(':') > 0;
     const registerUrl =
-      appConfig.url +
-      (!portIncluded && appConfig.port > 0
-        ? ':' + appConfig.port.toString()
-        : '');
+      app.url +
+      (!portIncluded && app.port > 0 ? ':' + app.port.toString() : '');
 
     const relayHub = RelayHub__factory.connect(
       this._hubAddress,

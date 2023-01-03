@@ -6,20 +6,15 @@ import {
   TypedEvent,
   IRelayHub,
   RelayHub__factory,
+  RelayHub,
 } from '@rsksmart/rif-relay-contracts';
-import {
-  AppConfig,
-  BlockchainConfig,
-  configureServer,
-  ContractsConfig,
-  ServerConfigParams,
-} from './ServerConfigParams';
 import type {
   DefaultManagerEvent,
   ManagerEvent,
   ManagerEventParameters,
   PastEventOptions,
 } from './definitions/event.type';
+import type { AppConfig } from './ServerConfigParams';
 
 const DEFAULT_MANAGER_EVENTS: DefaultManagerEvent[] = [
   'RelayServerRegistered',
@@ -27,6 +22,22 @@ const DEFAULT_MANAGER_EVENTS: DefaultManagerEvent[] = [
   'TransactionRelayed',
   'TransactionRelayedButRevertedByRecipient',
 ];
+
+const CONFIG_CONTRACTS = 'contracts';
+const CONFIG_BLOCKCHAIN = 'blockchain';
+const CONFIG_APP = 'app';
+const CONFIG_RELAY_HUB_ADDRESS = 'relayHubAddress';
+const CONFIG_RSK_URL = 'rskNodeUrl';
+
+const getRelayHub = (): RelayHub => {
+  const provider = getProvider();
+
+  const relyHubAddress = config.get<string>(
+    `${CONFIG_CONTRACTS}.${CONFIG_RELAY_HUB_ADDRESS}`
+  );
+
+  return RelayHub__factory.connect(relyHubAddress, provider);
+};
 
 export function isSameAddress(address1: string, address2: string): boolean {
   return address1.toLowerCase() === address2.toLowerCase();
@@ -58,11 +69,7 @@ export async function getPastEventsForHub(
   { fromBlock, toBlock }: PastEventOptions,
   names: ManagerEvent[] = DEFAULT_MANAGER_EVENTS
 ): Promise<Array<TypedEvent>> {
-  const provider = getProvider();
-
-  const relyHubAddress = config.get<string>('contracts.relayHubAddress');
-
-  const relayHub = RelayHub__factory.connect(relyHubAddress, provider);
+  const relayHub = getRelayHub();
 
   const eventFilters = await Promise.all(
     names.map((name) => {
@@ -80,11 +87,7 @@ export async function getPastEventsForHub(
 export async function getRelayInfo(
   relayManagers: Set<string>
 ): Promise<IRelayHub.RelayManagerDataStruct[]> {
-  const provider = getProvider();
-
-  const relyHubAddress = config.get<string>('contracts.relayHubAddress');
-
-  const relayHub = RelayHub__factory.connect(relyHubAddress, provider);
+  const relayHub = getRelayHub();
 
   const managers: string[] = Array.from(relayManagers);
   const contractCalls: Array<Promise<IRelayHub.RelayManagerDataStruct>> =
@@ -122,9 +125,9 @@ export function isRegistrationValid(
   relayData: IRelayHub.RelayManagerDataStruct | undefined,
   managerAddress: string
 ): boolean {
-  const appConfig = config.get<AppConfig>('app');
+  const { url, port } = config.get<AppConfig>(CONFIG_APP);
 
-  const portIncluded: boolean = appConfig.url.indexOf(':') > 0;
+  const portIncluded: boolean = url.indexOf(':') > 0;
 
   if (relayData) {
     const manager = relayData.manager as string;
@@ -132,10 +135,8 @@ export function isRegistrationValid(
     return (
       isSameAddress(manager, managerAddress) &&
       relayData.url.toString() ===
-        appConfig.url.toString() +
-          (!portIncluded && appConfig.port > 0
-            ? ':' + appConfig.port.toString()
-            : '')
+        url.toString() +
+          (!portIncluded && port > 0 ? ':' + port.toString() : '')
     );
   }
 
@@ -151,16 +152,10 @@ export async function isContractDeployed(address: string): Promise<boolean> {
   return code !== '0x' && code !== '0x00';
 }
 
-export function getServerConfig(): ServerConfigParams {
-  const contractsConfig: ContractsConfig = config.get('contracts');
-  const appConfig: AppConfig = config.get('app');
-  const blockchainConfig: BlockchainConfig = config.get('blockchain');
-
-  return configureServer(contractsConfig, appConfig, blockchainConfig);
-}
-
 export function getProvider(): providers.Provider {
-  return getDefaultProvider(config.get<string>('blockchain.rskNodeUrl'));
+  return getDefaultProvider(
+    config.get<string>(`${CONFIG_BLOCKCHAIN}.${CONFIG_RSK_URL}`)
+  );
 }
 
 export const deployTransactionRequestShape = {
