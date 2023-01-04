@@ -20,10 +20,10 @@ async function run(): Promise<void> {
     log.info('Starting Enveloping Relay Server process...\n');
     const {
       app: { devMode, workdir, logLevel, port },
-      blockchain,
+      blockchain: { rskNodeUrl },
     } = getServerConfig();
     log.setLevel(logLevel);
-    if (!blockchain.rskNodeUrl) {
+    if (!rskNodeUrl) {
       error('missing rskNodeUrl');
     }
 
