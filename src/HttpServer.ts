@@ -6,10 +6,7 @@ import type { Server } from 'http';
 import log from 'loglevel';
 import configureDocumentation from './DocConfiguration';
 import type { RelayServer } from './RelayServer';
-import type {
-  DeployTransactionRequest,
-  RelayTransactionRequest,
-} from '@rsksmart/rif-relay-common';
+import type { EnvelopingTxRequest } from '@rsksmart/rif-relay-client';
 
 export type RootHandlerRequest = Request & {
   body?: {
@@ -253,7 +250,7 @@ export class HttpServer {
     try {
       const { signedTx, txHash } =
         await this._relayServer.createRelayTransaction(
-          body as RelayTransactionRequest | DeployTransactionRequest
+          body as EnvelopingTxRequest
         );
       res.send({ signedTx, txHash });
     } catch (e) {
@@ -318,7 +315,7 @@ export class HttpServer {
   async estimateHandler(req: Request, res: Response): Promise<void> {
     try {
       const estimation = await this._relayServer.estimateMaxPossibleGas(
-        req.body as RelayTransactionRequest | DeployTransactionRequest
+        req.body as EnvelopingTxRequest
       );
       res.send(estimation);
     } catch (e) {

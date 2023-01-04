@@ -2,18 +2,10 @@ import log from 'loglevel';
 import { BigNumber, utils, constants, Signer } from 'ethers';
 import type { Provider } from '@ethersproject/providers';
 import config from 'config';
-
-import type { EnvelopingConfig } from '@rsksmart/rif-relay-common';
-import { configure } from '@rsksmart/rif-relay-client';
-
-import type {
-  AppConfig,
-  BlockchainConfig,
-  ContractsConfig,
-} from '../ServerConfigParams';
-
 import { CommandClient } from './helpers/CommandClient';
 import { isSameAddress } from '../Utils';
+import { RelayHub__factory } from '@rsksmart/rif-relay-contracts';
+import { getServerConfig } from '../ServerConfigParams';
 
 export type RegisterOptions = {
   hub: string;
@@ -33,20 +25,18 @@ type RegisterConfig = {
 };
 
 export class Register extends CommandClient {
-  constructor(host: string, config: EnvelopingConfig, mnemonic?: string) {
-    super(host, config, mnemonic);
+  constructor(host: string, mnemonic?: string) {
+    super(host, mnemonic);
   }
 
   async execute(options: RegisterOptions): Promise<void> {
     const transactions: string[] = [];
     log.info(`Registering Enveloping relayer at ${options.relayUrl}`);
     log.info('Options received:', options);
-    const response = await this._httpClient.getPingResponse(options.relayUrl);
+    const response = await this._httpClient.getChainInfo(options.relayUrl);
     if (response.ready) {
       throw new Error('Already registered');
     }
-
-    await this.initContractInteractor();
 
     const { chainId } = await (this._provider as Provider).getNetwork();
 
@@ -58,9 +48,12 @@ export class Register extends CommandClient {
       );
     }
 
+    const relayHub = RelayHub__factory.connect(options.hub, this._provider);
+
     const relayAddress = response.relayManagerAddress;
-    const { stake, unstakeDelay, owner } =
-      await this._contractInteractor.getStakeInfo(relayAddress);
+    const { stake, unstakeDelay, owner } = await relayHub.getStakeInfo(
+      relayAddress
+    );
 
     log.info('Current stake info:');
     log.info('Relayer owner: ', owner);
@@ -83,7 +76,7 @@ export class Register extends CommandClient {
           : ` (already has ${utils.formatUnits(stake, 'ether')} RBTC)`
       );
 
-      const stakeTx = await this._contractInteractor.relayHub
+      const stakeTx = await relayHub
         .connect(options.signer)
         .stakeForAddress(relayAddress, options.unstakeDelay.toString(), {
           value: stakeValue,
@@ -124,30 +117,24 @@ export class Register extends CommandClient {
 }
 
 export async function executeRegister(registerOptions?: RegisterOptions) {
-  const appConfig: AppConfig = config.get('app');
-  const contractsConfig: ContractsConfig = config.get('contracts');
-  const blockchainConfig: BlockchainConfig = config.get('blockchain');
+  const { app, contracts, blockchain } = getServerConfig();
   let registerConfig: RegisterConfig | undefined = undefined;
   if (config.has('register')) {
     registerConfig = config.get('register');
   }
-  log.setLevel(appConfig.logLevel);
+  log.setLevel(app.logLevel);
   const register = new Register(
-    blockchainConfig.rskNodeUrl,
-    configure({ relayHubAddress: contractsConfig.relayHubAddress }),
+    blockchain.rskNodeUrl,
     registerConfig?.mnemonic
   );
-  const portIncluded: boolean = appConfig.url.indexOf(':') > 0;
+  const portIncluded: boolean = app.url.indexOf(':') > 0;
   const relayUrl =
-    appConfig.url +
-    (!portIncluded && appConfig.port > 0
-      ? ':' + appConfig.port.toString()
-      : '');
+    app.url + (!portIncluded && app.port > 0 ? ':' + app.port.toString() : '');
   await register.execute(
     registerOptions
       ? registerOptions
       : {
-          hub: contractsConfig.relayHubAddress,
+          hub: contracts.relayHubAddress,
           signer: await register.findWealthyAccount(),
           stake: utils.parseEther(registerConfig?.stake ?? '0.01'),
           funds: utils.parseEther(registerConfig?.funds ?? '0.02'),
