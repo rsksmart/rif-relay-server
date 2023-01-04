@@ -29,15 +29,11 @@ const CONFIG_APP = 'app';
 const CONFIG_RELAY_HUB_ADDRESS = 'relayHubAddress';
 const CONFIG_RSK_URL = 'rskNodeUrl';
 
-const getRelayHub = (): RelayHub => {
-  const provider = getProvider();
+const getConfiguredRelayHubAddress = () => config.get<string>(
+  `${CONFIG_CONTRACTS}.${CONFIG_RELAY_HUB_ADDRESS}`
+);
 
-  const relyHubAddress = config.get<string>(
-    `${CONFIG_CONTRACTS}.${CONFIG_RELAY_HUB_ADDRESS}`
-  );
-
-  return RelayHub__factory.connect(relyHubAddress, provider);
-};
+const getRelayHub = (provider = getProvider(), relayHubAddress = getConfiguredRelayHubAddress()): RelayHub => RelayHub__factory.connect(relayHubAddress, provider);
 
 export function isSameAddress(address1: string, address2: string): boolean {
   return address1.toLowerCase() === address2.toLowerCase();

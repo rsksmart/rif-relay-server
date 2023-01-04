@@ -18,21 +18,14 @@ function error(err: string): void {
 async function run(): Promise<void> {
   try {
     log.info('Starting Enveloping Relay Server process...\n');
-    const { contracts, app, blockchain } = getServerConfig();
-    log.setLevel(app.logLevel);
+    const { app: { devMode, workdir, logLevel, port}, blockchain } = getServerConfig();
+    log.setLevel(logLevel);
     if (!blockchain.rskNodeUrl) {
       error('missing rskNodeUrl');
     }
-    const trustedVerifiers = contracts.trustedVerifiers;
-
-    log.debug('runServer() - provider done');
-    // config = await resolveServerConfig(conf, provider);
+    
     log.debug('runServer() - config done');
-    if (trustedVerifiers && trustedVerifiers.length > 0) {
-      contracts.trustedVerifiers = trustedVerifiers;
-    }
-    const devMode: boolean = app.devMode;
-    const workdir: string = app.workdir;
+    
     if (devMode) {
       if (fs.existsSync(`${workdir}/${TXSTORE_FILENAME}`)) {
         fs.unlinkSync(`${workdir}/${TXSTORE_FILENAME}`);
@@ -53,7 +46,7 @@ async function run(): Promise<void> {
     const relayServer = new RelayServer(dependencies);
     await relayServer.init();
     log.debug('runServer() - Relay Server initialized');
-    const httpServer = new HttpServer(app.port, relayServer);
+    const httpServer = new HttpServer(port, relayServer);
     httpServer.start();
     log.debug('runServer() - Relay Server started');
   } catch (e) {
