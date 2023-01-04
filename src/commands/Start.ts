@@ -18,14 +18,17 @@ function error(err: string): void {
 async function run(): Promise<void> {
   try {
     log.info('Starting Enveloping Relay Server process...\n');
-    const { app: { devMode, workdir, logLevel, port}, blockchain } = getServerConfig();
+    const {
+      app: { devMode, workdir, logLevel, port },
+      blockchain,
+    } = getServerConfig();
     log.setLevel(logLevel);
     if (!blockchain.rskNodeUrl) {
       error('missing rskNodeUrl');
     }
-    
+
     log.debug('runServer() - config done');
-    
+
     if (devMode) {
       if (fs.existsSync(`${workdir}/${TXSTORE_FILENAME}`)) {
         fs.unlinkSync(`${workdir}/${TXSTORE_FILENAME}`);
