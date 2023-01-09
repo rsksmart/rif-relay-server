@@ -60,11 +60,15 @@ import {
 } from './Conversions';
 import type ExchangeToken from './definitions/token.type';
 import {
+  applyGasCorrectionFactor,
+  applyInternalEstimationCorrection,
   EnvelopingRequest,
   EnvelopingTxRequest,
   estimateRelayMaxPossibleGas,
   isDeployTransaction,
   RelayRequest,
+  setEnvelopingConfig,
+  setProvider,
   standardMaxPossibleGasEstimation,
 } from '@rsksmart/rif-relay-client';
 import { MAX_ESTIMATED_GAS_DEVIATION } from './definitions/server.const';
@@ -168,6 +172,23 @@ export class RelayServer extends EventEmitter {
     super();
     this.config = getServerConfig();
     this._provider = getProvider();
+    setProvider(this._provider);
+    const {
+      contracts: {
+        relayHubAddress,
+        deployVerifierAddress,
+        relayVerifierAddress,
+        smartWalletFactoryAddress,
+      },
+    } = this.config;
+    setEnvelopingConfig({
+      chainId: 33,
+      preferredRelays: [],
+      relayHubAddress,
+      deployVerifierAddress,
+      relayVerifierAddress,
+      smartWalletFactoryAddress,
+    });
     this.txStoreManager = dependencies.txStoreManager;
     this.transactionManager = new TransactionManager(dependencies);
     this.managerAddress =
@@ -413,27 +434,34 @@ export class RelayServer extends EventEmitter {
 
       const relayRequest = envelopingTransaction.relayRequest as RelayRequest;
 
-      const estimatedDesinationGasCost: BigNumber =
+      //TODO check if relayClient should be used here
+      let estimatedDesinationGasCost: BigNumber =
         await this._provider.estimateGas({
-          from: relayRequest.relayData.callForwarder as string,
-          to: relayRequest.request.to as string,
+          from: relayRequest.relayData.callForwarder.toString(),
+          to: relayRequest.request.to.toString(),
           gasPrice: relayRequest.relayData.gasPrice,
           data: relayRequest.request.data,
         });
 
+      estimatedDesinationGasCost = applyInternalEstimationCorrection(
+        estimatedDesinationGasCost
+      );
+
+      estimatedDesinationGasCost = applyGasCorrectionFactor(
+        estimatedDesinationGasCost
+      );
+
       const bigMaxEstimatedGasDeviation = BigNumberJs(
-        MAX_ESTIMATED_GAS_DEVIATION
+        1 + MAX_ESTIMATED_GAS_DEVIATION
       );
-      const bigOne = BigNumberJs('1');
-      const bigGasFromRequest = BigNumberJs(
-        relayRequest.request.gas.toString()
-      );
-      const bigGasFromRequestMaxAgreed = bigMaxEstimatedGasDeviation
-        .plus(bigOne)
-        .multipliedBy(bigGasFromRequest);
+
+      const bigGasFromRequestMaxAgreed =
+        bigMaxEstimatedGasDeviation.multipliedBy(
+          relayRequest.request.gas.toString()
+        );
 
       if (
-        estimatedDesinationGasCost.gt(bigGasFromRequestMaxAgreed.toString())
+        estimatedDesinationGasCost.gt(bigGasFromRequestMaxAgreed.toFixed(0))
       ) {
         throw new Error(
           "Request payload's gas parameters deviate too much fom the estimated gas for this transaction"
@@ -706,8 +734,9 @@ export class RelayServer extends EventEmitter {
       destination: envelopingTransaction.metadata.relayHubAddress.toString(),
       gasLimit: maxPossibleGasWithViewCall,
       creationBlockNumber: currentBlock,
-      gasPrice: envelopingTransaction.relayRequest.relayData
-        .gasPrice as BigNumber,
+      gasPrice: BigNumber.from(
+        envelopingTransaction.relayRequest.relayData.gasPrice
+      ),
     };
     const txDetails = await this.transactionManager.sendTransaction(details);
     // after sending a transaction is a good time to check the worker's balance, and replenish it.

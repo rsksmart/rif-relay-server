@@ -26,6 +26,7 @@ export type ContractsConfig = {
   relayHubAddress: string;
   deployVerifierAddress: string;
   relayVerifierAddress: string;
+  smartWalletFactoryAddress: string;
   relayHubId?: string;
   feesReceiver: string;
   trustedVerifiers: string[];
@@ -78,7 +79,7 @@ const serverDefaultConfiguration: ServerConfigParams = {
     url: 'http://localhost:8090',
     port: 0,
     workdir: '',
-    checkInterval: 10000,
+    checkInterval: 1000,
     disableSponsoredTx: false,
     feePercentage: '0',
     sponsoredDestinations: [],
@@ -89,6 +90,7 @@ const serverDefaultConfiguration: ServerConfigParams = {
     relayHubAddress: constants.AddressZero,
     relayVerifierAddress: constants.AddressZero,
     deployVerifierAddress: constants.AddressZero,
+    smartWalletFactoryAddress: constants.AddressZero,
     feesReceiver: constants.AddressZero,
     trustedVerifiers: [],
   },
