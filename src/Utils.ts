@@ -32,9 +32,9 @@ const CONFIG_RSK_URL = 'rskNodeUrl';
 const getConfiguredRelayHubAddress = () =>
   config.get<string>(`${CONFIG_CONTRACTS}.${CONFIG_RELAY_HUB_ADDRESS}`);
 
-const getRelayHub = (
-  provider = getProvider(),
-  relayHubAddress = getConfiguredRelayHubAddress()
+export const getRelayHub = (
+  relayHubAddress = getConfiguredRelayHubAddress(),
+  provider = getProvider()
 ): RelayHub => RelayHub__factory.connect(relayHubAddress, provider);
 
 export function isSameAddress(address1: string, address2: string): boolean {

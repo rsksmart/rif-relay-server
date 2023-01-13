@@ -7,7 +7,6 @@ import {
   IDeployVerifier,
   IRelayVerifier,
   ERC20__factory,
-  RelayHub__factory,
 } from '@rsksmart/rif-relay-contracts';
 import type { TypedEvent } from '@rsksmart/rif-relay-contracts';
 import { replenishStrategy } from './ReplenishFunction';
@@ -33,7 +32,6 @@ import {
   PopulatedTransaction,
   BigNumberish,
   BigNumber,
-  providers,
 } from 'ethers';
 import { BigNumber as BigNumberJs } from 'bignumber.js';
 import ow from 'ow';
@@ -42,6 +40,7 @@ import {
   getLatestEventData,
   getPastEventsForHub,
   getProvider,
+  getRelayHub,
   isContractDeployed,
   randomInRange,
   relayTransactionRequestShape,
@@ -60,10 +59,9 @@ import {
 } from './Conversions';
 import type ExchangeToken from './definitions/token.type';
 import {
-  applyGasCorrectionFactor,
-  applyInternalEstimationCorrection,
   EnvelopingRequest,
   EnvelopingTxRequest,
+  estimateInternalCallGas,
   estimateRelayMaxPossibleGas,
   isDeployTransaction,
   RelayRequest,
@@ -166,13 +164,10 @@ export class RelayServer extends EventEmitter {
 
   private readonly customReplenish: boolean;
 
-  private readonly _provider: providers.Provider;
-
   constructor(dependencies: ServerDependencies) {
     super();
     this.config = getServerConfig();
-    this._provider = getProvider();
-    setProvider(this._provider);
+    setProvider(getProvider());
     const {
       contracts: {
         relayHubAddress,
@@ -252,10 +247,12 @@ export class RelayServer extends EventEmitter {
     }
 
     const res: TokenResponse = {};
+    const provider = getProvider();
+
     for (const verifier of verifiersToQuery) {
       const tokenHandlerInstance = TokenHandler__factory.connect(
         verifier,
-        this._provider
+        provider
       );
       const acceptedTokens = await tokenHandlerInstance.getAcceptedTokens();
       res[utils.getAddress(verifier)] = acceptedTokens;
@@ -357,17 +354,13 @@ export class RelayServer extends EventEmitter {
 
     let verifierContract: IRelayVerifier | IDeployVerifier;
 
+    const provider = getProvider();
+
     try {
       if (isDeployTransaction(envelopingTransaction)) {
-        verifierContract = IDeployVerifier__factory.connect(
-          verifier,
-          this._provider
-        );
+        verifierContract = IDeployVerifier__factory.connect(verifier, provider);
       } else {
-        verifierContract = IRelayVerifier__factory.connect(
-          verifier,
-          this._provider
-        );
+        verifierContract = IRelayVerifier__factory.connect(verifier, provider);
       }
     } catch (e) {
       const error = e as Error;
@@ -404,7 +397,7 @@ export class RelayServer extends EventEmitter {
           envelopingTransaction.metadata.signature
         );
       }
-      await this._provider.call(verifyMethod, 'pending');
+      await provider.call(verifyMethod, 'pending');
     } catch (e) {
       const error = e as Error;
       throw new Error(`Verification by verifier failed: ${error.message}`);
@@ -434,22 +427,12 @@ export class RelayServer extends EventEmitter {
 
       const relayRequest = envelopingTransaction.relayRequest as RelayRequest;
 
-      //TODO check if relayClient should be used here
-      let estimatedDesinationGasCost: BigNumber =
-        await this._provider.estimateGas({
-          from: relayRequest.relayData.callForwarder.toString(),
-          to: relayRequest.request.to.toString(),
-          gasPrice: relayRequest.relayData.gasPrice,
-          data: relayRequest.request.data,
-        });
-
-      estimatedDesinationGasCost = applyInternalEstimationCorrection(
-        estimatedDesinationGasCost
-      );
-
-      estimatedDesinationGasCost = applyGasCorrectionFactor(
-        estimatedDesinationGasCost
-      );
+      const estimatedDesinationGasCost = await estimateInternalCallGas({
+        from: relayRequest.relayData.callForwarder.toString(),
+        to: relayRequest.request.to.toString(),
+        gasPrice: relayRequest.relayData.gasPrice,
+        data: relayRequest.request.data,
+      });
 
       const bigMaxEstimatedGasDeviation = BigNumberJs(
         1 + MAX_ESTIMATED_GAS_DEVIATION
@@ -503,9 +486,11 @@ export class RelayServer extends EventEmitter {
         envelopingTransaction.relayRequest.relayData.gasPrice.toString()
       );
 
+      const provider = getProvider();
+
       const tokenInstance = ERC20__factory.connect(
         envelopingTransaction.relayRequest.request.tokenContract.toString(),
-        this._provider
+        provider
       );
 
       const token: ExchangeToken = {
@@ -574,12 +559,13 @@ export class RelayServer extends EventEmitter {
     const commonErrorMessage = 'relayCall (local call) reverted in server:';
     let factor = INITIAL_FACTOR_TO_TRY;
     let maxPossibleGasAttempt = BigNumberJs(maxPossibleGas.toString());
+    const provider = getProvider();
     do {
       try {
         log.debug(
           `RelayServer - attempting with gasLimit : ${maxPossibleGasAttempt.toString()}`
         );
-        await this._provider.call(
+        await provider.call(
           {
             ...transaction,
             from: this.workerAddress,
@@ -635,9 +621,11 @@ export class RelayServer extends EventEmitter {
       );
     }
 
+    const provider = getProvider();
+
     const tokenInstance = ERC20__factory.connect(
       envelopingRequest.relayRequest.request.tokenContract.toString(),
-      this._provider
+      provider
     );
 
     const token: ExchangeToken = {
@@ -699,10 +687,7 @@ export class RelayServer extends EventEmitter {
     // Send relayed transaction
     log.debug('maxPossibleGas is', maxPossibleGas.toString());
 
-    const relayHub = RelayHub__factory.connect(
-      this.config.contracts.relayHubAddress,
-      this._provider
-    );
+    const relayHub = getRelayHub();
 
     const method = isDeployTransaction(envelopingTransaction)
       ? await relayHub.populateTransaction.deployCall(
@@ -726,7 +711,9 @@ export class RelayServer extends EventEmitter {
       maxPossibleGasWithViewCall.toString()
     );
 
-    const currentBlock = await this._provider.getBlockNumber();
+    const provider = getProvider();
+
+    const currentBlock = await provider.getBlockNumber();
     const details: SendTransactionDetails = {
       signer: this.workerAddress,
       serverAction: ServerAction.RELAY_CALL,
@@ -757,8 +744,10 @@ export class RelayServer extends EventEmitter {
       }, this.config.app.readyTimeout);
     }
 
+    const provider = getProvider();
+
     return new Promise<void>((resolve, reject) => {
-      this._provider
+      provider
         .getBlock('latest')
         .then((block) => {
           if (block.number > this.lastScannedBlock) {
@@ -884,7 +873,9 @@ export class RelayServer extends EventEmitter {
     await this.registrationManager.init();
     log.debug('Relay Server - Registration manager initialized');
 
-    const { chainId } = await this._provider.getNetwork();
+    const provider = getProvider();
+
+    const { chainId } = await provider.getNetwork();
     this.chainId = chainId;
     this.networkId = chainId;
     log.debug(`Relay Server - chainId: ${this.chainId}`);
@@ -897,7 +888,7 @@ export class RelayServer extends EventEmitter {
     }
     */
 
-    const latestBlock = await this._provider.getBlock('latest');
+    const latestBlock = await provider.getBlock('latest');
     log.info(`Current network info:
 chainId                 | ${this.chainId}
 networkId               | ${this.networkId}
@@ -947,7 +938,9 @@ latestBlock timestamp   | ${latestBlock.timestamp}
   }
 
   async _refreshGasPrice(): Promise<void> {
-    this.gasPrice = await this._provider.getGasPrice();
+    const provider = getProvider();
+
+    this.gasPrice = await provider.getGasPrice();
     if (this.gasPrice.eq(constants.Zero)) {
       throw new Error('Could not get gasPrice from node');
     }
@@ -1007,13 +1000,16 @@ latestBlock timestamp   | ${latestBlock.timestamp}
   }
 
   async getManagerBalance(): Promise<BigNumber> {
-    return await this._provider.getBalance(this.managerAddress, 'pending');
+    const provider = getProvider();
+
+    return await provider.getBalance(this.managerAddress, 'pending');
   }
 
   async getWorkerBalance(workerIndex: number): Promise<BigNumber> {
+    const provider = getProvider();
     log.debug('getWorkerBalance: workerIndex', workerIndex);
 
-    return await this._provider.getBalance(this.workerAddress, 'pending');
+    return await provider.getBalance(this.workerAddress, 'pending');
   }
 
   async _shouldRegisterAgain(

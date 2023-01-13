@@ -5,10 +5,7 @@ import { KeyManager } from '../KeyManager';
 import { TxStoreManager, TXSTORE_FILENAME } from '../TxStoreManager';
 
 import log from 'loglevel';
-import {
-  getServerConfig,
-  ServerDependencies,
-} from '../../src/ServerConfigParams';
+import { getServerConfig, ServerDependencies } from '../ServerConfigParams';
 
 function error(err: string): void {
   log.error(err);

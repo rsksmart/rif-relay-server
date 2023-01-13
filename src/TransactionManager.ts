@@ -1,13 +1,7 @@
 import chalk from 'chalk';
 import log from 'loglevel';
 import { Mutex } from 'async-mutex';
-import {
-  utils,
-  BigNumber,
-  PopulatedTransaction,
-  constants,
-  providers,
-} from 'ethers';
+import { utils, BigNumber, PopulatedTransaction, constants } from 'ethers';
 import type { TransactionResponse } from '@ethersproject/providers';
 import { BigNumber as BigNumberJs } from 'bignumber.js';
 import type { TxStoreManager } from './TxStoreManager';
@@ -54,14 +48,11 @@ export class TransactionManager {
 
   config: ServerConfigParams;
 
-  private readonly _provider: providers.Provider;
-
   constructor(dependencies: ServerDependencies) {
     this.txStoreManager = dependencies.txStoreManager;
     this.workersKeyManager = dependencies.workersKeyManager;
     this.managerKeyManager = dependencies.managerKeyManager;
     this.config = getServerConfig();
-    this._provider = getProvider();
     this._initNonces();
   }
 
@@ -124,8 +115,10 @@ data         | 0x${transaction.data ?? ''}
     transaction: PopulatedTransaction,
     from: string
   ): Promise<BigNumber> {
+    const provider = getProvider();
+
     try {
-      const estimateGas = await this._provider.estimateGas({
+      const estimateGas = await provider.estimateGas({
         ...transaction,
         from,
       });
@@ -159,7 +152,9 @@ data         | 0x${transaction.data ?? ''}
     creationBlockNumber,
     serverAction,
   }: SendTransactionDetails): Promise<SignedTransactionDetails> {
-    const tempGasPrice = await this._provider.getGasPrice();
+    const provider = getProvider();
+
+    const tempGasPrice = await provider.getGasPrice();
 
     const releaseMutex = await this.nonceMutex.acquire();
     let signedTransaction: SignedTransactionDetails;
@@ -196,7 +191,7 @@ data         | 0x${transaction.data ?? ''}
       releaseMutex();
     }
 
-    const transaction = await this._provider.sendTransaction(
+    const transaction = await provider.sendTransaction(
       signedTransaction.signedTx
     );
 
@@ -272,10 +267,13 @@ data         | 0x${transaction.data ?? ''}
       Number(tx.gasPrice),
       isMaxGasPriceReached
     );
+
+    const provider = getProvider();
+
     this.printSendTransactionLog(txToSign, tx.from, signedTransaction.txHash);
-    const currentNonce = await this._provider.getTransactionCount(tx.from);
+    const currentNonce = await provider.getTransactionCount(tx.from);
     log.debug(`Current account nonce for ${tx.from} is ${currentNonce}`);
-    const transaction = await this._provider.sendTransaction(
+    const transaction = await provider.sendTransaction(
       signedTransaction.signedTx
     );
     if (transaction.hash.toLowerCase() !== storedTx.txId.toLowerCase()) {
@@ -314,10 +312,9 @@ data         | 0x${transaction.data ?? ''}
   }
 
   async pollNonce(signer: string): Promise<number> {
-    const nonce: number = await this._provider.getTransactionCount(
-      signer,
-      'pending'
-    );
+    const provider = getProvider();
+
+    const nonce: number = await provider.getTransactionCount(signer, 'pending');
     const nonceSigner = this.nonces[signer] ?? 0;
 
     if (nonce < nonceSigner) {
@@ -345,6 +342,8 @@ data         | 0x${transaction.data ?? ''}
     log.debug(
       `Total of ${sortedTxs.length} transactions are not confirmed yet, checking...`
     );
+    const provider = getProvider();
+
     // Get nonce at confirmationsNeeded blocks ago
     for (const transaction of sortedTxs) {
       const shouldRecheck =
@@ -352,8 +351,9 @@ data         | 0x${transaction.data ?? ''}
         blockNumber - transaction.minedBlockNumber >=
           this.config.blockchain.confirmationsNeeded;
       if (shouldRecheck) {
-        const receipt: TransactionResponse =
-          await this._provider.getTransaction(transaction.txId);
+        const receipt: TransactionResponse = await provider.getTransaction(
+          transaction.txId
+        );
         if (receipt == null) {
           log.warn(
             `warning: failed to fetch receipt for tx ${transaction.txId}`
@@ -411,8 +411,11 @@ data         | 0x${transaction.data ?? ''}
     if (sortedTxs.length === 0) {
       return boostedTransactions;
     }
+
+    const provider = getProvider();
+
     // Check if the tx was mined by comparing its nonce against the latest one
-    const nonce = await this._provider.getTransactionCount(signer);
+    const nonce = await provider.getTransactionCount(signer);
     const oldestPendingTx = sortedTxs[0];
     if (oldestPendingTx) {
       if (oldestPendingTx.nonce && oldestPendingTx.nonce < nonce) {
