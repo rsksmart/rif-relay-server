@@ -79,7 +79,7 @@ const serverDefaultConfiguration: ServerConfigParams = {
     url: 'http://localhost:8090',
     port: 0,
     workdir: '',
-    checkInterval: 1000,
+    checkInterval: 10000,
     disableSponsoredTx: false,
     feePercentage: '0',
     sponsoredDestinations: [],
