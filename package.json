@@ -51,7 +51,8 @@
       "url": "https://github/ironFe93"
     }
   ],
-  "main": "index.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "dist": "scripts/dist",
     "format": "npx prettier \"{,test/**/}*.ts\" \"{,src/**/}*.ts\" !.gitignore  --list-different --no-editorconfig",
