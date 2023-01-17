@@ -32,9 +32,9 @@ const CONFIG_RSK_URL = 'rskNodeUrl';
 const getConfiguredRelayHubAddress = () =>
   config.get<string>(`${CONFIG_CONTRACTS}.${CONFIG_RELAY_HUB_ADDRESS}`);
 
-const getRelayHub = (
-  provider = getProvider(),
-  relayHubAddress = getConfiguredRelayHubAddress()
+export const getRelayHub = (
+  relayHubAddress = getConfiguredRelayHubAddress(),
+  provider = getProvider()
 ): RelayHub => RelayHub__factory.connect(relayHubAddress, provider);
 
 export function isSameAddress(address1: string, address2: string): boolean {
@@ -156,6 +156,7 @@ export function getProvider(): providers.Provider {
   );
 }
 
+//TODO improve the validating and type handling
 export const deployTransactionRequestShape = {
   relayRequest: {
     request: {
@@ -169,11 +170,12 @@ export const deployTransactionRequestShape = {
       tokenAmount: ow.string,
       tokenGas: ow.string,
       recoverer: ow.string,
-      index: ow.string,
+      index: ow.number,
+      validUntilTime: ow.number,
     },
     relayData: {
       gasPrice: ow.string,
-      relayWorker: ow.string,
+      feesReceiver: ow.string,
       callForwarder: ow.string,
       callVerifier: ow.string,
     },
@@ -185,6 +187,7 @@ export const deployTransactionRequestShape = {
   },
 };
 
+//TODO improve the validating and type handling
 export const relayTransactionRequestShape = {
   relayRequest: {
     request: {
@@ -198,10 +201,11 @@ export const relayTransactionRequestShape = {
       tokenContract: ow.string,
       tokenAmount: ow.string,
       tokenGas: ow.string,
+      validUntilTime: ow.number,
     },
     relayData: {
       gasPrice: ow.string,
-      relayWorker: ow.string,
+      feesReceiver: ow.string,
       callForwarder: ow.string,
       callVerifier: ow.string,
     },

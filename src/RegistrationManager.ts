@@ -1,14 +1,13 @@
 import log from 'loglevel';
 import type { EventEmitter } from 'events';
-import { constants, BigNumber, providers } from 'ethers';
+import { constants, BigNumber } from 'ethers';
 import { BigNumber as BigNumberJs } from 'bignumber.js';
 import chalk from 'chalk';
 
-import {
+import type {
   IRelayHub,
   TypedEvent,
   StakeUnlockedEvent,
-  RelayHub__factory,
 } from '@rsksmart/rif-relay-contracts';
 
 import type {
@@ -25,6 +24,7 @@ import {
   getLatestEventData,
   getPastEventsForHub,
   getProvider,
+  getRelayHub,
   getRelayInfo,
   isRegistrationValid,
   isSecondEventLater,
@@ -70,8 +70,6 @@ export class RegistrationManager {
   private readonly _txStoreManager: TxStoreManager;
 
   private _relayData: IRelayHub.RelayManagerDataStruct | undefined;
-
-  private readonly _provider: providers.Provider;
 
   private _lastWorkerAddedTransaction: TypedEvent | undefined;
 
@@ -122,7 +120,6 @@ export class RegistrationManager {
     this._eventEmitter = eventEmitter;
     this._transactionManager = transactionManager;
     this._txStoreManager = txStoreManager;
-    this._provider = getProvider();
   }
 
   async init(): Promise<void> {
@@ -307,17 +304,14 @@ export class RegistrationManager {
   }
 
   async refreshBalance(): Promise<void> {
-    const currentBalance = await this._provider.getBalance(
-      this._managerAddress
-    );
+    const provider = getProvider();
+
+    const currentBalance = await provider.getBalance(this._managerAddress);
     this._balanceRequired.currentValue = currentBalance;
   }
 
   async refreshStake(): Promise<void> {
-    const relayHub = RelayHub__factory.connect(
-      this._hubAddress,
-      this._provider
-    );
+    const relayHub = getRelayHub(this._hubAddress);
 
     const stakeInfo = await relayHub.getStakeInfo(this._managerAddress);
 
@@ -339,10 +333,7 @@ export class RegistrationManager {
   }
 
   async addRelayWorker(currentBlock: number): Promise<string> {
-    const relayHub = RelayHub__factory.connect(
-      this._hubAddress,
-      this._provider
-    );
+    const relayHub = getRelayHub(this._hubAddress);
 
     // register on chain
     const addRelayWorkerMethod =
@@ -397,10 +388,7 @@ export class RegistrationManager {
       app.url +
       (!portIncluded && app.port > 0 ? ':' + app.port.toString() : '');
 
-    const relayHub = RelayHub__factory.connect(
-      this._hubAddress,
-      this._provider
-    );
+    const relayHub = getRelayHub(this._hubAddress);
 
     const registerMethod =
       await relayHub.populateTransaction.registerRelayServer(registerUrl);
@@ -428,14 +416,13 @@ export class RegistrationManager {
   }
 
   async _sendManagerEthBalanceToOwner(currentBlock: number): Promise<string[]> {
+    const provider = getProvider();
     const transactionHashes: string[] = [];
-    const gasPrice = await this._provider.getGasPrice();
+    const gasPrice = await provider.getGasPrice();
     const bigGasLimit = BigNumberJs(minTxGasCost ? minTxGasCost : 21000);
     const txCost = bigGasLimit.multipliedBy(gasPrice.toString());
 
-    const managerBalance = await this._provider.getBalance(
-      this._managerAddress
-    );
+    const managerBalance = await provider.getBalance(this._managerAddress);
     const bigManagerBalance = BigNumberJs(managerBalance.toString());
     const bigValue = bigManagerBalance.minus(txCost);
     // sending manager RBTC balance to owner
@@ -468,14 +455,15 @@ export class RegistrationManager {
   async _sendWorkersEthBalancesToOwner(
     currentBlock: number
   ): Promise<string[]> {
+    const provider = getProvider();
     // sending workers' balance to owner (currently one worker, todo: extend to multiple)
     const transactionHashes: string[] = [];
-    const gasPrice = await this._provider.getGasPrice();
+    const gasPrice = await provider.getGasPrice();
     const bigGasPrice = BigNumberJs(gasPrice.toString());
     const gasLimit = BigNumber.from(minTxGasCost ? minTxGasCost : 21000);
     const txCost = bigGasPrice.multipliedBy(gasLimit.toString());
 
-    const workerBalance = await this._provider.getBalance(this._workerAddress);
+    const workerBalance = await provider.getBalance(this._workerAddress);
     const bigWorkerBalance = new BigNumberJs(workerBalance.toString());
 
     const bigValue = bigWorkerBalance.minus(txCost);
