@@ -1,7 +1,7 @@
 import fs from 'fs';
 import { HttpServer } from '../HttpServer';
-import { RelayServer } from '../RelayServer';
 import { KeyManager } from '../KeyManager';
+import { RelayServer } from '../RelayServer';
 import { TxStoreManager, TXSTORE_FILENAME } from '../TxStoreManager';
 
 import log from 'loglevel';

@@ -85,6 +85,8 @@ export function verifyServerConfiguration({
     'invalid param: "relayHubAddress" is not a valid address:'
   );
 
+  //TODO: validate blockchain.rskNodeUrl is a valid URL (and other properties)
+
   if (!app.url) throw new Error('missing param: url');
   if (!app.port) throw new Error('missing param: port');
   if (!app.workdir) throw new Error('missing param: workdir');
