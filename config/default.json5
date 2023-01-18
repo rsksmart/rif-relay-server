@@ -5,24 +5,31 @@
     Server 
   */
   app: {
-    url: 'http://127.0.0.1',
-    port: 8090,
-    devMode: false,
-    customReplenish: false,
-    /*
+    url: 'http://127.0.0.1', // URL where the relay server will be deployed, it could be localhost or the IP of the host machine.
+    port: 8090, // port where the relay server will be hosted.
+    devMode: false, // indicates to the server if we are in development mode or not.
+    customReplenish: false, // set if the server uses a custom replenish function or not.
+    
+    logLevel: 4, /* The log level for the relay server. Available levels:
+      {
         TRACE: 0;
         DEBUG: 1;
         INFO: 2;
         WARN: 3;
         ERROR: 4;
         SILENT: 5;
+      }
     */
-    logLevel: 4,
-    workdir: '.',
+    workdir: '.',  // path to the folder where the server will store the database and all its data.
     readyTimeout: 30000,
     checkInterval: 10000,
     disableSponsoredTx: false,
-    feePercentage: 0,
+    feePercentage: 0, /* allows revenue sharing feature and sets the fee value (%) that the worker will take from all transactions.
+    - the fee will be added to the estimated gas and required in the transaction amount.
+    - the percentage is represented as a fraction (1 = 100%) string to allow for very low or high percentages
+    - the minus sign is omitted if used
+    - fractions exceeding the number of decimals of that of the native currency will be rounded up
+   */
     sponsoredDestinations: [],
     requestMinValidSeconds: 43200
   },
@@ -30,7 +37,7 @@
     Blockchain node
   */
   blockchain: {
-    rskNodeUrl: 'http://127.0.0.1:4444',
+    rskNodeUrl: 'http://127.0.0.1:4444', //  RSK node endpoint URL, where the RSK node is located.
     gasPriceFactor: 1,
     alertedBlockDelay: 0,
     minAlertedDelayMS: 0,
@@ -43,10 +50,10 @@
     managerTargetBalance: 0.003e18, // 0.003 RBTC
     minHubWithdrawalBalance: 0.001e18, // 0.001 RBTC
     refreshStateTimeoutBlocks: 5,
-    pendingTransactionTimeoutBlocks: 30, // around 5 minutes with 10 seconds block times
-    successfulRoundsForReady: 3, // successful mined blocks to become ready after exception
+    pendingTransactionTimeoutBlocks: 30, // around 5 minutes with 10 seconds block times.
+    successfulRoundsForReady: 3, // successful mined blocks to become ready after exception.
     confirmationsNeeded: 12,
-    retryGasPriceFactor: 1.2,
+    retryGasPriceFactor: 1.2, // gas price factor used to calculate the gas on the server, you can leave it as 1.
     defaultGasLimit: 500000,
     maxGasPrice: 100000000000,
     estimateGasFactor: 1.2,
@@ -56,9 +63,9 @@
     Relay contracts addresses
   */
   contracts: {
-    relayHubAddress: '0x0000000000000000000000000000000000000000',
-    relayVerifierAddress: '0x0000000000000000000000000000000000000000',
-    deployVerifierAddress: '0x0000000000000000000000000000000000000000',
+    relayHubAddress: '0x0000000000000000000000000000000000000000', // relay hub contract address, you can retrieve this from the contract summary.
+    relayVerifierAddress: '0x0000000000000000000000000000000000000000', // relay verifier contract address, you can retrieve this from the contract summary.
+    deployVerifierAddress: '0x0000000000000000000000000000000000000000', // deploy verifier contract address, you can retrieve this from the contract summary.
     smartWalletFactoryAddress: '0x0000000000000000000000000000000000000000',
     versionRegistryAddress: '0x0000000000000000000000000000000000000000',
     feesReceiver: '0x0000000000000000000000000000000000000000',
@@ -66,9 +73,9 @@
     relayHubId: ''
   },
   register: {
-    account: '0x0000000000000000000000000000000000000000',
-    stake: 0,
-    funds: 0,
-    mnemonic: '',
+    account: '0x0000000000000000000000000000000000000000', // account to use for funding and staking (it requires the mnemonic parameter)
+    stake: 0, // amount of stake to set up (by default 20)
+    funds: 0, // amount of funds to set up (by default 10)
+    mnemonic: '', // mnemonic to use for unlocking the account parameter
   }
 }

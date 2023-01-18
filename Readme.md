@@ -38,70 +38,139 @@ This project works as a dependency as well as a stand-alone project.
 
 Just run `npm install` to install all dependencies.
 
-## System usage
+## How to use it
 
-### Server execution
+### Server configuration
 
-You can use this repository directly to start your server.
+To start the relay server, you first need a configuration file. This is loaded using [node-config](https://github.com/node-config/node-config) package from `./config` folder.
 
-To start the relay server, you need to configure the `server-config.json` file, which has this structure:
+We prepared some defaults for testnet and mainnet, however to run it locally, or to use custom settings, you'd need to create a new file in `./config` and prepend
+`NODE_ENV=<config_file_name>` to the execution command.
+File [`./config/default.json5`](config/default.json5) contains all configuration properties with descriptions.
+
+<details open>
+<summary><small>./config/default.json5</small></summary>
 
 ```json
+// TODO: add desctiptions in comments
+// This file should not be aimed at any specific environment, but rather contain configuration defaults that are not likely to cause issues if left undefined in an override
 {
-  "url": "localhost",
-  "port": 8090,
-  "relayHubAddress": "0x3bA95e1cccd397b5124BcdCC5bf0952114E6A701",
-  "relayVerifierAddress": "0x74Dc4471FA8C8fBE09c7a0C400a0852b0A9d04b2",
-  "deployVerifierAddress": "0x1938517B0762103d52590Ca21d459968c25c9E67",
-  "gasPriceFactor": 1,
-  "rskNodeUrl": "http://rsk-node:4444",
-  "devMode": true,
-  "customReplenish": false,
-  "logLevel": 1,
-  "workdir": "/home/user/workspace/relay",
-  "feePercentage": "0.01" // 1 = 100%
+  /*
+    Server 
+  */
+  app: {
+    url: "http://127.0.0.1", // URL where the relay server will be deployed, it could be localhost or the IP of the host machine.
+    port: 8090, // port where the relay server will be hosted.
+    devMode: false, // indicates to the server if we are in development mode or not.
+    customReplenish: false, // set if the server uses a custom replenish function or not.
+    
+    logLevel: 4, /* The log level for the relay server. Available levels:
+      {
+        TRACE: 0;
+        DEBUG: 1;
+        INFO: 2;
+        WARN: 3;
+        ERROR: 4;
+        SILENT: 5;
+      }
+    */
+    workdir: ".",  // path to the folder where the server will store the database and all its data.
+    readyTimeout: 30000,
+    checkInterval: 10000,
+    disableSponsoredTx: false,
+    feePercentage: 0, /* allows revenue sharing feature and sets the fee value (%) that the worker will take from all transactions.
+    - the fee will be added to the estimated gas and required in the transaction amount.
+    - the percentage is represented as a fraction (1 = 100%) string to allow for very low or high percentages
+    - the minus sign is omitted if used
+    - fractions exceeding the number of decimals of that of the native currency will be rounded up
+   */
+    sponsoredDestinations: [],
+    requestMinValidSeconds: 43200
+  },
+  /*
+    Blockchain node
+  */
+  blockchain: {
+    rskNodeUrl: "http://127.0.0.1:4444", //  RSK node endpoint URL, where the RSK node is located.
+    gasPriceFactor: 1,
+    alertedBlockDelay: 0,
+    minAlertedDelayMS: 0,
+    maxAlertedDelayMS: 0,
+    registrationBlockRate: 0,
+    workerMinBalance: 0.001e18, // 0.001 RBTC
+    workerTargetBalance: 0.003e18, // 0.003 RBTC
+    managerMinBalance: 0.001e18, // 0.001 RBTC
+    managerMinStake: 1, // 1 wei
+    managerTargetBalance: 0.003e18, // 0.003 RBTC
+    minHubWithdrawalBalance: 0.001e18, // 0.001 RBTC
+    refreshStateTimeoutBlocks: 5,
+    pendingTransactionTimeoutBlocks: 30, // around 5 minutes with 10 seconds block times.
+    successfulRoundsForReady: 3, // successful mined blocks to become ready after exception.
+    confirmationsNeeded: 12,
+    retryGasPriceFactor: 1.2, // gas price factor used to calculate the gas on the server, you can leave it as 1.
+    defaultGasLimit: 500000,
+    maxGasPrice: 100000000000,
+    estimateGasFactor: 1.2,
+    versionRegistryDelayPeriod: 0,
+  },
+  /*
+    Relay contracts addresses
+  */
+  contracts: {
+    relayHubAddress: '0x0000000000000000000000000000000000000000', // relay hub contract address, you can retrieve this from the contract summary.
+    relayVerifierAddress: '0x0000000000000000000000000000000000000000', // relay verifier contract address, you can retrieve this from the contract summary.
+    deployVerifierAddress: '0x0000000000000000000000000000000000000000', // deploy verifier contract address, you can retrieve this from the contract summary.
+    smartWalletFactoryAddress: '0x0000000000000000000000000000000000000000',
+    versionRegistryAddress: '0x0000000000000000000000000000000000000000',
+    feesReceiver: '0x0000000000000000000000000000000000000000',
+    trustedVerifiers: [],
+    relayHubId: ''
+  },
+  register: {
+    account: '0x0000000000000000000000000000000000000000', // account to use for funding and staking (it requires the mnemonic parameter)
+    stake: 0, // amount of stake to set up (by default 20)
+    funds: 0, // amount of funds to set up (by default 10)
+    mnemonic: '', // mnemonic to use for unlocking the account parameter
+  }
 }
 ```
 
-Where:
+</details>
 
-- **url**: is the URL where the relay server will be deployed, it could be localhost or the IP of the host machine.
-- **port**: the port where the relay server will be hosted.
-- **relayHubAddress**: is the relay hub contract address, you can retrieve this from the contract summary.
-- **relayVerifierAddress**: is the relay verifier contract address, you can retrieve this from the contract summary.
-- **deployVerifierAddress**: is the deploy verifier contract address, you can retrieve this from the contract summary.
-- **gasPriceFactor**: is the gas price factor used to calculate the gas on the server, you can leave it as 1.
-- **rskNodeUrl**: is the RSK node endpoint URL, where the RSK node is located.
-- **devMode**: it indicates to the server if we are in development mode or not.
-- **customReplenish**: set if the server uses a custom replenish function or not.
-- **logLevel**: is the log level for the relay server.
-- **workdir**: is the absolute path to the folder where the server will store the database and all its data.
-- **feePercentage**: allows revenue sharing feature and sets the fee value (%) that the worker will take from all transactions.
-   - the fee will be added to the estimated gas and required in the transaction amount.
-   - the percentage is represented as a fraction (1 = 100%) string to allow for very low or high percentages
-   - the minus sign is omitted if used
-   - fractions exceeding the number of decimals of that of the native currency will be rounded up
+#### Overrides
 
-Afterwards, run the following command:
+Some of these options will be overrideable using environment variables defined in [./config/custom-environment-variables.json](config/custom-environment-variables.json) file.
 
-```bash
-npm run start -- -c "<PATH>"
+<details open>
+<summary><small>./config/custom-environment-variables.json.</small></summary>
+
+```json
+{
+  "register": {
+    "account": "REGISTER_ACCOUNT",
+    "stake": "REGISTER_STAKE",
+    "funds": "REGISTER_FUNDS",
+    "mnemonic": "REGISTER_MNEMONIC"
+  }
+}
 ```
 
-The long options command is also available on Linux:
+</details>
+
+### Start server
 
 ```bash
-npm run start -- --config_file="<PATH>"
-```
+# development
+NODE_ENV=local npm run start
 
-where:
+# testnet
+NODE_ENV=testnet npm run start
 
-- **CONFIG_FILE**: an optional path to an alternative configuration file. If not specified, the server will be started using server-config.json.
+# mainnet
+NODE_ENV=mainnet npm run start
 
-The command shows its usage with the `-h` parameter:
-
-```bash
-npm run start -- -h
+# or your own
+NODE_ENV=ferko_mrkvicka npm run start
 ```
 
 You can browse the `getAddr` endpoint (e.g. by doing `curl` to `http://localhost:8090/getaddr`) to verify the server is running correctly as well as visualize some useful information:
@@ -123,35 +192,13 @@ If it's the first time the server is run, some logs will state that the server i
 
 ### Server registration
 
-Once the relay server is up, you need to register it in order for it to be usable.
-
-Run the following command:
+Once the relay server is up, you need to register it in order for it to be usable. The `./config/default.json5` config file contains configuration definitions for this too. You can either store them in your own [config](#server-configuration), or [override](#overrides) them with environment variables.
 
 ```bash
-npm run register -- -f "<FUNDS>" -s "<STAKE>" -a "<ACCOUNT>" -m "<MNEMONIC>" -c "<PATH>"
+npm run register
 ```
 
-The long options command is also available on Linux:
-
-```bash
-npm run register -- --funds="<FUNDS>" --stake="<STAKE>" --account="<ACCOUNT>" --mnemonic="<MNEMONIC>" --config_file="<PATH>"
-```
-
-where:
-
-- **FUNDS**: an optional amount of funds to set up (by default 10)
-- **STAKE**: an optional the amount of stake to set up (by default 20)
-- **ACCOUNT**: an optional account to use for funding and staking (it requires the mnemonic parameter)
-- **MNEMONIC**: an optional mnemonic to use for unlocking the account parameter (it requires the account parameter)
-- **CONFIG_FILE**: an optional path to an alternative configuration file. If not specified, the server will be registered using server-config.json.
-
-The command shows its usage with the `-h` parameter:
-
-```bash
-npm run register -- -h
-```
-
-After this you will be seeing several log entries indicating how everything is turning out. After a little while, look for this entry in the relay server execution terminal to make sure that the server is ready:
+After this you will see several log entries indicating the registration progress. After a little while, look for this entry in the relay server execution terminal to make sure that the server is ready:
 
 ```
 Relayer state: READY
@@ -164,18 +211,20 @@ After modifying the config-file as indicated [here](#server-execution), an addit
 
 For Mac users:
 ```json
-"rskNodeUrl": "http://host.docker.internal:4444",
+  rskNodeUrl: "http://host.docker.internal:4444",
 ```
 
 For Linux users:
 ```json
-"rskNodeUrl": "http://172.17.0.1:4444",
+  rskNodeUrl: "http://172.17.0.1:4444",
 ```
 
-In both cases, edit your local hosts file to make the address above resolve as 127.0.0.1. Then run 
+In both cases, edit your local hosts file to make the address above resolve as 127.0.0.1.
+
+Then run:
 
 ```bash
-docker-compose build && docker-compose up
+NODE_ENV=<name> docker-compose build && NODE_ENV=<name> docker-compose up
 ```
 
 After that, continue with the [server registration](#server-registration).

@@ -174,19 +174,8 @@ export async function executeRegister() {
   const { account, stake, funds, mnemonic }: RegisterConfig = config.has(
     'register'
   )
-    ? config.get<RegisterConfig>('register')
+    ? config.get('register')
     : {};
-
-  console.log(
-    `🐞 ᨟ ---------------------------------------------------------------------------------------------------------------------------🐞 ᨟`
-  );
-  console.log(
-    `🐞 ᨟ :: file: register.ts:176 :: executeRegister :: { account, stake, funds, mnemonic }`,
-    { account, stake, funds, mnemonic }
-  );
-  console.log(
-    `🐞 ᨟ ---------------------------------------------------------------------------------------------------------------------------🐞 ᨟`
-  );
 
   if (account && !mnemonic) {
     log.error(`
@@ -206,11 +195,11 @@ export async function executeRegister() {
       : await findWealthyAccount(rpcProvider);
 
   const signerAddress = await signer.getAddress();
-  if (signerAddress !== account) {
+  if (account && signerAddress !== account) {
     // TODO: probably no point giving the option to configure account if we are going to derive it from the mnemonic. Also should we allow account retreival from private keys (new Wallet(privateKey, rpcProvider))?
     throw Error(
       `The account configured in the register section of the configuration file does not match the account derived from the mnemonic. 
-        Account configured: ${account as string}
+        Account configured: ${account}
         Account derived: ${signerAddress}`
     );
   }
