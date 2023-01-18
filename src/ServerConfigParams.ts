@@ -1,10 +1,9 @@
-import { constants } from 'ethers';
-import type { LogLevelNumbers } from 'loglevel';
 import config from 'config';
+import type { LogLevelNumbers } from 'loglevel';
 
-import { validateAddress } from './Utils';
 import type { KeyManager } from './KeyManager';
 import type { TxStoreManager } from './TxStoreManager';
+import { validateAddress } from './Utils';
 
 export type AppConfig = {
   url: string;
@@ -27,7 +26,7 @@ export type ContractsConfig = {
   deployVerifierAddress: string;
   relayVerifierAddress: string;
   smartWalletFactoryAddress: string;
-  relayHubId?: string;
+  relayHubId: string;
   feesReceiver: string;
   trustedVerifiers: string[];
 };
@@ -70,54 +69,6 @@ export interface ServerDependencies {
   txStoreManager: TxStoreManager;
 }
 
-const serverDefaultConfiguration: ServerConfigParams = {
-  app: {
-    readyTimeout: 30000,
-    devMode: false,
-    customReplenish: false,
-    logLevel: 1,
-    url: 'http://localhost:8090',
-    port: 0,
-    workdir: '',
-    checkInterval: 10000,
-    disableSponsoredTx: false,
-    feePercentage: '0',
-    sponsoredDestinations: [],
-    requestMinValidSeconds: 43200,
-  },
-  contracts: {
-    versionRegistryAddress: constants.AddressZero,
-    relayHubAddress: constants.AddressZero,
-    relayVerifierAddress: constants.AddressZero,
-    deployVerifierAddress: constants.AddressZero,
-    smartWalletFactoryAddress: constants.AddressZero,
-    feesReceiver: constants.AddressZero,
-    trustedVerifiers: [],
-  },
-  blockchain: {
-    rskNodeUrl: '',
-    alertedBlockDelay: 0,
-    minAlertedDelayMS: 0,
-    maxAlertedDelayMS: 0,
-    gasPriceFactor: 1,
-    registrationBlockRate: 0,
-    workerMinBalance: 0.001e18, // 0.001 RBTC
-    workerTargetBalance: 0.003e18, // 0.003 RBTC
-    managerMinBalance: 0.001e18, // 0.001 RBTC
-    managerMinStake: 1, // 1 wei
-    managerTargetBalance: 0.003e18, // 0.003 RBTC
-    minHubWithdrawalBalance: 0.001e18, // 0.001 RBTC
-    refreshStateTimeoutBlocks: 5,
-    pendingTransactionTimeoutBlocks: 30, // around 5 minutes with 10 seconds block times
-    successfulRoundsForReady: 3, // successful mined blocks to become ready after exception
-    confirmationsNeeded: 12,
-    retryGasPriceFactor: '1.2',
-    defaultGasLimit: 500000,
-    maxGasPrice: 100e9,
-    estimateGasFactor: '1.2',
-  },
-};
-
 // resolve params, and validate the resulting struct
 // TODO validate if the relayHub address can be obtain from the versionRegistry
 export function verifyServerConfiguration({
@@ -139,40 +90,20 @@ export function verifyServerConfiguration({
   if (!app.workdir) throw new Error('missing param: workdir');
 }
 
-//FIXME: the incomming and outgoing type may and likely should differ. For example for all big number values the incoming value should be a string to prevent loss of precision, but outgoing type should be big number so that it doesn't need to be converted everywhere it is used.
-export function configureServer(
-  contractsConfig: ContractsConfig,
-  appConfig: AppConfig,
-  blockchainConfig: BlockchainConfig
-): ServerConfigParams {
-  const contracts = Object.assign(
-    serverDefaultConfiguration.contracts,
-    contractsConfig
-  );
-  const app = Object.assign(serverDefaultConfiguration.app, appConfig);
-  const blockchain = Object.assign(
-    serverDefaultConfiguration.blockchain,
-    blockchainConfig
-  );
-  const config: ServerConfigParams = {
-    app,
-    contracts,
-    blockchain,
-  };
-
-  return config;
-}
-
 export function getServerConfig(): ServerConfigParams {
-  const contractsConfig: ContractsConfig = config.get('contracts');
-  const appConfig: AppConfig = config.get('app');
-  const blockchainConfig: BlockchainConfig = config.get('blockchain');
+  if (
+    !(config.has('contracts') && config.has('app') && config.has('blockchain'))
+  ) {
+    throw new Error(
+      'missing configurations for relay server. Please consult your config file in the config folder.'
+    );
+  }
 
-  const configuration = configureServer(
-    contractsConfig,
-    appConfig,
-    blockchainConfig
-  );
+  const configuration: ServerConfigParams = {
+    contracts: config.get('contracts'),
+    app: config.get('app'),
+    blockchain: config.get('blockchain'),
+  };
 
   verifyServerConfiguration(configuration);
 

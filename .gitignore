@@ -1,3 +1,7 @@
 node_modules/
 build/
 dist/
+txstore.db
+manager/keystore
+workers/keystore
+.eslintcache

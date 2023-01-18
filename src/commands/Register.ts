@@ -1,11 +1,11 @@
-import log from 'loglevel';
-import { BigNumber, utils, constants, Signer } from 'ethers';
 import type { Provider } from '@ethersproject/providers';
-import config from 'config';
-import { CommandClient } from './helpers/CommandClient';
-import { isSameAddress } from '../Utils';
 import { RelayHub__factory } from '@rsksmart/rif-relay-contracts';
+import config from 'config';
+import { BigNumber, constants, Signer, utils } from 'ethers';
+import log from 'loglevel';
 import { getServerConfig } from '../ServerConfigParams';
+import { isSameAddress } from '../Utils';
+import { CommandClient } from './helpers/CommandClient';
 
 export type RegisterOptions = {
   hub: string;
@@ -118,15 +118,28 @@ export class Register extends CommandClient {
 
 export async function executeRegister(registerOptions?: RegisterOptions) {
   const { app, contracts, blockchain } = getServerConfig();
-  let registerConfig: RegisterConfig | undefined = undefined;
-  if (config.has('register')) {
-    registerConfig = config.get('register');
+
+  if (!config.has('register')) {
+    throw Error(`
+    Cannot find key "register" in the configuration.
+    Make sure registration is configured in "config"
+    folder for your network, or in the default configuration.
+    `);
   }
+  const { account, stake, funds, mnemonic }: RegisterConfig =
+    config.get('register');
+
+  if (account && !mnemonic) {
+    throw Error(`
+    Cannot find key "mnemonic" in the configuration.
+    Make sure registration configuration contains "mnemonic" key 
+    for the configured "account" key in "config" folder for your network,
+    or in the default configuration.
+    `);
+  }
+
   log.setLevel(app.logLevel);
-  const register = new Register(
-    blockchain.rskNodeUrl,
-    registerConfig?.mnemonic
-  );
+  const register = new Register(blockchain.rskNodeUrl, mnemonic);
   const portIncluded: boolean = app.url.indexOf(':') > 0;
   const relayUrl =
     app.url + (!portIncluded && app.port > 0 ? ':' + app.port.toString() : '');
@@ -136,8 +149,8 @@ export async function executeRegister(registerOptions?: RegisterOptions) {
       : {
           hub: contracts.relayHubAddress,
           signer: await register.findWealthyAccount(),
-          stake: utils.parseEther(registerConfig?.stake ?? '0.01'),
-          funds: utils.parseEther(registerConfig?.funds ?? '0.02'),
+          stake: utils.parseEther(stake ?? '0.01'),
+          funds: utils.parseEther(funds ?? '0.02'),
           relayUrl,
           unstakeDelay: '1000',
           gasPrice: '60000000',

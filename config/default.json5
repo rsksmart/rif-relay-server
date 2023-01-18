@@ -1,0 +1,74 @@
+// TODO: add desctiptions in comments
+// This file should not be aimed at any specific environment, but rather contain configuration defaults that are not likely to cause issues if left undefined in an override
+{
+  /*
+    Server 
+  */
+  app: {
+    url: 'http://127.0.0.1',
+    port: 8090,
+    devMode: false,
+    customReplenish: false,
+    /*
+        TRACE: 0;
+        DEBUG: 1;
+        INFO: 2;
+        WARN: 3;
+        ERROR: 4;
+        SILENT: 5;
+    */
+    logLevel: 4,
+    workdir: '.',
+    readyTimeout: 30000,
+    checkInterval: 10000,
+    disableSponsoredTx: false,
+    feePercentage: 0,
+    sponsoredDestinations: [],
+    requestMinValidSeconds: 43200
+  },
+  /*
+    Blockchain node
+  */
+  blockchain: {
+    rskNodeUrl: 'http://127.0.0.1:4444',
+    gasPriceFactor: 1,
+    alertedBlockDelay: 0,
+    minAlertedDelayMS: 0,
+    maxAlertedDelayMS: 0,
+    registrationBlockRate: 0,
+    workerMinBalance: 0.001e18, // 0.001 RBTC
+    workerTargetBalance: 0.003e18, // 0.003 RBTC
+    managerMinBalance: 0.001e18, // 0.001 RBTC
+    managerMinStake: 1, // 1 wei
+    managerTargetBalance: 0.003e18, // 0.003 RBTC
+    minHubWithdrawalBalance: 0.001e18, // 0.001 RBTC
+    refreshStateTimeoutBlocks: 5,
+    pendingTransactionTimeoutBlocks: 30, // around 5 minutes with 10 seconds block times
+    successfulRoundsForReady: 3, // successful mined blocks to become ready after exception
+    confirmationsNeeded: 12,
+    retryGasPriceFactor: 1.2,
+    defaultGasLimit: 500000,
+    maxGasPrice: 100000000000,
+    estimateGasFactor: 1.2,
+    versionRegistryDelayPeriod: 0,
+  },
+  /*
+    Relay contracts addresses
+  */
+  contracts: {
+    relayHubAddress: '0x0000000000000000000000000000000000000000',
+    relayVerifierAddress: '0x0000000000000000000000000000000000000000',
+    deployVerifierAddress: '0x0000000000000000000000000000000000000000',
+    smartWalletFactoryAddress: '0x0000000000000000000000000000000000000000',
+    versionRegistryAddress: '0x0000000000000000000000000000000000000000',
+    feesReceiver: '0x0000000000000000000000000000000000000000',
+    trustedVerifiers: [],
+    relayHubId: ''
+  },
+  register: {
+    account: '0x0000000000000000000000000000000000000000',
+    stake: 0,
+    funds: 0,
+    mnemonic: '',
+  }
+}
