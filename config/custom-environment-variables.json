@@ -1,0 +1,8 @@
+{
+  "register": {
+    "account": "REGISTER_ACCOUNT",
+    "stake": "REGISTER_STAKE",
+    "funds": "REGISTER_FUNDS",
+    "mnemonic": "REGISTER_MNEMONIC"
+  }
+}

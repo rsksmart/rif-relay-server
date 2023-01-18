@@ -177,12 +177,20 @@ export async function executeRegister() {
     ? config.get<RegisterConfig>('register')
     : {};
 
+  console.log(
+    `🐞 ᨟ ---------------------------------------------------------------------------------------------------------------------------🐞 ᨟`
+  );
+  console.log(
+    `🐞 ᨟ :: file: register.ts:176 :: executeRegister :: { account, stake, funds, mnemonic }`,
+    { account, stake, funds, mnemonic }
+  );
+  console.log(
+    `🐞 ᨟ ---------------------------------------------------------------------------------------------------------------------------🐞 ᨟`
+  );
+
   if (account && !mnemonic) {
     log.error(`
-    Cannot find key "mnemonic" in the configuration.
-    Make sure registration configuration contains "mnemonic" key 
-    for the configured "account" key in "config" folder for your network,
-    or in the default configuration.
+    You must configure mnemonic for given account address.
     `);
   }
 
