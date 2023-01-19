@@ -132,10 +132,15 @@ File [./config/default.json5](config/default.json5) contains all configuration p
     relayHubId: ''
   },
   register: {
-    account: '0x0000000000000000000000000000000000000000', // account to use for funding and staking (it requires the mnemonic parameter)
     stake: 0, // amount of stake to set up (by default 20)
     funds: 0, // amount of funds to set up (by default 10)
-    mnemonic: '', // mnemonic to use for unlocking the account parameter
+    mnemonic: '', // mnemonic to derive the account address from
+    privateKey: '', // private key to retrieve the account address from
+    signer: {}, // Signer object (only when used as a library)
+    hub: '',
+    gasPrice: 0,
+    relayUrl: '',
+    unstakeDelay: 0,
   }
 }
 ```
@@ -167,15 +172,25 @@ Some of these options will be overrideable using environment variables defined i
 ```json
 {
   "register": {
-    "account": "REGISTER_ACCOUNT",
     "stake": "REGISTER_STAKE",
     "funds": "REGISTER_FUNDS",
-    "mnemonic": "REGISTER_MNEMONIC"
+    "mnemonic": "REGISTER_MNEMONIC",
+    "privateKey": "REGISTER_PRIVATE_KEY",
+    "hub": "REGISTER_HUB_URL",
+    "gasPrice": "REGISTER_GAS_PRICE",
+    "relayUrl": "REGISTER_RELAY_URL",
+    "unstakeDelay": "REGISTER_UNSTAKE_DELAY",
   }
 }
 ```
 
 </details>
+
+To use these overrides, you'd prepend an environment variable, e.g.:
+
+```shell
+REGISTER_UNSTAKE_DELAY=2000 REGISTER_GAS_PRICE=1000000 npm run register
+```
 
 ### Start server
 

@@ -77,5 +77,9 @@
     stake: '0.01', // amount of stake to set up
     funds: '0.02', // amount of funds to set up
     mnemonic: '', // mnemonic to use for unlocking the account parameter
+    hub: '',
+    gasPrice: 60000000,
+    relayUrl: '',
+    unstakeDelay: 1000,
   },
 }

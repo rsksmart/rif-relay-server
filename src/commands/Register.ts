@@ -7,21 +7,26 @@ import log from 'loglevel';
 import { getServerConfig } from '../ServerConfigParams';
 import { isSameAddress, sleep } from '../Utils';
 
-export type RegisterOptions = {
-  hub: string;
+type RegisterConfig = {
+  stake: string;
+  funds: string;
+  mnemonic?: string;
+  privateKey?: string;
+  hub?: string;
   signer: Signer;
-  gasPrice: string | BigNumber;
-  stake: string | BigNumber;
-  funds: string | BigNumber;
-  relayUrl: string;
-  unstakeDelay: string;
+  gasPrice: number;
+  relayUrl?: string;
+  unstakeDelay: number;
 };
 
-type RegisterConfig = {
-  account?: string;
-  stake?: string;
-  funds?: string;
-  mnemonic?: string;
+type RegisterOptions = {
+  hub: string;
+  relayUrl: string;
+  signer: Signer;
+  gasPrice: BigNumber;
+  stake: BigNumber;
+  funds: BigNumber;
+  unstakeDelay: BigNumber;
 };
 
 const findWealthyAccount = async (
@@ -170,57 +175,61 @@ const register = async (
   log.info('Executed Transactions', transactions);
 };
 
-export async function executeRegister() {
-  // FIXME: add registerOptions?: RegisterOptions from either config or cli (which one?)
+const retreiveSigner = async (
+  rpcProvider: JsonRpcProvider,
+  privateKey?: string,
+  mnemonic?: string
+) => {
+  const walletFromPK = privateKey && new Wallet(privateKey, rpcProvider);
+  const walletFromMnemonic =
+    mnemonic && Wallet.fromMnemonic(mnemonic).connect(rpcProvider);
+
+  return (
+    walletFromPK ||
+    walletFromMnemonic ||
+    (await findWealthyAccount(rpcProvider))
+  );
+};
+
+const executeRegister = async (): Promise<void> => {
   const { app, contracts, blockchain } = getServerConfig();
   log.setLevel(app.logLevel);
   log.debug('configSources', config.util.getConfigSources());
-  const { account, stake, funds, mnemonic }: RegisterConfig = config.has(
-    'register'
-  )
-    ? config.get('register')
-    : {};
-
-  if (account && !mnemonic) {
-    log.error(`
-    You must configure mnemonic for given account address.
-    `);
-  }
-
-  const rpcProvider = new JsonRpcProvider(blockchain.rskNodeUrl);
-  const portIncluded: boolean = app.url.indexOf(':') > 0;
-  const relayUrl =
-    app.url + (!portIncluded && app.port > 0 ? ':' + app.port.toString() : '');
-
-  const signer =
-    account && mnemonic
-      ? Wallet.fromMnemonic(mnemonic).connect(rpcProvider)
-      : await findWealthyAccount(rpcProvider);
-
-  const signerAddress = await signer.getAddress();
-  if (account && signerAddress !== account) {
-    // TODO: probably no point giving the option to configure account if we are going to derive it from the mnemonic. Also should we allow account retreival from private keys (new Wallet(privateKey, rpcProvider))?
-    throw Error(
-      `The account configured in the register section of the configuration file does not match the account derived from the mnemonic. 
-        Account configured: ${account}
-        Account derived: ${signerAddress}`
+  if (!config.has('register')) {
+    throw new Error(
+      'No register config found. Make sure that the register section exists in default.json5.'
     );
   }
 
-  await register(
-    rpcProvider,
-    // registerOptions ??
-    {
-      hub: contracts.relayHubAddress,
-      signer,
-      stake: utils.parseEther(stake ?? '0.01'),
-      funds: utils.parseEther(funds ?? '0.02'),
-      relayUrl,
-      unstakeDelay: '1000',
-      gasPrice: '60000000',
-    }
-  );
-}
+  const {
+    stake,
+    funds,
+    mnemonic,
+    privateKey,
+    signer,
+    gasPrice,
+    hub,
+    relayUrl,
+    unstakeDelay,
+  }: RegisterConfig = config.get('register');
+
+  const rpcProvider = new JsonRpcProvider(blockchain.rskNodeUrl);
+  const portFromUrl = app.url.match(/:(\d{0,5})$/);
+  const serverUrl =
+    !portFromUrl && app.port ? `${app.url}:${app.port}` : app.url;
+
+  await register(rpcProvider, {
+    hub: hub ?? contracts.relayHubAddress,
+    relayUrl: relayUrl || serverUrl,
+    signer: signer._isSigner
+      ? signer
+      : await retreiveSigner(rpcProvider, privateKey, mnemonic),
+    stake: utils.parseEther(stake),
+    funds: utils.parseEther(funds),
+    unstakeDelay: BigNumber.from(unstakeDelay),
+    gasPrice: BigNumber.from(gasPrice),
+  });
+};
 
 executeRegister()
   .then(() => {
@@ -229,3 +238,5 @@ executeRegister()
   .catch((error) => {
     log.info('Error registering relay server', error);
   });
+
+export type { RegisterOptions, RegisterConfig };
