@@ -71,7 +71,7 @@
     "package.json": "npx sort-package-json"
   },
   "dependencies": {
-    "@rsksmart/rif-relay-client": "github:rsksmart/rif-relay-client#feature/ethers/dependencies",
+    "@rsksmart/rif-relay-client": "github:rsksmart/rif-relay-client#PP-642/test-utils-server",
     "@rsksmart/rif-relay-contracts": "github:rsksmart/rif-relay-contracts#feature/PP-278/PP-329/upgrade_contracts",
     "async-mutex": "^0.4.0",
     "bignumber.js": "^9.1.1",
