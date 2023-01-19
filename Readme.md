@@ -54,8 +54,7 @@ File [./config/default.json5](config/default.json5) contains all configuration p
 <details open>
 <summary><small>./config/default.json5</small></summary>
 
-```json5
-// TODO: add desctiptions in comments
+```json
 // This file should not be aimed at any specific environment, but rather contain configuration defaults that are not likely to cause issues if left undefined in an override
 {
   /*
@@ -198,7 +197,17 @@ If it's the first time the server is run, some logs will state that the server i
 Once the relay server is up, you need to register it in order for it to be usable. The `./config/default.json5` config file contains configuration definitions for this too. You can either store them in your own [config](#server-configuration), or [override](#overrides) them with environment variables.
 
 ```bash
-npm run register
+# development
+NODE_ENV=local npm run register
+
+# testnet
+NODE_ENV=testnet npm run register
+
+# mainnet
+NODE_ENV=mainnet npm run register
+
+# or your own env
+NODE_ENV=ferko_mrkvicka npm run register
 ```
 
 After this you will see several log entries indicating the registration progress. After a little while, look for this entry in the relay server execution terminal to make sure that the server is ready:
@@ -252,7 +261,7 @@ Clone this repository inside your project's root folder and use the `npm link` m
 
 ## Development
 
-Make your modifications and then run `npm run build` to validate them.
+Make your modifications and then run `npm run dist` to validate them.
 When you are done with your changes, you can publish them by creating a distributable version.
 
 ### Testing
@@ -284,7 +293,7 @@ In order to run the server without having to rebuild every time a change is made
 
 ### Generating a new distributable version
 
-1. Run the `npm run build` command to generate the `dist` folder with the distributable version inside.
+1. Run the `npm run dist` command to generate the `dist` folder with the distributable version inside.
 2. Bump the version on the `package.json` file (not strictly needed).
 3. Commit and push any changes, including the version bump.
 

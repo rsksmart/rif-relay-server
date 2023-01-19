@@ -149,7 +149,7 @@ const register = async (
   if (bal.gt(options.funds)) {
     log.info('Relayer already funded');
   } else {
-    log.info('Funding relayer');
+    log.info(`Funding relayer ${utils.formatUnits(options.funds, 'ether')} RBTC`);
 
     const fundTx = await options.signer.sendTransaction({
       to: relayAddress,
@@ -171,6 +171,8 @@ const register = async (
 export async function executeRegister() {
   // FIXME: add registerOptions?: RegisterOptions from either config or cli (which one?)
   const { app, contracts, blockchain } = getServerConfig();
+  log.setLevel(app.logLevel);
+  log.debug('configSources', config.util.getConfigSources());
   const { account, stake, funds, mnemonic }: RegisterConfig = config.has(
     'register'
   )
@@ -182,8 +184,7 @@ export async function executeRegister() {
     You must configure mnemonic for given account address.
     `);
   }
-
-  log.setLevel(app.logLevel);
+  
   const rpcProvider = new JsonRpcProvider(blockchain.rskNodeUrl);
   const portIncluded: boolean = app.url.indexOf(':') > 0;
   const relayUrl =

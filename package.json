@@ -53,7 +53,6 @@
   ],
   "main": "index.ts",
   "scripts": {
-    "debug": "ts-node src/commands/Start.ts",
     "dist": "scripts/dist",
     "format": "npx prettier \"{,test/**/}*.ts\" \"{,src/**/}*.ts\" !.gitignore  --list-different --no-editorconfig",
     "format:fix": "npm run format -- --write",

@@ -1,4 +1,4 @@
-// TODO: add desctiptions in comments
+// TODO: add descriptions in comments
 // This file should not be aimed at any specific environment, but rather contain configuration defaults that are not likely to cause issues if left undefined in an override
 {
   /*
@@ -73,9 +73,9 @@
     relayHubId: ''
   },
   register: {
-    account: '0x0000000000000000000000000000000000000000', // account to use for funding and staking (it requires the mnemonic parameter)
-    stake: 0, // amount of stake to set up (by default 20)
-    funds: 0, // amount of funds to set up (by default 10)
+    account: '', // account to use for funding and staking (it requires the mnemonic parameter)
+    stake: '0.01', // amount of stake to set up
+    funds: '0.02', // amount of funds to set up
     mnemonic: '', // mnemonic to use for unlocking the account parameter
   }
 }
