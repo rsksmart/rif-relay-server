@@ -1,20 +1,25 @@
-import express, { Express, Request, Response } from 'express';
-import jsonrpc, { Defined } from 'jsonrpc-lite';
+import type { EnvelopingTxRequest } from '@rsksmart/rif-relay-client';
 import bodyParser from 'body-parser';
 import cors from 'cors';
+import express, { Express, Request, Response } from 'express';
+import type { ParamsDictionary } from 'express-serve-static-core';
 import type { Server } from 'http';
+import jsonrpc, { Defined } from 'jsonrpc-lite';
 import log from 'loglevel';
 import configureDocumentation from './DocConfiguration';
 import type { RelayServer } from './RelayServer';
-import type { EnvelopingTxRequest } from '@rsksmart/rif-relay-client';
 
-export type RootHandlerRequest = Request & {
-  body?: {
-    id: number;
-    method: string;
-    params: Array<unknown>;
-  };
+export type RootHandlerRequestBody = {
+  id?: number;
+  method?: string;
+  params?: Array<unknown>;
 };
+
+export type RootHandlerRequest = Request<
+  ParamsDictionary,
+  RootHandlerRequestBody,
+  RootHandlerRequestBody
+>;
 
 export type WhitelistedRelayMethods = Pick<
   RelayServer,
@@ -118,10 +123,10 @@ export class HttpServer {
     let status;
     let id = -1;
     try {
-      if (body.id || body.method) {
+      if (!(body.id && body.method)) {
         throw Error('Body request requires id and method to be executed');
       }
-      id = body.id as number;
+      id = body.id;
       const result = (await this.processRootHandler(
         body.method as WhitelistedRelayMethod,
         body.params as AvailableRelayMethodParameters
