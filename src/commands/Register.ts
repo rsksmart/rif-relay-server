@@ -149,7 +149,9 @@ const register = async (
   if (bal.gt(options.funds)) {
     log.info('Relayer already funded');
   } else {
-    log.info(`Funding relayer ${utils.formatUnits(options.funds, 'ether')} RBTC`);
+    log.info(
+      `Funding relayer ${utils.formatUnits(options.funds, 'ether')} RBTC`
+    );
 
     const fundTx = await options.signer.sendTransaction({
       to: relayAddress,
@@ -184,7 +186,7 @@ export async function executeRegister() {
     You must configure mnemonic for given account address.
     `);
   }
-  
+
   const rpcProvider = new JsonRpcProvider(blockchain.rskNodeUrl);
   const portIncluded: boolean = app.url.indexOf(':') > 0;
   const relayUrl =

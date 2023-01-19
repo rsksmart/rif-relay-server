@@ -13,20 +13,21 @@ This project works as a dependency as well as a stand-alone project.
     - [Dependencies](#dependencies)
   - [How to use it](#how-to-use-it)
     - [Server configuration](#server-configuration)
-      - [Overrides](#overrides)
+    - [Overrides](#overrides)
     - [Start server](#start-server)
     - [Server registration](#server-registration)
-  - [Execute as a Docker container](#execute-as-a-docker-container)
-  - [Library usage](#library-usage)
+    - [Execute as a Docker container](#execute-as-a-docker-container)
+  - [How to use it as library](#how-to-use-it-as-library)
     - [Use a release version](#use-a-release-version)
     - [Use a local distributable](#use-a-local-distributable)
   - [Development](#development)
     - [Testing](#testing)
     - [Husky and linters](#husky-and-linters)
-  - [ts-node](#ts-node)
     - [Generating a new distributable version](#generating-a-new-distributable-version)
       - [For GitHub](#for-github)
       - [For NPM](#for-npm)
+
+---
 
 ## Installation
 
@@ -41,6 +42,8 @@ This project works as a dependency as well as a stand-alone project.
 
 Just run `npm install` to install all dependencies.
 
+---
+
 ## How to use it
 
 ### Server configuration
@@ -54,7 +57,7 @@ File [./config/default.json5](config/default.json5) contains all configuration p
 <details open>
 <summary><small>./config/default.json5</small></summary>
 
-```json
+```json5
 // This file should not be aimed at any specific environment, but rather contain configuration defaults that are not likely to cause issues if left undefined in an override
 {
   /*
@@ -139,7 +142,22 @@ File [./config/default.json5](config/default.json5) contains all configuration p
 
 </details>
 
-#### Overrides
+> ### Warning :warning
+>
+> Keep in mind, that the if `local` configuration exists, it WILL OVERWRITE any other configuration files loaded using NODE_ENV.
+>
+> Another thing to note is that `development` is the default NODE_ENV value.
+>
+> The following depicts the order in which the [node-config](https://github.com/node-config/node-config/wiki/Strict-Mode#node_env-value-of-local-is-ambiguous) library merges configuration, starting from the least to the most specific config:
+>
+> ```mermaid
+> flowchart TD;
+>   default.json5 --> |$NODE_ENV value| development.json5
+>  development.json5 --> |if local exists| local.json5
+>  local.json5 --> |for specified values only| custom-environment-variables.json
+> ```
+
+### Overrides
 
 Some of these options will be overrideable using environment variables defined in [./config/custom-environment-variables.json](config/custom-environment-variables.json) file.
 
@@ -161,9 +179,11 @@ Some of these options will be overrideable using environment variables defined i
 
 ### Start server
 
+Depending on your preferred configuration, start the server with:
+
 ```bash
 # development
-NODE_ENV=local npm run start
+npm run start  # This will use development.json5 if one exists
 
 # testnet
 NODE_ENV=testnet npm run start
@@ -216,7 +236,7 @@ After this you will see several log entries indicating the registration progress
 Relayer state: READY
 ```
 
-## Execute as a Docker container
+### Execute as a Docker container
 
 You can run the server as a Docker container. Docker and Docker compose should be installed and an RSK Node should be running.
 After modifying the config-file as indicated [here](#server-configuration), an additional modification should be made in the same file as follows:
@@ -243,7 +263,9 @@ NODE_ENV=<name> docker-compose build && NODE_ENV=<name> docker-compose up
 
 After that, continue with the [server registration](#server-registration).
 
-## Library usage
+---
+
+## How to use it as library
 
 You can use this dependency once you have it installed on your project. There are multiple ways to do this:
 
@@ -258,6 +280,8 @@ npm i --save @rsksmart/rif-relay-server
 ### Use a local distributable
 
 Clone this repository inside your project's root folder and use the `npm link` mechanism (<https://docs.npmjs.com/cli/v8/commands/npm-link>) to add it to your project.
+
+---
 
 ## Development
 
@@ -284,12 +308,6 @@ to check and fix the errors before trying to commit again:
 - `npm run lint:fix` to fix linter bugs
 - `npm run prettier` to check code-style errors
 - `npm run prettier:fix` to fix code-style errors
-
-## ts-node
-
-In order to run the server without having to rebuild every time a change is made, use the following command:
-
-- `npm run debug` run the server with ts-node
 
 ### Generating a new distributable version
 
