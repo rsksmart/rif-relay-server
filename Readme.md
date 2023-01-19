@@ -6,24 +6,27 @@ This project works as a dependency as well as a stand-alone project.
 
 ## Table of Contents
 
-- [**Installation**](#installation)
-  - [**Pre-requisites**](#pre-requisites)
-  - [**Dependencies**](#dependencies)
-- [**System usage**](#system-usage)
-  - [**Server execution**](#server-execution)
-  - [**Server registration**](#server-registration)
-- [**Execute using Docker**](#execute-as-a-docker-container)
-- [**Library usage**](#library-usage)
-  - [**Use a release version**](#use-a-release-version)
-  - [**Use the repo distributable**](#use-the-repo-distributable)
-  - [**Use a local distributable**](#use-a-local-distributable)
-- [**Development**](#development)
-  - [**Enabling postinstall scripts**](#enabling-postinstall-scripts)
-  - [**Husky and linters**](#husky-and-linters)
-  - [**Generating a new distributable version**](#generating-a-new-distributable-version)
-    - [**For GitHub**](#for-github)
-    - [**For NPM**](#for-npm)
-    - [**For direct use (no publishing)**](#for-direct-use-no-publishing)
+- [RIF Relay Server](#rif-relay-server)
+  - [Table of Contents](#table-of-contents)
+  - [Installation](#installation)
+    - [Pre-requisites](#pre-requisites)
+    - [Dependencies](#dependencies)
+  - [How to use it](#how-to-use-it)
+    - [Server configuration](#server-configuration)
+      - [Overrides](#overrides)
+    - [Start server](#start-server)
+    - [Server registration](#server-registration)
+  - [Execute as a Docker container](#execute-as-a-docker-container)
+  - [Library usage](#library-usage)
+    - [Use a release version](#use-a-release-version)
+    - [Use a local distributable](#use-a-local-distributable)
+  - [Development](#development)
+    - [Testing](#testing)
+    - [Husky and linters](#husky-and-linters)
+  - [ts-node](#ts-node)
+    - [Generating a new distributable version](#generating-a-new-distributable-version)
+      - [For GitHub](#for-github)
+      - [For NPM](#for-npm)
 
 ## Installation
 
@@ -46,12 +49,12 @@ To start the relay server, you first need a configuration file. This is loaded u
 
 We prepared some defaults for testnet and mainnet, however to run it locally, or to use custom settings, you'd need to create a new file in `./config` and prepend
 `NODE_ENV=<config_file_name>` to the execution command.
-File [`./config/default.json5`](config/default.json5) contains all configuration properties with descriptions.
+File [./config/default.json5](config/default.json5) contains all configuration properties with descriptions.
 
 <details open>
 <summary><small>./config/default.json5</small></summary>
 
-```json
+```json5
 // TODO: add desctiptions in comments
 // This file should not be aimed at any specific environment, but rather contain configuration defaults that are not likely to cause issues if left undefined in an override
 {
@@ -200,22 +203,24 @@ npm run register
 
 After this you will see several log entries indicating the registration progress. After a little while, look for this entry in the relay server execution terminal to make sure that the server is ready:
 
-```
+```text
 Relayer state: READY
 ```
 
 ## Execute as a Docker container
 
 You can run the server as a Docker container. Docker and Docker compose should be installed and an RSK Node should be running.
-After modifying the config-file as indicated [here](#server-execution), an additional modification should be made in the same file as follows:
+After modifying the config-file as indicated [here](#server-configuration), an additional modification should be made in the same file as follows:
 
 For Mac users:
-```json
+
+```json5
   rskNodeUrl: "http://host.docker.internal:4444",
 ```
 
 For Linux users:
-```json
+
+```json5
   rskNodeUrl: "http://172.17.0.1:4444",
 ```
 
@@ -243,7 +248,7 @@ npm i --save @rsksmart/rif-relay-server
 
 ### Use a local distributable
 
-Clone this repository inside your project's root folder and use the `npm link` mechanism (https://docs.npmjs.com/cli/v8/commands/npm-link) to add it to your project.
+Clone this repository inside your project's root folder and use the `npm link` mechanism (<https://docs.npmjs.com/cli/v8/commands/npm-link>) to add it to your project.
 
 ## Development
 
@@ -251,6 +256,7 @@ Make your modifications and then run `npm run build` to validate them.
 When you are done with your changes, you can publish them by creating a distributable version.
 
 ### Testing
+
 The relay server scripts define three testing strategies:
 
 1. `test:unit` - runs one-off unit tests within the `./test/unit/` directory
@@ -265,16 +271,16 @@ We use husky to check linters and code styles on commits, if you commit your
 changes and the commit fails on lint or prettier checks you can use these command
 to check and fix the errors before trying to commit again:
 
-- `npm run lint`: to check linter bugs
-- `npm run lint:fix`: to fix linter bugs
-- `npm run prettier`: to check code-style errors
-- `npm run prettier:fix`: to fix code-style errors
+- `npm run lint` to check linter bugs
+- `npm run lint:fix` to fix linter bugs
+- `npm run prettier` to check code-style errors
+- `npm run prettier:fix` to fix code-style errors
 
 ## ts-node
 
 In order to run the server without having to rebuild every time a change is made, use the following command:
 
-- `npm run debug`: run the server with ts-node
+- `npm run debug` run the server with ts-node
 
 ### Generating a new distributable version
 
@@ -289,8 +295,4 @@ In order to run the server without having to rebuild every time a change is made
 #### For NPM
 
 1. Run `npm login` to log in to your account on the NPM registry.
-2. Run `npm publish` to generate the distributable version for NodeJS.
-
-#### For direct use (no publishing)
-
-No extra steps are needed beyond generating the `dist` folder and merging it to `master`.
+2. Run `npm publish` to generate the distributable version for Node.js.
