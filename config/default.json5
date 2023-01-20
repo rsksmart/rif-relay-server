@@ -73,10 +73,11 @@
     relayHubId: '',
   },
   register: {
-    account: '', // account to use for funding and staking (it requires the mnemonic parameter)
     stake: '0.01', // amount of stake to set up
     funds: '0.02', // amount of funds to set up
     mnemonic: '', // mnemonic to use for unlocking the account parameter
+    privateKey: '', // private key to retrieve the account address from
+    signer: {}, // Signer object (only when used as a library)
     hub: '',
     gasPrice: 60000000,
     relayUrl: '',

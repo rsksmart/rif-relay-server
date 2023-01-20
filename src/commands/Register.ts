@@ -219,7 +219,7 @@ const executeRegister = async (): Promise<void> => {
     !portFromUrl && app.port ? `${app.url}:${app.port}` : app.url;
 
   await register(rpcProvider, {
-    hub: hub ?? contracts.relayHubAddress,
+    hub: hub || contracts.relayHubAddress,
     relayUrl: relayUrl || serverUrl,
     signer: signer._isSigner
       ? signer
