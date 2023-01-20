@@ -74,7 +74,7 @@ const VERSION = '2.0.1';
 const INITIAL_FACTOR_TO_TRY = 0.25;
 const LIMIT_MAX_FACTOR_TO_TRY = 2;
 
-type PingResponse = {
+type HubInfo = {
   relayWorkerAddress: string;
   feesReceiver: string;
   relayManagerAddress: string;
@@ -201,7 +201,7 @@ export class RelayServer extends EventEmitter {
     return this.customReplenish;
   }
 
-  pingHandler(): PingResponse {
+  getChainInfo(): HubInfo {
     return {
       relayWorkerAddress: this.workerAddress,
       feesReceiver: this.feesReceiver,

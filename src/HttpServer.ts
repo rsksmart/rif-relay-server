@@ -69,7 +69,7 @@ export class HttpServer {
     this._app.use(bodyParser.json());
     /* eslint-disable @typescript-eslint/no-misused-promises */
     this._app.post('/', this.rootHandler.bind(this));
-    this._app.get('/getaddr', this.pingHandler.bind(this));
+    this._app.get('/get-chain-info', this.getChainInfo.bind(this));
     this._app.get('/status', this.statusHandler.bind(this));
     this._app.get('/tokens', this.tokenHandler.bind(this));
     this._app.get('/verifiers', this.verifierHandler.bind(this));
@@ -177,14 +177,14 @@ export class HttpServer {
    *             schema:
    *               $ref: '#/components/schemas/PingResponse'
    */
-  pingHandler(_req: Request, res: Response): void {
+  getChainInfo(_req: Request, res: Response): void {
     try {
-      const pingResponse = this._relayServer.pingHandler();
-      res.send(pingResponse);
+      const hubInfo = this._relayServer.getChainInfo();
+      res.send(hubInfo);
       log.info(
         `address ${
-          pingResponse.relayWorkerAddress
-        } sent. ready: ${pingResponse.ready.toString()}`
+          hubInfo.relayWorkerAddress
+        } sent. ready: ${hubInfo.ready.toString()}`
       );
     } catch (e) {
       if (e instanceof Error) {
