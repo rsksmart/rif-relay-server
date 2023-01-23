@@ -69,7 +69,7 @@ export class HttpServer {
     this._app.use(bodyParser.json());
     /* eslint-disable @typescript-eslint/no-misused-promises */
     this._app.post('/', this.rootHandler.bind(this));
-    this._app.get('/get-chain-info', this.getChainInfo.bind(this));
+    this._app.get('/chain-info', this.getChainInfo.bind(this));
     this._app.get('/status', this.statusHandler.bind(this));
     this._app.get('/tokens', this.tokenHandler.bind(this));
     this._app.get('/verifiers', this.verifierHandler.bind(this));
