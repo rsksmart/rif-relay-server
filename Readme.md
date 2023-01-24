@@ -54,41 +54,142 @@ We prepared some defaults for testnet and mainnet, however to run it locally, or
 `NODE_ENV=<config_file_name>` to the execution command.
 File [./config/default.json5](config/default.json5) contains all configuration properties and their descriptions.
 
-> ### Warning :warning
+<details open>
+<summary><small>./config/default.json5</small></summary>
+
+```json5
+// config/default.json5
+
+// TODO: add descriptions in comments
+// This file should not be aimed at any specific environment, but rather contain configuration defaults that are not likely to cause issues if left undefined in an override
+{
+  /*
+    Server 
+  */
+  app: {
+    url: 'http://127.0.0.1', // URL where the relay server will be deployed, it could be localhost or the IP of the host machine.
+    port: 8090, // port where the relay server will be hosted.
+    devMode: false, // indicates to the server if we are in development mode or not.
+    customReplenish: false, // set if the server uses a custom replenish function or not.
+
+    logLevel: 4 /* The log level for the relay server. Available levels:
+      {
+        TRACE: 0;
+        DEBUG: 1;
+        INFO: 2;
+        WARN: 3;
+        ERROR: 4;
+        SILENT: 5;
+      }
+    */,
+    workdir: '.', // path to the folder where the server will store the database and all its data.
+    readyTimeout: 30000,
+    checkInterval: 10000,
+    disableSponsoredTx: false,
+    feePercentage: 0 /* allows revenue sharing feature and sets the fee value (%) that the worker will take from all transactions.
+    - the fee will be added to the estimated gas and required in the transaction amount.
+    - the percentage is represented as a fraction (1 = 100%) string to allow for very low or high percentages
+    - the minus sign is omitted if used
+    - fractions exceeding the number of decimals of that of the native currency will be rounded up
+   */,
+    sponsoredDestinations: [],
+    requestMinValidSeconds: 43200,
+  },
+  /*
+    Blockchain node
+  */
+  blockchain: {
+    rskNodeUrl: 'http://127.0.0.1:4444', //  RSK node endpoint URL, where the RSK node is located.
+    gasPriceFactor: 1,
+    alertedBlockDelay: 0,
+    minAlertedDelayMS: 0,
+    maxAlertedDelayMS: 0,
+    registrationBlockRate: 0,
+    workerMinBalance: 0.001e18, // 0.001 RBTC
+    workerTargetBalance: 0.003e18, // 0.003 RBTC
+    managerMinBalance: 0.001e18, // 0.001 RBTC
+    managerMinStake: 1, // 1 wei
+    managerTargetBalance: 0.003e18, // 0.003 RBTC
+    minHubWithdrawalBalance: 0.001e18, // 0.001 RBTC
+    refreshStateTimeoutBlocks: 5,
+    pendingTransactionTimeoutBlocks: 30, // around 5 minutes with 10 seconds block times.
+    successfulRoundsForReady: 3, // successful mined blocks to become ready after exception.
+    confirmationsNeeded: 12,
+    retryGasPriceFactor: 1.2, // gas price factor used to calculate the gas on the server, you can leave it as 1.
+    defaultGasLimit: 500000,
+    maxGasPrice: 100000000000,
+    estimateGasFactor: 1.2,
+    versionRegistryDelayPeriod: 0,
+  },
+  /*
+    Relay contracts addresses
+  */
+  contracts: {
+    relayHubAddress: '', // relay hub contract address, you can retrieve this from the contract summary.
+    relayVerifierAddress: '0x0000000000000000000000000000000000000000', // relay verifier contract address, you can retrieve this from the contract summary.
+    deployVerifierAddress: '0x0000000000000000000000000000000000000000', // deploy verifier contract address, you can retrieve this from the contract summary.
+    smartWalletFactoryAddress: '0x0000000000000000000000000000000000000000',
+    versionRegistryAddress: '0x0000000000000000000000000000000000000000',
+    feesReceiver: '0x0000000000000000000000000000000000000000',
+    trustedVerifiers: [],
+    relayHubId: '',
+  },
+  register: {
+    stake: '0.01', // amount of stake to set up
+    funds: '0.02', // amount of funds to set up
+    mnemonic: '', // mnemonic to use for unlocking the account parameter
+    privateKey: '', // private key to retrieve the account address from
+    signer: {}, // Signer object (only when used as a library)
+    hub: '',
+    gasPrice: 60000000,
+    relayUrl: '',
+    unstakeDelay: 1000,
+  },
+}
+
+```
+
+</details>
+
+> ### :warning: Warning
 >
 > Keep in mind, that the if `local` configuration exists, it WILL OVERWRITE any other configuration files loaded using NODE_ENV.
 >
-> Another thing to note is that `development` is the default NODE_ENV value.
->
+> Also note that `development` is the default NODE_ENV value.
 > The following depicts the order in which the [node-config](https://github.com/node-config/node-config/wiki/Strict-Mode#node_env-value-of-local-is-ambiguous) library merges configuration, starting from the least to the most specific config:
 >
-> ```mermaid
-> flowchart TD;
->   default.json5 --> |$NODE_ENV value| development.json5
->  development.json5 --> |if local exists| local.json5
->  local.json5 --> |for specified values only| custom-environment-variables.json
-> ```
+```mermaid
+flowchart TD;
+  default.json5 --> |$NODE_ENV value| development.json5
+ development.json5 --> |if local exists| local.json5
+ local.json5 --> |for specified values only| custom-environment-variables.json
+```
+
+> Consult the [node-config file load order documentation](https://github.com/node-config/node-config/wiki/Configuration-Files#file-load-order) for more details about config load order.
 
 ### Overrides
 
 Some of these options will be overrideable using environment variables defined in [./config/custom-environment-variables.json](config/custom-environment-variables.json) file.
 
 <details open>
-<summary><small>./config/custom-environment-variables.json.</small></summary>
+<summary><small>./config/custom-environment-variables.json</small></summary>
 
-```json
+```json5
+// config/custom-environment-variables.json
+
 {
   "register": {
     "stake": "REGISTER_STAKE",
     "funds": "REGISTER_FUNDS",
     "mnemonic": "REGISTER_MNEMONIC",
     "privateKey": "REGISTER_PRIVATE_KEY",
-    "hub": "REGISTER_HUB_ADDRESS",
+    "hub": "",
     "gasPrice": "REGISTER_GAS_PRICE",
     "relayUrl": "REGISTER_RELAY_URL",
-    "unstakeDelay": "REGISTER_UNSTAKE_DELAY",
+    "unstakeDelay": "REGISTER_UNSTAKE_DELAY"
   }
 }
+
 ```
 
 </details>
@@ -103,14 +204,14 @@ REGISTER_UNSTAKE_DELAY=2000 REGISTER_GAS_PRICE=1000000 npm run register
 
 Depending on your preferred configuration, start the server with:
 
-```bash
-# development
-npm run start  # This will use development.json5 if one exists
+```shell
+# to use with local instance
+npm run start  # This will use development.json5 first, if one exists
 
-# testnet
+# to use for testnet deployment
 NODE_ENV=testnet npm run start
 
-# mainnet
+# to use for mainnet deployment
 NODE_ENV=mainnet npm run start
 
 # or your own
@@ -138,14 +239,14 @@ If it's the first time the server is run, some logs will state that the server i
 
 Once the relay server is up, you need to register it in order for it to be usable. The `./config/default.json5` config file contains configuration definitions for this too. You can either store them in your own [config](#server-configuration), or [override](#overrides) them with environment variables.
 
-```bash
-# development
+```shell
+# to use with local instance
 NODE_ENV=local npm run register
 
-# testnet
+# to use for testnet deployment
 NODE_ENV=testnet npm run register
 
-# mainnet
+# to use for mainnet deployment
 NODE_ENV=mainnet npm run register
 
 # or your own env
@@ -166,12 +267,14 @@ After modifying the config-file as indicated [here](#server-configuration), an a
 For Mac users:
 
 ```json5
+  // in your config override file
   rskNodeUrl: "http://host.docker.internal:4444",
 ```
 
 For Linux users:
 
 ```json5
+  // in your config override file
   rskNodeUrl: "http://172.17.0.1:4444",
 ```
 
@@ -179,7 +282,7 @@ In both cases, edit your local hosts file to make the address above resolve as 1
 
 Then run:
 
-```bash
+```shell
 NODE_ENV=<name> docker-compose build && NODE_ENV=<name> docker-compose up
 ```
 

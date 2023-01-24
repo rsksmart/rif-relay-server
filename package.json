@@ -65,6 +65,7 @@
     "test": "npx mocha -r ts-node/register --extensions ts 'test/**/*.{test,spec}.ts'"
   },
   "lint-staged": {
+    "Readme.md": "npx embedme Readme.md",
     "*.ts": "npm run format:fix && npm run lint:fix",
     "package.json": "npx sort-package-json"
   },
