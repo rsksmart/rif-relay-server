@@ -53,7 +53,7 @@
     pendingTransactionTimeoutBlocks: 30, // around 5 minutes with 10 seconds block times.
     successfulRoundsForReady: 3, // successful mined blocks to become ready after exception.
     confirmationsNeeded: 12,
-    retryGasPriceFactor: 1.2, // gas price factor used to calculate the gas on the server, you can leave it as 1.
+    retryGasPriceFactor: 1.2, // gas price factor used to calculate the gas on the server, you can leave it as 1
     defaultGasLimit: 500000,
     maxGasPrice: 100000000000,
     estimateGasFactor: 1.2,

@@ -67,7 +67,7 @@ File [./config/default.json5](config/default.json5) contains all configuration p
     Server 
   */
   app: {
-    url: 'http://127.0.0.1', // URL where the relay server will be deployed, it could be localhost or the IP of the host machine.
+    url: "http://127.0.0.1", // URL where the relay server will be deployed, it could be localhost or the IP of the host machine.
     port: 8090, // port where the relay server will be hosted.
     devMode: false, // indicates to the server if we are in development mode or not.
     customReplenish: false, // set if the server uses a custom replenish function or not.
@@ -82,7 +82,7 @@ File [./config/default.json5](config/default.json5) contains all configuration p
         SILENT: 5;
       }
     */,
-    workdir: '.', // path to the folder where the server will store the database and all its data.
+    workdir: ".", // path to the folder where the server will store the database and all its data.
     readyTimeout: 30000,
     checkInterval: 10000,
     disableSponsoredTx: false,
@@ -99,7 +99,7 @@ File [./config/default.json5](config/default.json5) contains all configuration p
     Blockchain node
   */
   blockchain: {
-    rskNodeUrl: 'http://127.0.0.1:4444', //  RSK node endpoint URL, where the RSK node is located.
+    rskNodeUrl: "http://127.0.0.1:4444", //  RSK node endpoint URL, where the RSK node is located.
     gasPriceFactor: 1,
     alertedBlockDelay: 0,
     minAlertedDelayMS: 0,
@@ -115,7 +115,7 @@ File [./config/default.json5](config/default.json5) contains all configuration p
     pendingTransactionTimeoutBlocks: 30, // around 5 minutes with 10 seconds block times.
     successfulRoundsForReady: 3, // successful mined blocks to become ready after exception.
     confirmationsNeeded: 12,
-    retryGasPriceFactor: 1.2, // gas price factor used to calculate the gas on the server, you can leave it as 1.
+    retryGasPriceFactor: 1.2, // gas price factor used to calculate the gas on the server, you can leave it as 1
     defaultGasLimit: 500000,
     maxGasPrice: 100000000000,
     estimateGasFactor: 1.2,
@@ -125,24 +125,24 @@ File [./config/default.json5](config/default.json5) contains all configuration p
     Relay contracts addresses
   */
   contracts: {
-    relayHubAddress: '', // relay hub contract address, you can retrieve this from the contract summary.
-    relayVerifierAddress: '0x0000000000000000000000000000000000000000', // relay verifier contract address, you can retrieve this from the contract summary.
-    deployVerifierAddress: '0x0000000000000000000000000000000000000000', // deploy verifier contract address, you can retrieve this from the contract summary.
-    smartWalletFactoryAddress: '0x0000000000000000000000000000000000000000',
-    versionRegistryAddress: '0x0000000000000000000000000000000000000000',
-    feesReceiver: '0x0000000000000000000000000000000000000000',
+    relayHubAddress: "0x0000000000000000000000000000000000000000", // relay hub contract address, you can retrieve this from the contract summary.
+    relayVerifierAddress: "0x0000000000000000000000000000000000000000", // relay verifier contract address, you can retrieve this from the contract summary.
+    deployVerifierAddress: "0x0000000000000000000000000000000000000000", // deploy verifier contract address, you can retrieve this from the contract summary.
+    smartWalletFactoryAddress: "0x0000000000000000000000000000000000000000",
+    versionRegistryAddress: "0x0000000000000000000000000000000000000000",
+    feesReceiver: "0x0000000000000000000000000000000000000000",
     trustedVerifiers: [],
-    relayHubId: '',
+    relayHubId: "",
   },
   register: {
-    stake: '0.01', // amount of stake to set up
-    funds: '0.02', // amount of funds to set up
-    mnemonic: '', // mnemonic to use for unlocking the account parameter
-    privateKey: '', // private key to retrieve the account address from
+    stake: "0.01", // amount of stake to set up
+    funds: "0.02", // amount of funds to set up
+    mnemonic: "", // mnemonic to use for unlocking the account parameter
+    privateKey: "", // private key to retrieve the account address from
     signer: {}, // Signer object (only when used as a library)
-    hub: '',
+    hub: "",
     gasPrice: 60000000,
-    relayUrl: '',
+    relayUrl: "",
     unstakeDelay: 1000,
   },
 }
@@ -183,7 +183,7 @@ Some of these options will be overrideable using environment variables defined i
     "funds": "REGISTER_FUNDS",
     "mnemonic": "REGISTER_MNEMONIC",
     "privateKey": "REGISTER_PRIVATE_KEY",
-    "hub": "",
+    "hub": "REGISTER_HUB_ADDRESS",
     "gasPrice": "REGISTER_GAS_PRICE",
     "relayUrl": "REGISTER_RELAY_URL",
     "unstakeDelay": "REGISTER_UNSTAKE_DELAY"

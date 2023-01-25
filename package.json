@@ -65,7 +65,7 @@
     "test": "npx mocha -r ts-node/register --extensions ts 'test/**/*.{test,spec}.ts'"
   },
   "lint-staged": {
-    "Readme.md": "npx embedme Readme.md",
+    "*": "npx embedme \"*.md\"",
     "*.ts": "npm run format:fix && npm run lint:fix",
     "package.json": "npx sort-package-json"
   },
@@ -109,6 +109,7 @@
     "@typescript-eslint/parser": "^5.48.2",
     "chai": "^4.3.7",
     "chai-as-promised": "^7.1.1",
+    "embedme": "^1.22.1",
     "eslint-config-prettier": "^8.6.0",
     "eslint-plugin-mocha": "^10.1.0",
     "eslint-plugin-prettier": "^4.2.1",
