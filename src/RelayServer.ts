@@ -65,7 +65,6 @@ import {
   estimateRelayMaxPossibleGas,
   isDeployTransaction,
   RelayRequest,
-  setEnvelopingConfig,
   setProvider,
   standardMaxPossibleGasEstimation,
 } from '@rsksmart/rif-relay-client';
@@ -75,7 +74,7 @@ const VERSION = '2.0.1';
 const INITIAL_FACTOR_TO_TRY = 0.25;
 const LIMIT_MAX_FACTOR_TO_TRY = 2;
 
-type PingResponse = {
+type HubInfo = {
   relayWorkerAddress: string;
   feesReceiver: string;
   relayManagerAddress: string;
@@ -168,22 +167,6 @@ export class RelayServer extends EventEmitter {
     super();
     this.config = getServerConfig();
     setProvider(getProvider());
-    const {
-      contracts: {
-        relayHubAddress,
-        deployVerifierAddress,
-        relayVerifierAddress,
-        smartWalletFactoryAddress,
-      },
-    } = this.config;
-    setEnvelopingConfig({
-      chainId: 33,
-      preferredRelays: [],
-      relayHubAddress,
-      deployVerifierAddress,
-      relayVerifierAddress,
-      smartWalletFactoryAddress,
-    });
     this.txStoreManager = dependencies.txStoreManager;
     this.transactionManager = new TransactionManager(dependencies);
     this.managerAddress =
@@ -218,7 +201,7 @@ export class RelayServer extends EventEmitter {
     return this.customReplenish;
   }
 
-  pingHandler(): PingResponse {
+  getChainInfo(): HubInfo {
     return {
       relayWorkerAddress: this.workerAddress,
       feesReceiver: this.feesReceiver,

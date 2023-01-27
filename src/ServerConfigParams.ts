@@ -25,7 +25,6 @@ export type ContractsConfig = {
   relayHubAddress: string;
   deployVerifierAddress: string;
   relayVerifierAddress: string;
-  smartWalletFactoryAddress: string;
   relayHubId: string;
   feesReceiver: string;
   trustedVerifiers: string[];
