@@ -1,43 +1,42 @@
-import { PrefixedHexString, Transaction } from 'ethereumjs-tx';
-import * as ethUtils from 'ethereumjs-util';
+import type { BigNumber, PopulatedTransaction } from 'ethers';
 
 export enum ServerAction {
-    REGISTER_SERVER,
-    ADD_WORKER,
-    RELAY_CALL,
-    VALUE_TRANSFER,
-    DEPOSIT_WITHDRAWAL,
-    PENALIZATION
+  REGISTER_SERVER,
+  ADD_WORKER,
+  RELAY_CALL,
+  VALUE_TRANSFER,
+  DEPOSIT_WITHDRAWAL,
+  PENALIZATION,
 }
 
 export interface StoredTransactionMetadata {
-    readonly from: string;
-    readonly attempts: number;
-    readonly serverAction: ServerAction;
-    readonly creationBlockNumber: number;
-    readonly boostBlockNumber?: number;
-    readonly minedBlockNumber?: number;
+  readonly txId: string;
+  readonly from: string;
+  readonly attempts: number;
+  readonly serverAction: ServerAction;
+  readonly creationBlockNumber: number;
+  readonly boostBlockNumber?: number;
+  readonly minedBlockNumber?: number;
 }
 
 export interface StoredTransactionSerialized {
-    readonly to: string;
-    readonly gas: number;
-    readonly gasPrice: number;
-    readonly data: PrefixedHexString;
-    readonly nonce: number;
-    readonly txId: PrefixedHexString;
+  readonly to: string | undefined;
+  readonly gasLimit: BigNumber | undefined;
+  readonly gasPrice: BigNumber | undefined;
+  readonly data: string | undefined;
+  readonly nonce: number | undefined;
 }
 
 export interface NonceSigner {
-    nonceSigner?: {
-        nonce: number;
-        signer: string;
-    };
+  nonceSigner?: {
+    nonce: number;
+    signer: string;
+  };
 }
 
 export type StoredTransaction = StoredTransactionSerialized &
-    StoredTransactionMetadata &
-    NonceSigner;
+  StoredTransactionMetadata &
+  NonceSigner;
 
 /**
  * Make sure not to pass {@link StoredTransaction} as {@param metadata}, as it will override fields from {@param tx}!
@@ -45,16 +44,17 @@ export type StoredTransaction = StoredTransactionSerialized &
  * @param metadata
  */
 export function createStoredTransaction(
-    tx: Transaction,
-    metadata: StoredTransactionMetadata
+  tx: PopulatedTransaction,
+  metadata: StoredTransactionMetadata
 ): StoredTransaction {
-    const details: StoredTransactionSerialized = {
-        to: ethUtils.bufferToHex(tx.to),
-        gas: ethUtils.bufferToInt(tx.gasLimit),
-        gasPrice: ethUtils.bufferToInt(tx.gasPrice),
-        data: ethUtils.bufferToHex(tx.data),
-        nonce: ethUtils.bufferToInt(tx.nonce),
-        txId: ethUtils.bufferToHex(tx.hash())
-    };
-    return Object.assign({}, details, metadata);
+  //TODO check what to do if the gasLimit and gasPrice its zero
+  const details: StoredTransactionSerialized = {
+    to: tx.to,
+    gasLimit: tx.gasLimit,
+    gasPrice: tx.gasPrice,
+    data: tx.data,
+    nonce: tx.nonce,
+  };
+
+  return Object.assign({}, details, metadata);
 }
