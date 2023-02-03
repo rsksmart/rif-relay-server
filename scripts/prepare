@@ -1,7 +1,6 @@
 #!/bin/bash
 
-patch-package
+npm run dist
 
-husky install
+node -e "try { require('husky').install() } catch (e) {if (e.code !== 'MODULE_NOT_FOUND') throw e}"
 
-npm run build

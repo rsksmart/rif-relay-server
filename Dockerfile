@@ -4,7 +4,7 @@ RUN apk add --no-cache build-base git bash
 WORKDIR /usr/src/app
 COPY . ./
 RUN npm i --no-audit
-RUN npm run build
+RUN npm run dist
 
 # Runtime container
 FROM node:16-alpine
@@ -15,8 +15,8 @@ WORKDIR /srv/app
 RUN chmod 777 /srv/app
 COPY --from=compiler /usr/src/app/node_modules ./node_modules/
 COPY --from=compiler /usr/src/app/dist ./dist/
+COPY --from=compiler /usr/src/app/config ./config/
 COPY package*.json ./
-COPY server-config*.json ./
-COPY scripts ./scripts/
 EXPOSE 8090
-CMD ["node", "dist/commands/Start.js", "--config", "server-config.json"]
+ENV NODE_ENV $NODE_ENV
+CMD ["node", "dist/commands/Start.js"]

@@ -3,7 +3,7 @@ name: CD for QA
 
 on:
     push:
-        branches: [master]
+        branches: [main]
 
 jobs:
     deploy-qa:

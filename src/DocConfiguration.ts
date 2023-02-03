@@ -1,4 +1,4 @@
-import express from 'express';
+import type express from 'express';
 import swaggerJSDoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 
@@ -147,36 +147,35 @@ import swaggerUi from 'swagger-ui-express';
  */
 
 const configureDocumentation = (app: express.Express, serverUrl: string) => {
-    const swaggerDefinition = {
-        openapi: '3.0.0',
-        info: {
-            title: 'RIF Relay Server API',
-            version: '1.0.0',
-            description:
-                'This is a API application provided to support RIF Relay.',
-            license: {
-                name: 'Licensed Under MIT',
-                url: 'https://spdx.org/licenses/MIT.html'
-            },
-            contact: {
-                name: 'RSK Smart',
-                url: 'https://developers.rsk.co/'
-            }
-        },
-        servers: [
-            {
-                url: serverUrl
-            }
-        ]
-    };
+  const swaggerDefinition = {
+    openapi: '3.0.0',
+    info: {
+      title: 'RIF Relay Server API',
+      version: '1.0.0',
+      description: 'This is a API application provided to support RIF Relay.',
+      license: {
+        name: 'Licensed Under MIT',
+        url: 'https://spdx.org/licenses/MIT.html',
+      },
+      contact: {
+        name: 'RSK Smart',
+        url: 'https://developers.rsk.co/',
+      },
+    },
+    servers: [
+      {
+        url: serverUrl,
+      },
+    ],
+  };
 
-    const options = {
-        swaggerDefinition,
-        apis: ['./dist/*.js']
-    };
+  const options = {
+    swaggerDefinition,
+    apis: ['./dist/*.js'],
+  };
 
-    const swaggerSpec = swaggerJSDoc(options);
-    app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+  const swaggerSpec = swaggerJSDoc(options);
+  app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 };
 
 export default configureDocumentation;

@@ -4,8 +4,9 @@ services:
     rif-relay:
         build:
             context: .
-        entrypoint: 'node dist/commands/Start.js --config server-config.json'
+        environment:
+            - NODE_ENV=$NODE_ENV
         ports:
             - '8090:8090'
         volumes:
-            - './environment:/srv/app/environment'
+            - './environment:/srv/app/environment' # this folder should be specifed in config.app.workdir
