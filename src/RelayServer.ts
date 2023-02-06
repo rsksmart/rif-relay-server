@@ -439,12 +439,10 @@ export class RelayServer extends EventEmitter {
     // Here the server has the last chance to compare the maxPossibleGas the deploy transaction needs with
     // the aggreement signed between the client and the relayer. Take this into account during the Arbiter integration
 
-    const { tokenGas } = envelopingTransaction.relayRequest.request;
     // Actual maximum gas needed to  send the relay transaction
     let maxPossibleGas = await standardMaxPossibleGasEstimation(
       envelopingTransaction,
-      this.workerAddress,
-      tokenGas.toString()
+      this.workerAddress
     );
 
     if (!this.isSponsorshipAllowed(envelopingTransaction.relayRequest)) {
