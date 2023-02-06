@@ -1,6 +1,6 @@
 {
   "name": "rif-relay-server",
-  "version": "2.0.0-alpha",
+  "version": "2.0.0-beta.0",
   "private": false,
   "description": "This project contains all the server code for the rif relay system.",
   "license": "MIT",
@@ -71,8 +71,8 @@
     "package.json": "npx sort-package-json"
   },
   "dependencies": {
-    "@rsksmart/rif-relay-client": "github:rsksmart/rif-relay-client#v2.0.0-alpha",
-    "@rsksmart/rif-relay-contracts": "github:rsksmart/rif-relay-contracts#v2.0.0-alpha",
+    "@rsksmart/rif-relay-client": "2.0.0-beta.1",
+    "@rsksmart/rif-relay-contracts": "2.0.0-beta.0",
     "async-mutex": "^0.4.0",
     "bignumber.js": "^9.1.1",
     "body-parser": "^1.20.1",
