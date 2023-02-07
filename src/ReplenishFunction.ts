@@ -1,5 +1,4 @@
 import log from 'loglevel';
-import { BigNumber as BigNumberJs } from 'bignumber.js';
 import { BigNumber } from 'ethers';
 import type { RelayServer } from './RelayServer';
 import { ServerAction } from './StoredTransaction';
@@ -35,15 +34,12 @@ async function defaultReplenishFunction(
   currentBlock: number
 ): Promise<string[]> {
   const transactionHashes: string[] = [];
-  const managerEthBalance = await relayServer.getManagerBalance();
-  const bigManagerEthBalance = BigNumberJs(managerEthBalance.toString());
+  const managerBalance = await relayServer.getManagerBalance();
 
   relayServer.workerBalanceRequired.currentValue =
     await relayServer.getWorkerBalance(workerIndex);
   if (
-    bigManagerEthBalance.gt(
-      relayServer.config.blockchain.managerTargetBalance
-    ) &&
+    managerBalance.gt(relayServer.config.blockchain.managerTargetBalance) &&
     relayServer.workerBalanceRequired.isSatisfied
   ) {
     // all filled, nothing to do
@@ -56,14 +52,14 @@ async function defaultReplenishFunction(
       relayServer.workerAddress
     );
   if (mustReplenishWorker && !isReplenishPendingForWorker) {
-    const targetBalance = BigNumberJs(
+    const workerTargetBalance = BigNumber.from(
       relayServer.config.blockchain.workerTargetBalance
     );
-    const refill = targetBalance.minus(
-      relayServer.workerBalanceRequired.currentValue.toString()
+    const refill = workerTargetBalance.sub(
+      relayServer.workerBalanceRequired.currentValue
     );
     log.info(
-      `== replenishServer: mgr balance=${bigManagerEthBalance.toString()}
+      `== replenishServer: mgr balance=${managerBalance.toString()}
         \n${
           relayServer.workerBalanceRequired.description
         }\n refill=${refill.toString()}`
@@ -71,9 +67,7 @@ async function defaultReplenishFunction(
 
     if (
       refill.lt(
-        bigManagerEthBalance.minus(
-          relayServer.config.blockchain.managerMinBalance
-        )
+        managerBalance.sub(relayServer.config.blockchain.managerMinBalance)
       )
     ) {
       log.info('Replenishing worker balance by manager rbtc balance');
@@ -84,7 +78,7 @@ async function defaultReplenishFunction(
         signer: relayServer.managerAddress,
         serverAction: ServerAction.VALUE_TRANSFER,
         destination: relayServer.workerAddress,
-        value: BigNumber.from(refill.toFixed(0)),
+        value: refill,
         creationBlockNumber: currentBlock,
         gasLimit,
       };
@@ -93,7 +87,7 @@ async function defaultReplenishFunction(
       );
       transactionHashes.push(txHash);
     } else {
-      const message = `== replenishServer: can't replenish: mgr balance too low ${bigManagerEthBalance.toString()} refill=${refill.toString()}`;
+      const message = `== replenishServer: can't replenish: mgr balance too low ${managerBalance.toString()} refill=${refill.toString()}`;
       relayServer.emit('fundingNeeded', message);
       log.info(message);
     }
