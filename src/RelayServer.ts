@@ -1044,9 +1044,14 @@ latestBlock timestamp   | ${latestBlock.timestamp}
   ): void {
     for (const event of hubEventsSinceLastScan) {
       switch (event.event) {
-        case 'TransactionRejectedByRecipient':
-          log.debug('handle TransactionRejectedByRecipient event', event);
-          this._handleTransactionRejectedByRecipientEvent(currentBlockNumber);
+        case 'TransactionRelayedButRevertedByRecipient':
+          log.debug(
+            'handle TransactionRelayedButRevertedByRecipient event',
+            event
+          );
+          this._handleTransactionRelayedButRevertedByRecipientEvent(
+            currentBlockNumber
+          );
           break;
         case 'TransactionRelayed':
           log.debug(
@@ -1076,7 +1081,9 @@ latestBlock timestamp   | ${latestBlock.timestamp}
     log.debug('_handleTransactionRelayedEvent: event', event);
   }
 
-  _handleTransactionRejectedByRecipientEvent(blockNumber: number): void {
+  _handleTransactionRelayedButRevertedByRecipientEvent(
+    blockNumber: number
+  ): void {
     this.alerted = true;
     this.alertedBlock = blockNumber;
     log.error(`Relay entered alerted state. Block number: ${blockNumber}`);
