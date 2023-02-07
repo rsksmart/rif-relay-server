@@ -286,7 +286,16 @@ Then run:
 NODE_ENV=<name> docker-compose build && NODE_ENV=<name> docker-compose up
 ```
 
-After that, continue with the [server registration](#server-registration).
+After that, you need to login into the running container `docker exec -it <container_name> bash`. To get the container name, you need to run `docker-compose ps` in the project folder. Once you logged in the running container, you need to run the register command:
+
+```shell
+<VARIABLE_LIST> node dist/commands/Register.js
+```
+
+Please remember that in oder to properly register the server you need to specify at least the following environment variables:
+* REGISTER_MNEMONIC or REGISTER_PRIVATE_KEY.
+
+For the additional properties, please refer to the register section of [./config/default.json5](config/default.json5).
 
 ---
 
