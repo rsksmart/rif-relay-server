@@ -18,6 +18,7 @@ export type AppConfig = {
   disableSponsoredTx: boolean;
   sponsoredDestinations: Array<string>;
   requestMinValidSeconds: number;
+  transferFeePercentage: number;
 };
 
 export type ContractsConfig = {

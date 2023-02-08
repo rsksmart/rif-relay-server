@@ -32,6 +32,7 @@
    */,
     sponsoredDestinations: [],
     requestMinValidSeconds: 43200,
+    transferFeePercentage: 0
   },
   /*
     Blockchain node
