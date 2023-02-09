@@ -21,6 +21,7 @@ import { defaultEnvironment } from './Environments';
 
 import {
   boolString,
+  buildServerUrl,
   getLatestEventData,
   getPastEventsForHub,
   getProvider,
@@ -30,7 +31,7 @@ import {
   isSecondEventLater,
 } from './Utils';
 import type { ManagerEvent, PastEventOptions } from './definitions/event.type';
-import { getServerConfig, ServerConfigParams } from './ServerConfigParams';
+import { getServerConfig } from './ServerConfigParams';
 
 export type RelayServerRegistryInfo = {
   url: string;
@@ -75,8 +76,6 @@ export class RegistrationManager {
 
   private _delayedEvents: Array<{ block: number; eventData: TypedEvent }> = [];
 
-  private _config: ServerConfigParams;
-
   get isStakeLocked(): boolean {
     return this._isStakeLocked;
   }
@@ -98,23 +97,25 @@ export class RegistrationManager {
     managerAddress: string,
     workerAddress: string
   ) {
-    this._config = getServerConfig();
-    const { blockchain, contracts } = this._config;
+    const {
+      blockchain: { managerMinBalance, managerMinStake },
+      contracts: { relayHubAddress },
+    } = getServerConfig();
     const listener = (): void => {
       this.printNotRegisteredMessage();
     };
     this._balanceRequired = new AmountRequired(
       'Balance',
-      BigNumber.from(blockchain.managerMinBalance),
+      BigNumber.from(managerMinBalance),
       listener
     );
     this._stakeRequired = new AmountRequired(
       'Stake',
-      BigNumber.from(blockchain.managerMinStake),
+      BigNumber.from(managerMinStake),
       listener
     );
 
-    this._hubAddress = contracts.relayHubAddress;
+    this._hubAddress = relayHubAddress;
     this._managerAddress = managerAddress;
     this._workerAddress = workerAddress;
     this._eventEmitter = eventEmitter;
@@ -381,17 +382,12 @@ export class RegistrationManager {
       transactions = transactions.concat(txHash);
     }
 
-    const { app } = this._config;
-
-    const portIncluded: boolean = app.url.indexOf(':') > 0;
-    const registerUrl =
-      app.url +
-      (!portIncluded && app.port > 0 ? ':' + app.port.toString() : '');
+    const serverUrl = buildServerUrl();
 
     const relayHub = getRelayHub(this._hubAddress);
 
     const registerMethod =
-      await relayHub.populateTransaction.registerRelayServer(registerUrl);
+      await relayHub.populateTransaction.registerRelayServer(serverUrl);
     const gasLimit = await this._transactionManager.attemptEstimateGas(
       'RegisterRelay',
       registerMethod,

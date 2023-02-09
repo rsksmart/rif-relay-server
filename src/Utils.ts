@@ -14,7 +14,7 @@ import type {
   ManagerEventParameters,
   PastEventOptions,
 } from './definitions/event.type';
-import type { AppConfig } from './ServerConfigParams';
+import { AppConfig, getServerConfig } from './ServerConfigParams';
 
 const DEFAULT_MANAGER_EVENTS: DefaultManagerEvent[] = [
   'RelayServerRegistered',
@@ -155,6 +155,16 @@ export function getProvider(): providers.Provider {
     config.get<string>(`${CONFIG_BLOCKCHAIN}.${CONFIG_RSK_URL}`)
   );
 }
+
+export const buildServerUrl = () => {
+  const {
+    app: { url, port },
+  } = getServerConfig();
+
+  const portFromUrl = url.match(/:(\d{0,5})$/);
+
+  return !portFromUrl && port ? `${url}:${port}` : url;
+};
 
 //TODO improve the validating and type handling
 export const deployTransactionRequestShape = {
