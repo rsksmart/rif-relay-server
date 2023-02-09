@@ -14,7 +14,7 @@ import type {
   ManagerEventParameters,
   PastEventOptions,
 } from './definitions/event.type';
-import { AppConfig, getServerConfig } from './ServerConfigParams';
+import { getServerConfig } from './ServerConfigParams';
 
 const DEFAULT_MANAGER_EVENTS: DefaultManagerEvent[] = [
   'RelayServerRegistered',
@@ -25,7 +25,6 @@ const DEFAULT_MANAGER_EVENTS: DefaultManagerEvent[] = [
 
 const CONFIG_CONTRACTS = 'contracts';
 const CONFIG_BLOCKCHAIN = 'blockchain';
-const CONFIG_APP = 'app';
 const CONFIG_RELAY_HUB_ADDRESS = 'relayHubAddress';
 const CONFIG_RSK_URL = 'rskNodeUrl';
 
@@ -123,18 +122,14 @@ export function isRegistrationValid(
   relayData: IRelayHub.RelayManagerDataStruct | undefined,
   managerAddress: string
 ): boolean {
-  const { url, port } = config.get<AppConfig>(CONFIG_APP);
-
-  const portIncluded: boolean = url.indexOf(':') > 0;
-
   if (relayData) {
     const manager = relayData.manager as string;
 
+    const serverUrl = buildServerUrl();
+
     return (
       isSameAddress(manager, managerAddress) &&
-      relayData.url.toString() ===
-        url.toString() +
-          (!portIncluded && port > 0 ? ':' + port.toString() : '')
+      relayData.url.toString() === serverUrl
     );
   }
 
@@ -161,9 +156,19 @@ export const buildServerUrl = () => {
     app: { url, port },
   } = getServerConfig();
 
-  const portFromUrl = url.match(/:(\d{0,5})$/);
+  if (isNaN(port)) {
+    throw new Error(`${port} Port should be numeric`);
+  }
 
-  return !portFromUrl && port ? `${url}:${port}` : url;
+  const parsedUrl = new URL(url);
+
+  const portFromUrl = parsedUrl.port;
+
+  if (!portFromUrl && port) {
+    parsedUrl.port = port.toString();
+  }
+
+  return parsedUrl.toString();
 };
 
 //TODO improve the validating and type handling
