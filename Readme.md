@@ -286,23 +286,20 @@ Then run:
 NODE_ENV=<name> docker-compose build && NODE_ENV=<name> docker-compose up
 ```
 
-After that, continue with the [server registration](#server-registration).
+After that, you need to login into the running container `docker exec -it <container_name> bash`. To get the container name, you need to run `docker-compose ps` in the project folder. Once you logged in the running container, you need to run the register command:
+
+```shell
+<VARIABLE_LIST> node dist/commands/Register.js
+```
+
+where `VARIABLE_LIST` can contains any of the variables defined in the [override](#overrides) section.
+
+Please remember that, in oder to properly register the server, you need to specify at least the following environment variables:
+* REGISTER_MNEMONIC or REGISTER_PRIVATE_KEY.
 
 ---
 
-## How to use it as library
-
-You can use this dependency once you have it installed on your project. There are multiple ways to do this:
-
-### Use a release version
-
-Install with:
-
-```bash
-npm i --save @rsksmart/rif-relay-server
-```
-
-### Use a local distributable
+## Use a local distributable
 
 Clone this repository inside your project's root folder and use the `npm link` mechanism (<https://docs.npmjs.com/cli/v8/commands/npm-link>) to add it to your project.
 
@@ -334,17 +331,6 @@ to check and fix the errors before trying to commit again:
 - `npm run prettier` to check code-style errors
 - `npm run prettier:fix` to fix code-style errors
 
-### Generating a new distributable version
-
-1. Run the `npm run dist` command to generate the `dist` folder with the distributable version inside.
-2. Bump the version on the `package.json` file (not strictly needed).
-3. Commit and push any changes, including the version bump.
-
 #### For GitHub
 
-1. Create a new tag with the new version (from `package.json`) and GitHub actions will update NPM
-
-#### For NPM
-
-1. Run `npm login` to log in to your account on the NPM registry.
-2. Run `npm publish` to generate the distributable version for Node.js.
+1. Create a new release with the new version (remember to update `package.json`).
