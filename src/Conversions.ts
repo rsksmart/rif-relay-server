@@ -79,8 +79,8 @@ export const toNativeWeiFrom = ({
   decimals = 18,
   xRate,
 }: ExchangeToken): BigNumber => {
-  const bigAmount = BigNumberJs(amount ?? '0');
-  const bigxRate = BigNumberJs(xRate ?? '0');
+  const bigAmount = BigNumberJs(amount ?? 0);
+  const bigxRate = BigNumberJs(xRate ?? 0);
 
   if (bigAmount.isZero() || bigxRate.isZero()) {
     return constants.Zero;
@@ -113,7 +113,7 @@ export const convertGasToToken = (
 ): BigNumber => {
   const bigEstimation = BigNumberJs(estimation.toString());
   const bigPrice = BigNumberJs(gasPrice.toString());
-  const bigRate = BigNumberJs(xRate ?? '0');
+  const bigRate = BigNumberJs(xRate ?? 0);
 
   if (
     isInvalidNumber(bigEstimation) ||

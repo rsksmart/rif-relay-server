@@ -15,6 +15,7 @@ import type {
   PastEventOptions,
 } from './definitions/event.type';
 import { getServerConfig } from './ServerConfigParams';
+import { getAddress } from 'ethers/lib/utils';
 
 const DEFAULT_MANAGER_EVENTS: DefaultManagerEvent[] = [
   'RelayServerRegistered',
@@ -37,7 +38,7 @@ export const getRelayHub = (
 ): RelayHub => RelayHub__factory.connect(relayHubAddress, provider);
 
 export function isSameAddress(address1: string, address2: string): boolean {
-  return address1.toLowerCase() === address2.toLowerCase();
+  return getAddress(address1) === getAddress(address2);
 }
 
 export function validateAddress(
@@ -123,7 +124,7 @@ export function isRegistrationValid(
   managerAddress: string
 ): boolean {
   if (relayData) {
-    const manager = relayData.manager as string;
+    const manager = relayData.manager.toString();
 
     const serverUrl = buildServerUrl();
 

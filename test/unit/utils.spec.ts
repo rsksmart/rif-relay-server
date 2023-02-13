@@ -1,6 +1,6 @@
 import { expect } from 'chai';
 import config from 'config';
-import { buildServerUrl, ServerConfigParams } from '../../src';
+import { buildServerUrl, getServerConfig, ServerConfigParams } from '../../src';
 
 const originalConfig = config.util.toObject(config) as ServerConfigParams;
 
@@ -11,7 +11,15 @@ describe('Utils', function () {
     });
 
     it('should build server url', function () {
-      buildServerUrl();
+      const {
+        app: { url, port },
+      } = getServerConfig();
+
+      const expectedUrl = new URL(`${url}:${port}`);
+
+      const serverUrl = buildServerUrl();
+
+      expect(expectedUrl.toString()).to.be.equal(serverUrl);
     });
 
     it('should throw if url is not valid', function () {

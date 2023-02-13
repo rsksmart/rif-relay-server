@@ -101,7 +101,7 @@ const register = async (
   if (response.chainId !== chainId.toString()) {
     throw new Error(
       `wrong chain-id: Relayer on (${
-        response.chainId ?? 0
+        response.chainId ?? -1
       }) but our provider is on (${chainId})`
     );
   }

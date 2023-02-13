@@ -20,11 +20,11 @@ export interface StoredTransactionMetadata {
 }
 
 export interface StoredTransactionSerialized {
-  readonly to: string | undefined;
-  readonly gasLimit: BigNumber | undefined;
-  readonly gasPrice: BigNumber | undefined;
-  readonly data: string | undefined;
-  readonly nonce: number | undefined;
+  readonly to?: string;
+  readonly gasLimit?: BigNumber;
+  readonly gasPrice?: BigNumber;
+  readonly data?: string;
+  readonly nonce?: number;
 }
 
 export interface NonceSigner {
