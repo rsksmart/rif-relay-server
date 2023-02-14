@@ -876,7 +876,7 @@ export class RelayServer extends EventEmitter {
     const provider = getProvider() as providers.JsonRpcProvider;
 
     const { chainId } = await provider.getNetwork();
-    const networkId = (await provider.send('net_version', [])) as number;
+    const networkId = Number(await provider.send('net_version', []));
 
     this.chainId = chainId;
     this.networkId = networkId;

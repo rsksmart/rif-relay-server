@@ -128,7 +128,6 @@ File [./config/default.json5](config/default.json5) contains all configuration p
     relayHubAddress: "0x0000000000000000000000000000000000000000", // relay hub contract address, you can retrieve this from the contract summary.
     relayVerifierAddress: "0x0000000000000000000000000000000000000000", // relay verifier contract address, you can retrieve this from the contract summary.
     deployVerifierAddress: "0x0000000000000000000000000000000000000000", // deploy verifier contract address, you can retrieve this from the contract summary.
-    smartWalletFactoryAddress: "0x0000000000000000000000000000000000000000",
     versionRegistryAddress: "0x0000000000000000000000000000000000000000",
     feesReceiver: "0x0000000000000000000000000000000000000000",
     trustedVerifiers: [],
