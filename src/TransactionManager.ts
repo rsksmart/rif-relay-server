@@ -87,24 +87,19 @@ created at   | block #${creationBlockNumber}
     from: string,
     hash: string
   ): void {
-    const valueHumanReadable: string = utils.formatEther(
-      transaction.value ?? ''
-    );
-    const gasPriceHumanReadable: string = utils.formatUnits(
-      transaction.gasPrice?.toString() ?? '',
-      'gwei'
-    );
+    const value = transaction.value ?? 0;
+
+    const gasPrice = transaction.gasPrice ?? 0;
+
+    const valueHumanReadable: string = utils.formatEther(value);
+    const gasPriceHumanReadable: string = utils.formatUnits(gasPrice, 'gwei');
     log.info(`Broadcasting transaction:
 hash         | ${hash}
 from         | ${from}
 to           | 0x${transaction.to ?? ''}
-value        | ${
-      transaction.value?.toString() ?? ''
-    } (${valueHumanReadable} RBTC)
-nonce        | ${transaction.nonce ?? 0}
-gasPrice     | ${
-      transaction.gasPrice?.toString() ?? ''
-    } (${gasPriceHumanReadable} gwei)
+value        | ${value.toString()} (${valueHumanReadable} RBTC)
+nonce        | ${transaction.nonce ?? 'unnonce'}
+gasPrice     | ${gasPrice.toString()} (${gasPriceHumanReadable} gwei)
 gasLimit     | ${transaction.gasLimit?.toString() ?? ''}
 data         | 0x${transaction.data ?? ''}
 `);
@@ -154,7 +149,7 @@ data         | 0x${transaction.data ?? ''}
   }: SendTransactionDetails): Promise<SignedTransactionDetails> {
     const provider = getProvider();
 
-    const tempGasPrice = await provider.getGasPrice();
+    const providerGasPrice = await provider.getGasPrice();
 
     const releaseMutex = await this.nonceMutex.acquire();
     let signedTransaction: SignedTransactionDetails;
@@ -168,7 +163,7 @@ data         | 0x${transaction.data ?? ''}
         to: destination,
         value,
         gasLimit,
-        gasPrice: gasPrice ?? tempGasPrice,
+        gasPrice: gasPrice ?? providerGasPrice,
         nonce,
       };
       // TODO omg! do not do this!

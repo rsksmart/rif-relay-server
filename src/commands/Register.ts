@@ -5,7 +5,7 @@ import config from 'config';
 import { BigNumber, constants, Signer, utils, Wallet } from 'ethers';
 import log from 'loglevel';
 import { getServerConfig } from '../ServerConfigParams';
-import { isSameAddress, sleep } from '../Utils';
+import { buildServerUrl, isSameAddress, sleep } from '../Utils';
 
 type RegisterConfig = {
   stake: string;
@@ -101,7 +101,7 @@ const register = async (
   if (response.chainId !== chainId.toString()) {
     throw new Error(
       `wrong chain-id: Relayer on (${
-        response.chainId ?? 0
+        response.chainId ?? -1
       }) but our provider is on (${chainId})`
     );
   }
@@ -192,8 +192,12 @@ const retreiveSigner = async (
 };
 
 const executeRegister = async (): Promise<void> => {
-  const { app, contracts, blockchain } = getServerConfig();
-  log.setLevel(app.logLevel);
+  const {
+    app: { logLevel },
+    contracts,
+    blockchain,
+  } = getServerConfig();
+  log.setLevel(logLevel);
   log.debug('configSources', config.util.getConfigSources());
   if (!config.has('register')) {
     throw new Error(
@@ -214,9 +218,7 @@ const executeRegister = async (): Promise<void> => {
   }: RegisterConfig = config.get('register');
 
   const rpcProvider = new JsonRpcProvider(blockchain.rskNodeUrl);
-  const portFromUrl = app.url.match(/:(\d{0,5})$/);
-  const serverUrl =
-    !portFromUrl && app.port ? `${app.url}:${app.port}` : app.url;
+  const serverUrl = buildServerUrl();
 
   await register(rpcProvider, {
     hub: hub || contracts.relayHubAddress,

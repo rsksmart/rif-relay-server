@@ -20,8 +20,8 @@ import { ServerAction } from './StoredTransaction';
 import type { TxStoreManager } from './TxStoreManager';
 import {
   ServerDependencies,
-  ServerConfigParams,
   getServerConfig,
+  ServerConfigParams,
 } from './ServerConfigParams';
 import Timeout = NodeJS.Timeout;
 import EventEmitter from 'events';
@@ -32,6 +32,7 @@ import {
   PopulatedTransaction,
   BigNumberish,
   BigNumber,
+  providers,
 } from 'ethers';
 import { BigNumber as BigNumberJs } from 'bignumber.js';
 import ow from 'ow';
@@ -115,13 +116,13 @@ export type RelayEstimation = {
 };
 
 export class RelayServer extends EventEmitter {
-  private lastScannedBlock = 0;
+  private _lastScannedBlock = 0;
 
-  private lastRefreshBlock = 0;
+  private _lastRefreshBlock = 0;
 
-  private ready = false;
+  private _ready = false;
 
-  private lastSuccessfulRounds = Number.MAX_SAFE_INTEGER;
+  private _lastSuccessfulRounds = Number.MAX_SAFE_INTEGER;
 
   readonly managerAddress: string;
 
@@ -131,9 +132,9 @@ export class RelayServer extends EventEmitter {
 
   gasPrice = BigNumber.from(0);
 
-  _workerSemaphoreOn = false;
+  private _workerSemaphoreOn = false;
 
-  private alerted = false;
+  private _alerted = false;
 
   alertedBlock = 0;
 
@@ -161,11 +162,16 @@ export class RelayServer extends EventEmitter {
 
   workerBalanceRequired: AmountRequired;
 
-  private readonly customReplenish: boolean;
+  private readonly _customReplenish: boolean;
 
   constructor(dependencies: ServerDependencies) {
     super();
     this.config = getServerConfig();
+    const {
+      app: { customReplenish },
+      contracts: { feesReceiver },
+      blockchain: { workerMinBalance },
+    } = this.config;
     setProvider(getProvider());
     this.txStoreManager = dependencies.txStoreManager;
     this.transactionManager = new TransactionManager(dependencies);
@@ -174,13 +180,13 @@ export class RelayServer extends EventEmitter {
     this.workerAddress =
       this.transactionManager.workersKeyManager.getAddress(0) ?? '';
     this.feesReceiver =
-      this.config.contracts.feesReceiver === constants.AddressZero
+      feesReceiver === constants.AddressZero
         ? this.workerAddress
-        : this.config.contracts.feesReceiver;
-    this.customReplenish = this.config.app.customReplenish;
+        : feesReceiver;
+    this._customReplenish = customReplenish;
     this.workerBalanceRequired = new AmountRequired(
       'Worker Balance',
-      BigNumber.from(this.config.blockchain.workerMinBalance)
+      BigNumber.from(workerMinBalance)
     );
     this.printServerAddresses();
 
@@ -198,7 +204,7 @@ export class RelayServer extends EventEmitter {
   }
 
   isCustomReplenish(): boolean {
-    return this.customReplenish;
+    return this._customReplenish;
   }
 
   getChainInfo(): HubInfo {
@@ -264,26 +270,33 @@ export class RelayServer extends EventEmitter {
     }
   }
 
-  validateInput(req: EnvelopingTxRequest): void {
+  validateInput(envelopingRequest: EnvelopingTxRequest): void {
+    const { metadata, relayRequest } = envelopingRequest;
+
+    const {
+      app: { requestMinValidSeconds },
+      contracts: { relayHubAddress },
+    } = this.config;
+
     // Check that the relayHub is the correct one
     if (
-      req.metadata.relayHubAddress.toString().toLocaleLowerCase() !==
-      this.config.contracts.relayHubAddress.toLowerCase()
+      metadata.relayHubAddress.toString().toLowerCase() !==
+      relayHubAddress.toLowerCase()
     ) {
       throw new Error(
         `Wrong hub address.\nRelay server's hub address: ${
           this.config.contracts.relayHubAddress
-        }, request's hub address: ${req.metadata.relayHubAddress.toString()}\n`
+        }, request's hub address: ${metadata.relayHubAddress.toString()}\n`
       );
     }
 
-    const feesReceiver = req.relayRequest.relayData.feesReceiver as string;
+    const feesReceiver = relayRequest.relayData.feesReceiver.toString();
     // Check the relayWorker (todo: once migrated to multiple relays, check if exists)
     if (feesReceiver.toLowerCase() !== this.feesReceiver.toLowerCase()) {
       throw new Error(`Wrong fees receiver address: ${feesReceiver}\n`);
     }
 
-    const gasPrice = req.relayRequest.relayData.gasPrice.toString();
+    const gasPrice = relayRequest.relayData.gasPrice.toString();
     // Check that the gasPrice is initialized & acceptable
     if (this.gasPrice.gt(gasPrice)) {
       throw new Error(
@@ -294,14 +307,14 @@ export class RelayServer extends EventEmitter {
     // validate the validUntil is not too close
     const secondsNow = Math.round(Date.now() / 1000);
     const expiredInSeconds =
-      parseInt(req.relayRequest.request.validUntilTime.toString()) - secondsNow;
-    if (expiredInSeconds < this.config.app.requestMinValidSeconds) {
+      parseInt(relayRequest.request.validUntilTime.toString()) - secondsNow;
+    if (expiredInSeconds < requestMinValidSeconds) {
       const expirationDate = new Date(
-        parseInt(req.relayRequest.request.validUntilTime.toString()) * 1000
+        parseInt(relayRequest.request.validUntilTime.toString()) * 1000
       );
       throw new Error(
         `Request expired (or too close): expired at (${expirationDate.toUTCString()}), we expect it to be valid until ${new Date(
-          secondsNow + this.config.app.requestMinValidSeconds
+          secondsNow + requestMinValidSeconds
         ).toUTCString()} `
       );
     }
@@ -439,16 +452,16 @@ export class RelayServer extends EventEmitter {
     // Here the server has the last chance to compare the maxPossibleGas the deploy transaction needs with
     // the aggreement signed between the client and the relayer. Take this into account during the Arbiter integration
 
-    const { tokenGas } = envelopingTransaction.relayRequest.request;
     // Actual maximum gas needed to  send the relay transaction
     let maxPossibleGas = await standardMaxPossibleGasEstimation(
       envelopingTransaction,
-      this.workerAddress,
-      tokenGas.toString()
+      this.workerAddress
     );
 
     if (!this.isSponsorshipAllowed(envelopingTransaction.relayRequest)) {
-      const { feePercentage } = this.config.app;
+      const {
+        app: { feePercentage },
+      } = this.config;
 
       log.debug(`RelayServer - feePercentage: ${feePercentage}`);
 
@@ -523,12 +536,14 @@ export class RelayServer extends EventEmitter {
     return maxPossibleGas;
   }
 
-  isSponsorshipAllowed(req: EnvelopingRequest): boolean {
-    const { disableSponsoredTx, sponsoredDestinations } = this.config.app;
+  isSponsorshipAllowed(envelopingRequest: EnvelopingRequest): boolean {
+    const {
+      app: { disableSponsoredTx, sponsoredDestinations },
+    } = this.config;
 
     return (
       !disableSponsoredTx ||
-      sponsoredDestinations.includes(req.request.to as string)
+      sponsoredDestinations.includes(envelopingRequest.request.to as string)
     );
   }
 
@@ -588,7 +603,9 @@ export class RelayServer extends EventEmitter {
     );
 
     if (!this.isSponsorshipAllowed(envelopingRequest.relayRequest)) {
-      const { feePercentage } = this.config.app;
+      const {
+        app: { feePercentage },
+      } = this.config;
 
       log.debug(`RelayServer - feePercentage: ${feePercentage}`);
 
@@ -649,14 +666,13 @@ export class RelayServer extends EventEmitter {
     }
     this.validateInputTypes(envelopingTransaction);
 
-    if (this.alerted) {
+    const {
+      blockchain: { minAlertedDelayMS, maxAlertedDelayMS },
+    } = this.config;
+
+    if (this._alerted) {
       log.error('Alerted state: slowing down traffic');
-      await sleep(
-        randomInRange(
-          this.config.blockchain.minAlertedDelayMS,
-          this.config.blockchain.maxAlertedDelayMS
-        )
-      );
+      await sleep(randomInRange(minAlertedDelayMS, maxAlertedDelayMS));
     }
     this.validateInput(envelopingTransaction);
     await this.validateMaxNonce(
@@ -716,15 +732,18 @@ export class RelayServer extends EventEmitter {
   }
 
   async intervalHandler(): Promise<void> {
+    const {
+      app: { devMode, readyTimeout },
+    } = this.config;
     const now = Date.now();
     let workerTimeout: Timeout;
-    if (!this.config.app.devMode) {
+    if (!devMode) {
       workerTimeout = setTimeout(() => {
         const timedOut = Date.now() - now;
         log.warn(chalk.bgRedBright(`Relay state: Timed-out after ${timedOut}`));
 
-        this.lastSuccessfulRounds = 0;
-      }, this.config.app.readyTimeout);
+        this._lastSuccessfulRounds = 0;
+      }, readyTimeout);
     }
 
     const provider = getProvider();
@@ -733,7 +752,7 @@ export class RelayServer extends EventEmitter {
       provider
         .getBlock('latest')
         .then((block) => {
-          if (block.number > this.lastScannedBlock) {
+          if (block.number > this._lastScannedBlock) {
             resolve(this._workerSemaphore.bind(this)(block.number));
           }
         })
@@ -741,7 +760,7 @@ export class RelayServer extends EventEmitter {
           this.emit('error', e);
           const error = e as Error;
           log.error(`error in worker: ${error.message} ${error.stack ?? ''}`);
-          this.lastSuccessfulRounds = 0;
+          this._lastSuccessfulRounds = 0;
           reject(error);
         })
         .finally(() => {
@@ -751,13 +770,14 @@ export class RelayServer extends EventEmitter {
   }
 
   start(): void {
-    log.debug(
-      `Started polling for new blocks every ${this.config.app.checkInterval}ms`
-    );
+    const {
+      app: { checkInterval },
+    } = this.config;
+    log.debug(`Started polling for new blocks every ${checkInterval}ms`);
     this._workerTask = setInterval(
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       this.intervalHandler.bind(this),
-      this.config.app.checkInterval
+      checkInterval
     );
   }
 
@@ -779,7 +799,7 @@ export class RelayServer extends EventEmitter {
 
     await this._worker(blockNumber)
       .then((transactions) => {
-        this.lastSuccessfulRounds++;
+        this._lastSuccessfulRounds++;
 
         if (transactions.length !== 0) {
           log.debug(
@@ -806,29 +826,24 @@ export class RelayServer extends EventEmitter {
    * @param verifiers list of trusted verifiers addresses
    */
   _initTrustedVerifiers(verifiers: string[] = []): void {
+    const {
+      contracts: { relayVerifierAddress, deployVerifierAddress },
+    } = this.config;
     this.trustedVerifiers.clear();
     for (const verifierAddress of verifiers) {
       this.trustedVerifiers.add(verifierAddress.toLowerCase());
     }
     if (
-      this.config.contracts.relayVerifierAddress !== constants.AddressZero &&
-      !this.trustedVerifiers.has(
-        this.config.contracts.relayVerifierAddress.toLowerCase()
-      )
+      relayVerifierAddress !== constants.AddressZero &&
+      !this.trustedVerifiers.has(relayVerifierAddress.toLowerCase())
     ) {
-      this.trustedVerifiers.add(
-        this.config.contracts.relayVerifierAddress.toLowerCase()
-      );
+      this.trustedVerifiers.add(relayVerifierAddress.toLowerCase());
     }
     if (
-      this.config.contracts.deployVerifierAddress !== constants.AddressZero &&
-      !this.trustedVerifiers.has(
-        this.config.contracts.deployVerifierAddress.toLowerCase()
-      )
+      deployVerifierAddress !== constants.AddressZero &&
+      !this.trustedVerifiers.has(deployVerifierAddress.toLowerCase())
     ) {
-      this.trustedVerifiers.add(
-        this.config.contracts.deployVerifierAddress.toLowerCase()
-      );
+      this.trustedVerifiers.add(deployVerifierAddress.toLowerCase());
     }
   }
 
@@ -838,8 +853,10 @@ export class RelayServer extends EventEmitter {
     }
     log.debug('Relay Server - Relay Server initializing');
     log.debug('Relay Server - Transaction Manager initialized');
-    this._initTrustedVerifiers(this.config.contracts.trustedVerifiers);
-    const relayHubAddress = this.config.contracts.relayHubAddress;
+    const {
+      contracts: { relayHubAddress, trustedVerifiers },
+    } = this.config;
+    this._initTrustedVerifiers(trustedVerifiers);
     log.debug(`Relay Server - Relay hub: ${relayHubAddress}`);
     const code = await isContractDeployed(relayHubAddress);
     if (!code) {
@@ -856,11 +873,13 @@ export class RelayServer extends EventEmitter {
     await this.registrationManager.init();
     log.debug('Relay Server - Registration manager initialized');
 
-    const provider = getProvider();
+    const provider = getProvider() as providers.JsonRpcProvider;
 
     const { chainId } = await provider.getNetwork();
+    const networkId = Number(await provider.send('net_version', []));
+
     this.chainId = chainId;
-    this.networkId = chainId;
+    this.networkId = networkId;
     log.debug(`Relay Server - chainId: ${this.chainId}`);
     log.debug(`Relay Server - networkId: ${this.networkId}`);
 
@@ -902,13 +921,13 @@ latestBlock timestamp   | ${latestBlock.timestamp}
     if (!this._initialized) {
       await this.init();
     }
-    if (blockNumber <= this.lastScannedBlock) {
+    if (blockNumber <= this._lastScannedBlock) {
       throw new Error('Attempt to scan older block, aborting');
     }
     if (!this._shouldRefreshState(blockNumber)) {
       return [];
     }
-    this.lastRefreshBlock = blockNumber;
+    this._lastRefreshBlock = blockNumber;
     await this._refreshGasPrice();
     await this.registrationManager.refreshBalance();
     if (!this.registrationManager.balanceRequired.isSatisfied) {
@@ -940,7 +959,7 @@ latestBlock timestamp   | ${latestBlock.timestamp}
     transactionHashes = transactionHashes.concat(
       await this.registrationManager.handlePastEvents(
         hubEventsSinceLastScan,
-        this.lastScannedBlock,
+        this._lastScannedBlock,
         currentBlockNumber,
         shouldRegisterAgain
       )
@@ -949,7 +968,7 @@ latestBlock timestamp   | ${latestBlock.timestamp}
       currentBlockNumber
     );
     await this._boostStuckPendingTransactions(currentBlockNumber);
-    this.lastScannedBlock = currentBlockNumber;
+    this._lastScannedBlock = currentBlockNumber;
     const isRegistered = this.registrationManager.isRegistered();
     if (!isRegistered) {
       this.setReadyState(false);
@@ -961,22 +980,24 @@ latestBlock timestamp   | ${latestBlock.timestamp}
     transactionHashes = transactionHashes.concat(
       await this.replenishServer(workerIndex, currentBlockNumber)
     );
+    const {
+      blockchain: { workerMinBalance, alertedBlockDelay },
+    } = this.config;
     const workerBalance = await this.getWorkerBalance(workerIndex);
-    if (workerBalance.lt(this.config.blockchain.workerMinBalance)) {
+    if (workerBalance.lt(workerMinBalance)) {
       this.setReadyState(false);
 
       return transactionHashes;
     }
     this.setReadyState(true);
     if (
-      this.alerted &&
-      this.alertedBlock + this.config.blockchain.alertedBlockDelay <
-        currentBlockNumber
+      this._alerted &&
+      this.alertedBlock + alertedBlockDelay < currentBlockNumber
     ) {
       log.warn(
         `Relay exited alerted state. Alerted block: ${this.alertedBlock}. Current block number: ${currentBlockNumber}`
       );
-      this.alerted = false;
+      this._alerted = false;
     }
 
     return transactionHashes;
@@ -999,6 +1020,9 @@ latestBlock timestamp   | ${latestBlock.timestamp}
     currentBlock: number,
     hubEventsSinceLastScan: TypedEvent[]
   ): Promise<boolean> {
+    const {
+      blockchain: { registrationBlockRate },
+    } = this.config;
     log.debug(
       '_shouldRegisterAgain: hubEventsSinceLastScan',
       hubEventsSinceLastScan
@@ -1006,27 +1030,19 @@ latestBlock timestamp   | ${latestBlock.timestamp}
     const isPendingActivityTransaction =
       (await this.txStoreManager.isActionPending(ServerAction.RELAY_CALL)) ||
       (await this.txStoreManager.isActionPending(ServerAction.REGISTER_SERVER));
-    if (
-      this.config.blockchain.registrationBlockRate === 0 ||
-      isPendingActivityTransaction
-    ) {
+    if (registrationBlockRate === 0 || isPendingActivityTransaction) {
       log.debug(
-        `_shouldRegisterAgain returns false isPendingActivityTransaction=${isPendingActivityTransaction.toString()} registrationBlockRate=${
-          this.config.blockchain.registrationBlockRate
-        }`
+        `_shouldRegisterAgain returns false isPendingActivityTransaction=${isPendingActivityTransaction.toString()} registrationBlockRate=${registrationBlockRate}`
       );
 
       return false;
     }
     const latestTxBlockNumber = this._getLatestTxBlockNumber();
     const registrationExpired =
-      currentBlock - latestTxBlockNumber >=
-      this.config.blockchain.registrationBlockRate;
+      currentBlock - latestTxBlockNumber >= registrationBlockRate;
     if (!registrationExpired) {
       log.debug(
-        `_shouldRegisterAgain registrationExpired=${registrationExpired.toString()} currentBlock=${currentBlock} latestTxBlockNumber=${latestTxBlockNumber} registrationBlockRate=${
-          this.config.blockchain.registrationBlockRate
-        }`
+        `_shouldRegisterAgain registrationExpired=${registrationExpired.toString()} currentBlock=${currentBlock} latestTxBlockNumber=${latestTxBlockNumber} registrationBlockRate=${registrationBlockRate}`
       );
     }
 
@@ -1034,9 +1050,13 @@ latestBlock timestamp   | ${latestBlock.timestamp}
   }
 
   _shouldRefreshState(currentBlock: number): boolean {
+    const {
+      blockchain: { refreshStateTimeoutBlocks },
+    } = this.config;
+
     return (
-      currentBlock - this.lastRefreshBlock >=
-        this.config.blockchain.refreshStateTimeoutBlocks || !this.isReady()
+      currentBlock - this._lastRefreshBlock >= refreshStateTimeoutBlocks ||
+      !this.isReady()
     );
   }
 
@@ -1046,9 +1066,14 @@ latestBlock timestamp   | ${latestBlock.timestamp}
   ): void {
     for (const event of hubEventsSinceLastScan) {
       switch (event.event) {
-        case 'TransactionRejectedByRecipient':
-          log.debug('handle TransactionRejectedByRecipient event', event);
-          this._handleTransactionRejectedByRecipientEvent(currentBlockNumber);
+        case 'TransactionRelayedButRevertedByRecipient':
+          log.debug(
+            'handle TransactionRelayedButRevertedByRecipient event',
+            event
+          );
+          this._handleTransactionRelayedButRevertedByRecipientEvent(
+            currentBlockNumber
+          );
           break;
         case 'TransactionRelayed':
           log.debug(
@@ -1062,7 +1087,7 @@ latestBlock timestamp   | ${latestBlock.timestamp}
 
   async getAllHubEventsSinceLastScan(): Promise<Array<TypedEvent>> {
     const options = {
-      fromBlock: this.lastScannedBlock + 1,
+      fromBlock: this._lastScannedBlock + 1,
       toBlock: 'latest',
     };
     const events = await getPastEventsForHub([this.managerAddress], options);
@@ -1078,8 +1103,10 @@ latestBlock timestamp   | ${latestBlock.timestamp}
     log.debug('_handleTransactionRelayedEvent: event', event);
   }
 
-  _handleTransactionRejectedByRecipientEvent(blockNumber: number): void {
-    this.alerted = true;
+  _handleTransactionRelayedButRevertedByRecipientEvent(
+    blockNumber: number
+  ): void {
+    this._alerted = true;
     this.alertedBlock = blockNumber;
     log.error(`Relay entered alerted state. Block number: ${blockNumber}`);
   }
@@ -1172,26 +1199,26 @@ latestBlock timestamp   | ${latestBlock.timestamp}
   }
 
   isReady(): boolean {
-    if (
-      this.lastSuccessfulRounds <
-      this.config.blockchain.successfulRoundsForReady
-    ) {
+    const {
+      blockchain: { successfulRoundsForReady },
+    } = this.config;
+    if (this._lastSuccessfulRounds < successfulRoundsForReady) {
       return false;
     }
 
-    return this.ready;
+    return this._ready;
   }
 
   setReadyState(isReady: boolean): void {
+    const {
+      blockchain: { successfulRoundsForReady },
+    } = this.config;
+
     if (this.isReady() !== isReady) {
       if (isReady) {
-        if (
-          this.lastSuccessfulRounds <
-          this.config.blockchain.successfulRoundsForReady
-        ) {
+        if (this._lastSuccessfulRounds < successfulRoundsForReady) {
           const roundsUntilReady =
-            this.config.blockchain.successfulRoundsForReady -
-            this.lastSuccessfulRounds;
+            successfulRoundsForReady - this._lastSuccessfulRounds;
           log.warn(
             chalk.yellow(
               `Relayer state: almost READY (in ${roundsUntilReady} rounds)`
@@ -1204,6 +1231,6 @@ latestBlock timestamp   | ${latestBlock.timestamp}
         log.warn(chalk.redBright('Relayer state: NOT-READY'));
       }
     }
-    this.ready = isReady;
+    this._ready = isReady;
   }
 }

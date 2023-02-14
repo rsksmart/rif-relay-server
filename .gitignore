@@ -5,4 +5,4 @@ txstore.db
 manager/keystore
 workers/keystore
 .eslintcache
-config/local.json5
+config/local.*

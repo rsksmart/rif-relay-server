@@ -63,15 +63,18 @@
     "register": "ts-node src/commands/Register.ts",
     "start": "ts-node src/commands/Start.ts",
     "tdd": "npm run test -- --watch --watch-files src,test",
-    "test": "npx mocha -r ts-node/register --extensions ts 'test/**/*.{test,spec}.ts'"
+    "test": "ALLOW_CONFIG_MUTATIONS=true  npx mocha -r ts-node/register --extensions ts 'test/**/*.{test,spec}.ts'"
   },
   "lint-staged": {
     "*": "npx embedme \"*.md\"",
-    "*.ts": "npm run format:fix && npm run lint:fix",
+    "*.ts": [
+      "npm run format:fix",
+      "npm run lint:fix"
+    ],
     "package.json": "npx sort-package-json"
   },
   "dependencies": {
-    "@rsksmart/rif-relay-client": "2.0.0-beta.1",
+    "@rsksmart/rif-relay-client": "2.0.0-beta.2",
     "@rsksmart/rif-relay-contracts": "2.0.0-beta.0",
     "async-mutex": "^0.4.0",
     "bignumber.js": "^9.1.1",

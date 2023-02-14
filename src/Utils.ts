@@ -14,7 +14,8 @@ import type {
   ManagerEventParameters,
   PastEventOptions,
 } from './definitions/event.type';
-import type { AppConfig } from './ServerConfigParams';
+import { getServerConfig } from './ServerConfigParams';
+import { getAddress } from 'ethers/lib/utils';
 
 const DEFAULT_MANAGER_EVENTS: DefaultManagerEvent[] = [
   'RelayServerRegistered',
@@ -25,7 +26,6 @@ const DEFAULT_MANAGER_EVENTS: DefaultManagerEvent[] = [
 
 const CONFIG_CONTRACTS = 'contracts';
 const CONFIG_BLOCKCHAIN = 'blockchain';
-const CONFIG_APP = 'app';
 const CONFIG_RELAY_HUB_ADDRESS = 'relayHubAddress';
 const CONFIG_RSK_URL = 'rskNodeUrl';
 
@@ -38,7 +38,7 @@ export const getRelayHub = (
 ): RelayHub => RelayHub__factory.connect(relayHubAddress, provider);
 
 export function isSameAddress(address1: string, address2: string): boolean {
-  return address1.toLowerCase() === address2.toLowerCase();
+  return getAddress(address1) === getAddress(address2);
 }
 
 export function validateAddress(
@@ -123,18 +123,14 @@ export function isRegistrationValid(
   relayData: IRelayHub.RelayManagerDataStruct | undefined,
   managerAddress: string
 ): boolean {
-  const { url, port } = config.get<AppConfig>(CONFIG_APP);
-
-  const portIncluded: boolean = url.indexOf(':') > 0;
-
   if (relayData) {
-    const manager = relayData.manager as string;
+    const manager = relayData.manager.toString();
+
+    const serverUrl = buildServerUrl();
 
     return (
       isSameAddress(manager, managerAddress) &&
-      relayData.url.toString() ===
-        url.toString() +
-          (!portIncluded && port > 0 ? ':' + port.toString() : '')
+      relayData.url.toString() === serverUrl
     );
   }
 
@@ -155,6 +151,26 @@ export function getProvider(): providers.Provider {
     config.get<string>(`${CONFIG_BLOCKCHAIN}.${CONFIG_RSK_URL}`)
   );
 }
+
+export const buildServerUrl = () => {
+  const {
+    app: { url, port },
+  } = getServerConfig();
+
+  if (isNaN(port)) {
+    throw new Error(`${port} Port should be numeric`);
+  }
+
+  const parsedUrl = new URL(url);
+
+  const portFromUrl = parsedUrl.port;
+
+  if (!portFromUrl && port) {
+    parsedUrl.port = port.toString();
+  }
+
+  return parsedUrl.toString();
+};
 
 //TODO improve the validating and type handling
 export const deployTransactionRequestShape = {

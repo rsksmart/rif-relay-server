@@ -1,7 +1,6 @@
 import log from 'loglevel';
 import type { EventEmitter } from 'events';
 import { constants, BigNumber } from 'ethers';
-import { BigNumber as BigNumberJs } from 'bignumber.js';
 import chalk from 'chalk';
 
 import type {
@@ -21,6 +20,7 @@ import { defaultEnvironment } from './Environments';
 
 import {
   boolString,
+  buildServerUrl,
   getLatestEventData,
   getPastEventsForHub,
   getProvider,
@@ -30,7 +30,7 @@ import {
   isSecondEventLater,
 } from './Utils';
 import type { ManagerEvent, PastEventOptions } from './definitions/event.type';
-import { getServerConfig, ServerConfigParams } from './ServerConfigParams';
+import { getServerConfig } from './ServerConfigParams';
 
 export type RelayServerRegistryInfo = {
   url: string;
@@ -75,8 +75,6 @@ export class RegistrationManager {
 
   private _delayedEvents: Array<{ block: number; eventData: TypedEvent }> = [];
 
-  private _config: ServerConfigParams;
-
   get isStakeLocked(): boolean {
     return this._isStakeLocked;
   }
@@ -98,23 +96,25 @@ export class RegistrationManager {
     managerAddress: string,
     workerAddress: string
   ) {
-    this._config = getServerConfig();
-    const { blockchain, contracts } = this._config;
+    const {
+      blockchain: { managerMinBalance, managerMinStake },
+      contracts: { relayHubAddress },
+    } = getServerConfig();
     const listener = (): void => {
       this.printNotRegisteredMessage();
     };
     this._balanceRequired = new AmountRequired(
       'Balance',
-      BigNumber.from(blockchain.managerMinBalance),
+      BigNumber.from(managerMinBalance),
       listener
     );
     this._stakeRequired = new AmountRequired(
       'Stake',
-      BigNumber.from(blockchain.managerMinStake),
+      BigNumber.from(managerMinStake),
       listener
     );
 
-    this._hubAddress = contracts.relayHubAddress;
+    this._hubAddress = relayHubAddress;
     this._managerAddress = managerAddress;
     this._workerAddress = workerAddress;
     this._eventEmitter = eventEmitter;
@@ -244,7 +244,7 @@ export class RegistrationManager {
     throw new Error('No relay manager found for ' + this._managerAddress);
   }
 
-  _extractDuePendingEvents(currentBlock: number): TypedEvent[] {
+  private _extractDuePendingEvents(currentBlock: number): TypedEvent[] {
     const ret = this._delayedEvents
       .filter((event) => event.block <= currentBlock)
       .map((e) => e.eventData);
@@ -255,13 +255,11 @@ export class RegistrationManager {
     return ret;
   }
 
-  _isRegistrationCorrect(): boolean {
+  private _isRegistrationCorrect(): boolean {
     return isRegistrationValid(this._relayData, this._managerAddress);
   }
 
-  // I erased _parseEvent since its not being used
-
-  async _handleStakeWithdrawnEvent(
+  private async _handleStakeWithdrawnEvent(
     dlog: TypedEvent,
     currentBlock: number
   ): Promise<string[]> {
@@ -270,7 +268,7 @@ export class RegistrationManager {
     return await this.withdrawAllFunds(true, currentBlock);
   }
 
-  async _handleStakeUnlockedEvent(
+  private async _handleStakeUnlockedEvent(
     dlog: TypedEvent,
     currentBlock: number
   ): Promise<string[]> {
@@ -381,17 +379,12 @@ export class RegistrationManager {
       transactions = transactions.concat(txHash);
     }
 
-    const { app } = this._config;
-
-    const portIncluded: boolean = app.url.indexOf(':') > 0;
-    const registerUrl =
-      app.url +
-      (!portIncluded && app.port > 0 ? ':' + app.port.toString() : '');
+    const serverUrl = buildServerUrl();
 
     const relayHub = getRelayHub(this._hubAddress);
 
     const registerMethod =
-      await relayHub.populateTransaction.registerRelayServer(registerUrl);
+      await relayHub.populateTransaction.registerRelayServer(serverUrl);
     const gasLimit = await this._transactionManager.attemptEstimateGas(
       'RegisterRelay',
       registerMethod,
@@ -415,85 +408,103 @@ export class RegistrationManager {
     return transactions;
   }
 
-  async _sendManagerEthBalanceToOwner(currentBlock: number): Promise<string[]> {
-    const provider = getProvider();
-    const transactionHashes: string[] = [];
-    const gasPrice = await provider.getGasPrice();
-    const bigGasLimit = BigNumberJs(minTxGasCost ? minTxGasCost : 21000);
-    const txCost = bigGasLimit.multipliedBy(gasPrice.toString());
-
-    const managerBalance = await provider.getBalance(this._managerAddress);
-    const bigManagerBalance = BigNumberJs(managerBalance.toString());
-    const bigValue = bigManagerBalance.minus(txCost);
-    // sending manager RBTC balance to owner
-    if (bigManagerBalance.gte(txCost)) {
-      log.info(
-        `Sending manager RBTC balance ${bigManagerBalance.toString()} to owner`
-      );
-      const details: SendTransactionDetails = {
-        signer: this._managerAddress,
-        serverAction: ServerAction.VALUE_TRANSFER,
-        destination: this._ownerAddress ?? '',
-        gasLimit: BigNumber.from(bigGasLimit.toFixed(0)),
-        gasPrice,
-        value: BigNumber.from(bigValue.toFixed(0)),
-        creationBlockNumber: currentBlock,
-      };
-      const { txHash } = await this._transactionManager.sendTransaction(
-        details
-      );
-      transactionHashes.push(txHash);
-    } else {
-      log.error(
-        `manager balance too low: ${bigManagerBalance.toString()}, tx cost: ${txCost.toString()}`
-      );
-    }
-
-    return transactionHashes;
-  }
-
-  async _sendWorkersEthBalancesToOwner(
+  private async _sendManagerEthBalanceToOwner(
     currentBlock: number
   ): Promise<string[]> {
-    const provider = getProvider();
-    // sending workers' balance to owner (currently one worker, todo: extend to multiple)
     const transactionHashes: string[] = [];
-    const gasPrice = await provider.getGasPrice();
-    const bigGasPrice = BigNumberJs(gasPrice.toString());
-    const gasLimit = BigNumber.from(minTxGasCost ? minTxGasCost : 21000);
-    const txCost = bigGasPrice.multipliedBy(gasLimit.toString());
 
-    const workerBalance = await provider.getBalance(this._workerAddress);
-    const bigWorkerBalance = new BigNumberJs(workerBalance.toString());
+    if (!this._ownerAddress) {
+      log.warn('owner is still not setted up');
 
-    const bigValue = bigWorkerBalance.minus(txCost);
-    if (bigWorkerBalance.gte(txCost)) {
-      log.info(
-        `Sending workers' RBTC balance ${bigWorkerBalance.toString()} to owner`
-      );
-      const details: SendTransactionDetails = {
-        signer: this._workerAddress,
-        serverAction: ServerAction.VALUE_TRANSFER,
-        destination: this._ownerAddress ?? '',
-        gasLimit,
-        gasPrice: BigNumber.from(bigGasPrice.toFixed(0)),
-        value: BigNumber.from(bigValue.toFixed(0)),
-        creationBlockNumber: currentBlock,
-      };
-      const { txHash } = await this._transactionManager.sendTransaction(
-        details
-      );
-      transactionHashes.push(txHash);
-    } else {
-      log.info(
-        `balance too low: ${bigWorkerBalance.toString()}, tx cost: ${txCost.toString()}`
-      );
+      return transactionHashes;
     }
+
+    const provider = getProvider();
+
+    const gasPrice = await provider.getGasPrice();
+    const gasLimit = BigNumber.from(minTxGasCost ? minTxGasCost : 21000);
+    const txCost = gasLimit.mul(gasPrice);
+
+    const managerBalance = await provider.getBalance(this._managerAddress);
+
+    if (managerBalance.lt(txCost)) {
+      log.error(
+        `manager balance too low: ${managerBalance.toString()}, tx cost: ${txCost.toString()}`
+      );
+
+      return transactionHashes;
+    }
+
+    // sending manager RBTC balance to owner
+    const value = managerBalance.sub(txCost);
+    log.info(
+      `Sending manager RBTC balance ${managerBalance.toString()} to owner`
+    );
+    const details: SendTransactionDetails = {
+      signer: this._managerAddress,
+      serverAction: ServerAction.VALUE_TRANSFER,
+      destination: this._ownerAddress,
+      gasLimit,
+      gasPrice,
+      value,
+      creationBlockNumber: currentBlock,
+    };
+
+    const { txHash } = await this._transactionManager.sendTransaction(details);
+    transactionHashes.push(txHash);
 
     return transactionHashes;
   }
 
-  async _queryLatestWorkerAddedEvent(): Promise<TypedEvent | undefined> {
+  private async _sendWorkersEthBalancesToOwner(
+    currentBlock: number
+  ): Promise<string[]> {
+    const transactionHashes: string[] = [];
+
+    if (!this._ownerAddress) {
+      log.warn('owner is still not setted up');
+
+      return transactionHashes;
+    }
+
+    const provider = getProvider();
+    const gasPrice = await provider.getGasPrice();
+    const gasLimit = BigNumber.from(minTxGasCost ? minTxGasCost : 21000);
+    const txCost = gasPrice.mul(gasLimit);
+
+    const workerBalance = await provider.getBalance(this._workerAddress);
+    if (workerBalance.lt(txCost)) {
+      log.info(
+        `balance too low: ${workerBalance.toString()}, tx cost: ${txCost.toString()}`
+      );
+
+      return transactionHashes;
+    }
+
+    // sending workers' balance to owner (currently one worker, todo: extend to multiple)
+    const value = workerBalance.sub(txCost);
+    log.info(
+      `Sending workers' RBTC balance ${workerBalance.toString()} to owner`
+    );
+    const details: SendTransactionDetails = {
+      signer: this._workerAddress,
+      serverAction: ServerAction.VALUE_TRANSFER,
+      destination: this._ownerAddress,
+      gasLimit,
+      gasPrice,
+      value,
+      creationBlockNumber: currentBlock,
+    };
+
+    const { txHash } = await this._transactionManager.sendTransaction(details);
+    transactionHashes.push(txHash);
+
+    return transactionHashes;
+  }
+
+  private async _queryLatestWorkerAddedEvent(): Promise<
+    TypedEvent | undefined
+  > {
     const workersAddedEvents = await getPastEventsForHub(
       [this._managerAddress],
       {
@@ -505,7 +516,7 @@ export class RegistrationManager {
     return getLatestEventData(workersAddedEvents);
   }
 
-  _isWorkerValid(): boolean {
+  private _isWorkerValid(): boolean {
     return this._lastWorkerAddedTransaction
       ? this._lastWorkerAddedTransaction.event === 'RelayWorkersAdded'
       : false;
@@ -545,12 +556,12 @@ Owner          | ${this._ownerAddress ?? chalk.red('k256')}
     }
     log.info(
       `Handling ${decodedEvents.length} events emitted since block: ${
-        fromBlock?.toString() ?? ''
+        fromBlock?.toString() ?? 0
       }`
     );
     for (const decodedEvent of decodedEvents) {
       log.info(`
-Name      | ${decodedEvent.event?.padEnd(25) ?? ''}
+Name      | ${decodedEvent.event!.padEnd(25)}
 Block     | ${decodedEvent.blockNumber}
 TxHash    | ${decodedEvent.transactionHash}
 `);

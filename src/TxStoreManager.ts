@@ -1,5 +1,6 @@
 import AsyncNedb from 'nedb-async';
 import log from 'loglevel';
+import ow from 'ow';
 import { isSameAddress } from './Utils';
 import type { ServerAction, StoredTransaction } from './StoredTransaction';
 
@@ -60,8 +61,8 @@ export class TxStoreManager {
     signer: string,
     nonce: number
   ): Promise<StoredTransaction> {
-    /*         ow(nonce, ow.any(ow.number, ow.string));
-                ow(signer, ow.string); */
+    ow(nonce, ow.any(ow.number, ow.string));
+    ow(signer, ow.string);
 
     return await this._txstore.asyncFindOne({
       nonceSigner: {
@@ -75,7 +76,7 @@ export class TxStoreManager {
    * Only for testing
    */
   async getTxById(txId: string): Promise<StoredTransaction> {
-    /*  ow(txId, ow.string); */
+    ow(txId, ow.string);
 
     return await this._txstore.asyncFindOne({ txId: txId.toLowerCase() });
   }
@@ -93,8 +94,8 @@ export class TxStoreManager {
   }
 
   async removeTxsUntilNonce(signer: string, nonce: number): Promise<unknown> {
-    /*  ow(nonce, ow.number);
-         ow(signer, ow.string); */
+    ow(nonce, ow.number);
+    ow(signer, ow.string);
 
     return await this._txstore.asyncRemove(
       {
@@ -116,17 +117,20 @@ export class TxStoreManager {
       await this._txstore.asyncFind<StoredTransaction>({
         'nonceSigner.signer': signer.toLowerCase(),
       })
-    ).sort(function (tx1, tx2) {
-      return (tx1.nonce ?? 0) - (tx2.nonce ?? 0);
-    });
+    ).sort((tx1, tx2) => this._sortTransactionByNonce(tx1, tx2));
   }
 
   async getAll(): Promise<StoredTransaction[]> {
     return (await this._txstore.asyncFind<StoredTransaction>({})).sort(
-      function (tx1, tx2) {
-        return (tx1.nonce ?? 0) - (tx2.nonce ?? 0);
-      }
+      (tx1, tx2) => this._sortTransactionByNonce(tx1, tx2)
     );
+  }
+
+  private _sortTransactionByNonce(
+    tx1: StoredTransaction,
+    tx2: StoredTransaction
+  ) {
+    return (tx1.nonce ?? 0) - (tx2.nonce ?? 0);
   }
 
   async isActionPending(
