@@ -43,16 +43,16 @@ export const toPrecision = ({
   value,
   precision = 0,
 }: ToPrecisionParams): BigNumberJs => {
-  console.log('\n\n*****************toPrecision() value: ', value.toString());
-  console.log('*****************toPrecision() precision: ', precision);
+  // console.log('\n\n*****************toPrecision() value: ', value.toString());
+  // console.log('*****************toPrecision() precision: ', precision);
   const bigValue = BigNumberJs(value.toString());
   const bigPrecision = BigNumberJs(precision);
   const precisionMultiplier = BigNumberJs(
     getPrecision(bigPrecision.absoluteValue()).toString()
   );
-  console.log('*****************toPrecision() precisionMultiplier: ', precisionMultiplier.toString());
+  // console.log('*****************toPrecision() precisionMultiplier: ', precisionMultiplier.toString());
   const operation = bigPrecision.isNegative() ? 'dividedBy' : 'multipliedBy';
-  console.log('*****************toPrecision() operation: ', operation);
+  // console.log('*****************toPrecision() operation: ', operation);
 
   return BigNumberJs(bigValue[operation](precisionMultiplier)/*.toFixed(0)*/);
 };

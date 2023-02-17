@@ -32,6 +32,7 @@ import {
   PopulatedTransaction,
   BigNumberish,
   BigNumber,
+  providers,
   // BytesLike
 } from 'ethers';
 import { BigNumber as BigNumberJs } from 'bignumber.js';
@@ -74,6 +75,8 @@ import { MAX_ESTIMATED_GAS_DEVIATION } from './definitions/server.const';
 const VERSION = '2.0.1';
 const INITIAL_FACTOR_TO_TRY = 0.25;
 const LIMIT_MAX_FACTOR_TO_TRY = 2;
+const TRANSFER_HASH = 'a9059cbb';
+const TRANSFER_FROM_HASH = '23b872dd';
 
 type HubInfo = {
   relayWorkerAddress: string;
@@ -540,7 +543,7 @@ export class RelayServer extends EventEmitter {
     }
   }
 
-  isSponsorshipAllowed(req: EnvelopingRequest): boolean {
+  isSponsorshipAllowed(envelopingRequest: EnvelopingRequest): boolean {
     const { disableSponsoredTx, sponsoredDestinations } = this.config.app;
 
     return (
@@ -672,9 +675,6 @@ export class RelayServer extends EventEmitter {
   }
 
   private _isTransfer(data: string){
-    const TRANSFER_HASH = 'a9059cbb';
-    const TRANSFER_FROM_HASH = '23b872dd';
-
     const methodHash = data.substring(2, 10);
 
     if ([TRANSFER_HASH, TRANSFER_FROM_HASH].includes(methodHash)) {
@@ -1394,3 +1394,8 @@ latestBlock timestamp   | ${latestBlock.timestamp}
     this._ready = isReady;
   }
 }
+
+export{
+  TRANSFER_FROM_HASH,
+  TRANSFER_HASH
+};
