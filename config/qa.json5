@@ -6,7 +6,7 @@
     logLevel: 0,
     workdir: "/srv/app/environment",
     disableSponsoredTx: false,
-    feePercentage: "0",
+    gasFeePercentage: "0",
   },
   blockchain: {
     rskNodeUrl: "http://172.17.0.1:4444",
