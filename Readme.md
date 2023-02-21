@@ -86,15 +86,16 @@ File [./config/default.json5](config/default.json5) contains all configuration p
     readyTimeout: 30000,
     checkInterval: 10000,
     disableSponsoredTx: false,
-    transferFeePercentage: 0 /*It's the fee that the fee collector will take from all transactions
-    related to the execution of a transfer() or transferFrom() function.
-    - This value should be expressed as a fraction. i.e. 0.1 means 10% of the value being transfered
+
+    transferFeePercentage: 0 /* It's the fee that the fee collector will take from the execution of 
+    transfer() or transferFrom() functions.
+    - This value should be expressed as a fraction, i.e. 0.1 means 10% of the value being transfered
     and 0.01 means 1% of the value being transfered.
     - This value has priority over gasFeePercentage. If transferFeePercentage is greater than 0 and the execution
     is a tranfer or transferFrom, gasFeePercentage will be ignored.
     */,
-    gasFeePercentage: 0 /* allows revenue sharing feature and sets the fee value (%) that the worker will take 
-    from all transactions based on the total amount of gas used.
+    gasFeePercentage: 0 /* sets the fee value (%) that the worker will take from all transactions 
+    based on the total amount of gas used.
     - Under certain conditions, this value will be ignored. See transferFeePercentage above to know more about it.
     - the fee will be added to the estimated gas and required in the transaction amount.
     - the percentage is represented as a fraction (1 = 100%) string to allow for very low or high percentages

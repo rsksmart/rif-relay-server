@@ -447,10 +447,10 @@ export class RelayServer extends EventEmitter {
     // field req.relayRequest.request.gas and not relay requests that deviated too much from what the user signed
 
     // But take into acconunt that the aggreement with the user (the one from the Arbiter) has the final decision.
-    // If the Relayer agreeed with the Client a certain percentage of deviation from the original maxGas, then it must honor that agreement
+    // If the Relayer agreed with the Client a certain percentage of deviation from the original maxGas, then it must honor that agreement
     // and not the current hardcoded deviation
 
-    const estimatedDesinationGasCost = await estimateInternalCallGas({
+    const estimatedDestinationGasCost = await estimateInternalCallGas({
       from: relayRequest.relayData.callForwarder.toString(),
       to: relayRequest.request.to.toString(),
       gasPrice: relayRequest.relayData.gasPrice,
@@ -465,7 +465,7 @@ export class RelayServer extends EventEmitter {
       relayRequest.request.gas.toString()
     );
 
-    if (estimatedDesinationGasCost.gt(bigGasFromRequestMaxAgreed.toFixed(0))) {
+    if (estimatedDestinationGasCost.gt(bigGasFromRequestMaxAgreed.toFixed(0))) {
       throw new Error(
         "Request payload's gas parameters deviate too much fom the estimated gas for this transaction"
       );
@@ -577,17 +577,17 @@ export class RelayServer extends EventEmitter {
       );
     }
 
-    const convertionResult = await this._convertGasToTokenAndNative(
+    const conversionResult = await this._convertGasToTokenAndNative(
       envelopingRequest.relayRequest,
       maxPossibleGas
     );
 
     return {
-      gasPrice: convertionResult.gasPrice,
-      estimation: convertionResult.value,
-      requiredTokenAmount: convertionResult.valueInToken,
-      requiredNativeAmount: convertionResult.valueInNative,
-      exchangeRate: convertionResult.exchangeRate,
+      gasPrice: conversionResult.gasPrice,
+      estimation: conversionResult.value,
+      requiredTokenAmount: conversionResult.valueInToken,
+      requiredNativeAmount: conversionResult.valueInNative,
+      exchangeRate: conversionResult.exchangeRate,
     };
   }
 
@@ -596,51 +596,48 @@ export class RelayServer extends EventEmitter {
     maxPossibleGas: BigNumber
   ) {
     const { transferFeePercentage } = this.config.app;
-    let fee: BigNumberJs;
 
     if (
       transferFeePercentage > 0 &&
-      this._isTransfer(relayRequest.request.data.toString())
+      this._isTransferOrTransferFrom(relayRequest.request.data.toString())
     ) {
       const feeInToken = this._calculateFeeFromTransfer(
         relayRequest.request.data.toString()
       );
 
-      fee = await this._convertTokenToGas(
+      return await this._convertTokenToGas(
         feeInToken.toString(),
         relayRequest.request.tokenContract.toString(),
         relayRequest.relayData.gasPrice.toString()
       );
     } else {
       const { gasFeePercentage } = this.config.app;
-      fee = this._calculateFeeFromGas(
+
+      return this._calculateFeeFromGas(
         maxPossibleGas.toString(),
         gasFeePercentage
       );
     }
-
-    return BigNumberJs(fee.toString());
   }
 
-  private _isTransfer(data: string) {
+  private _isTransferOrTransferFrom(data: string) {
     const methodHash = data.substring(2, 10);
 
-    if ([TRANSFER_HASH, TRANSFER_FROM_HASH].includes(methodHash)) {
-      return true;
-    }
-
-    return false;
+    return [TRANSFER_HASH, TRANSFER_FROM_HASH].includes(methodHash);
   }
 
-  //Info about parsing data field:
-  //https://berndstrehl.medium.com/parsing-an-erc20-transfer-with-javascript-from-the-eth-api-2790da37e55f
+  /*
+   * Info about parsing data field:
+   * - https://docs.soliditylang.org/en/latest/abi-spec.html#function-selector
+   * - https://berndstrehl.medium.com/parsing-an-erc20-transfer-with-javascript-from-the-eth-api-2790da37e55f
+   */
   private _calculateFeeFromTransfer(data: string): BigNumberJs {
     const positionWhereTheValueStartsOnTransferData = 74;
     const positionWhereTheValueStartsOnTransferFromData = 138;
 
     const methodHash = data.substring(2, 10);
 
-    if (!this._isTransfer(data)) {
+    if (!this._isTransferOrTransferFrom(data)) {
       return BigNumberJs(0);
     }
 
@@ -674,9 +671,7 @@ export class RelayServer extends EventEmitter {
     relayRequest: EnvelopingRequest,
     initialEstimation: BigNumber
   ) {
-    const {
-      relayData: { gasPrice },
-    } = relayRequest;
+    const gasPrice = relayRequest.relayData.gasPrice.toString();
 
     const provider = getProvider();
 
@@ -697,12 +692,12 @@ export class RelayServer extends EventEmitter {
     const initialEstimationInToken = convertGasToToken(
       initialEstimation,
       { ...token, xRate },
-      gasPrice.toString()
+      gasPrice
     );
 
     const initialEstimationInNative = convertGasToNative(
       initialEstimation,
-      gasPrice.toString()
+      gasPrice
     );
 
     return {
@@ -710,7 +705,7 @@ export class RelayServer extends EventEmitter {
       valueInToken: initialEstimationInToken.toString(),
       valueInNative: initialEstimationInNative.toString(),
       exchangeRate: xRate,
-      gasPrice: gasPrice.toString(),
+      gasPrice,
     };
   }
 

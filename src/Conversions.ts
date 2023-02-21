@@ -50,7 +50,7 @@ export const toPrecision = ({
   );
   const operation = bigPrecision.isNegative() ? 'dividedBy' : 'multipliedBy';
 
-  return BigNumberJs(bigValue[operation](precisionMultiplier) /*.toFixed(0)*/);
+  return BigNumberJs(bigValue[operation](precisionMultiplier));
 };
 
 /**
