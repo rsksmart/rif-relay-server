@@ -4,7 +4,7 @@
     port: 8090,
     devMode: true,
     logLevel: 1,
-    feePercentage: "0",
+    gasFeePercentage: "0",
     workdir: "/srv/app/environment"
   },
   blockchain: {

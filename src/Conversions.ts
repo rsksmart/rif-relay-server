@@ -29,7 +29,7 @@ export const getPrecision = (
  * value and precision for the value to be converted to
  */
 export type ToPrecisionParams = {
-  value: BigNumberish;
+  value: BigNumberJs;
   precision?: number;
 };
 
@@ -42,7 +42,7 @@ export type ToPrecisionParams = {
 export const toPrecision = ({
   value,
   precision = 0,
-}: ToPrecisionParams): BigNumber => {
+}: ToPrecisionParams): BigNumberJs => {
   const bigValue = BigNumberJs(value.toString());
   const bigPrecision = BigNumberJs(precision);
   const precisionMultiplier = BigNumberJs(
@@ -50,7 +50,7 @@ export const toPrecision = ({
   );
   const operation = bigPrecision.isNegative() ? 'dividedBy' : 'multipliedBy';
 
-  return BigNumber.from(bigValue[operation](precisionMultiplier).toFixed(0));
+  return BigNumberJs(bigValue[operation](precisionMultiplier));
 };
 
 /**
@@ -78,23 +78,23 @@ export const toNativeWeiFrom = ({
   amount,
   decimals = 18,
   xRate,
-}: ExchangeToken): BigNumber => {
-  const bigAmount = BigNumberJs(amount ?? 0);
-  const bigxRate = BigNumberJs(xRate ?? 0);
+}: ExchangeToken): BigNumberJs => {
+  const bigAmount = BigNumberJs(amount ?? '0');
+  const bigxRate = BigNumberJs(xRate ?? '0');
 
   if (bigAmount.isZero() || bigxRate.isZero()) {
-    return constants.Zero;
+    return BigNumberJs(constants.Zero.toString());
   }
 
   const amountAsFraction = toPrecision({
-    value: bigAmount.toString(),
+    value: bigAmount,
     precision: -decimals,
   });
 
   const bigAmountFraction = BigNumberJs(amountAsFraction.toString());
 
   return toPrecision({
-    value: bigAmountFraction.multipliedBy(bigxRate).toFixed(0),
+    value: bigAmountFraction.multipliedBy(bigxRate),
     precision: RBTC_CHAIN_DECIMALS,
   });
 };
@@ -126,7 +126,7 @@ export const convertGasToToken = (
 
   const precision = RBTC_CHAIN_DECIMALS - decimals;
   const total = toPrecision({
-    value: bigEstimation.multipliedBy(bigPrice).toString(),
+    value: bigEstimation.multipliedBy(bigPrice),
     precision,
   });
 

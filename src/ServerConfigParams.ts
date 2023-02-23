@@ -14,10 +14,11 @@ export type AppConfig = {
   logLevel: LogLevelNumbers;
   checkInterval: number;
   readyTimeout: number;
-  feePercentage: string;
+  gasFeePercentage: string;
   disableSponsoredTx: boolean;
   sponsoredDestinations: Array<string>;
   requestMinValidSeconds: number;
+  transferFeePercentage: number;
 };
 
 export type ContractsConfig = {

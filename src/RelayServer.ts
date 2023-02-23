@@ -6,7 +6,6 @@ import {
   IRelayVerifier__factory,
   IDeployVerifier,
   IRelayVerifier,
-  ERC20__factory,
 } from '@rsksmart/rif-relay-contracts';
 import type { TypedEvent } from '@rsksmart/rif-relay-contracts';
 import { replenishStrategy } from './ReplenishFunction';
@@ -30,7 +29,6 @@ import {
   constants,
   Event,
   PopulatedTransaction,
-  BigNumberish,
   BigNumber,
   providers,
 } from 'ethers';
@@ -48,28 +46,22 @@ import {
   sleep,
 } from './Utils';
 import { AmountRequired } from './AmountRequired';
-import {
-  GAS_LIMIT_EXCEEDED,
-  INSUFFICIENT_TOKEN_AMOUNT,
-} from './definitions/errorMessages.const';
-import {
-  convertGasToNative,
-  convertGasToToken,
-  getXRateFor,
-  toNativeWeiFrom,
-} from './Conversions';
-import type ExchangeToken from './definitions/token.type';
+import { GAS_LIMIT_EXCEEDED } from './definitions/errorMessages.const';
 import {
   EnvelopingRequest,
   EnvelopingTxRequest,
-  estimateInternalCallGas,
   estimateRelayMaxPossibleGas,
   isDeployTransaction,
   RelayRequest,
   setProvider,
   standardMaxPossibleGasEstimation,
 } from '@rsksmart/rif-relay-client';
-import { MAX_ESTIMATED_GAS_DEVIATION } from './definitions/server.const';
+import {
+  validateIfGasAmountIsAcceptable,
+  validateIfTokenAmountIsAcceptable,
+  convertGasToTokenAndNative,
+  calculateFee,
+} from './relayServerUtils';
 
 const VERSION = '2.0.1';
 const INITIAL_FACTOR_TO_TRY = 0.25;
@@ -93,18 +85,6 @@ type TokenResponse = {
 
 export type VerifierResponse = {
   trustedVerifiers: string[];
-};
-
-const calculateFeeValue = (
-  maxPossibleGas: BigNumberish,
-  feePercentage: BigNumberish
-): BigNumber => {
-  const bigMaxPossibleGas = BigNumberJs(maxPossibleGas.toString());
-  const bigFeePercentage = BigNumberJs(feePercentage.toString());
-
-  return BigNumber.from(
-    bigMaxPossibleGas.multipliedBy(bigFeePercentage).toFixed(0)
-  );
 };
 
 export type RelayEstimation = {
@@ -139,8 +119,6 @@ export class RelayServer extends EventEmitter {
   alertedBlock = 0;
 
   private _initialized = false;
-
-  // private readonly versionManager: VersionsManager;
 
   private _workerTask?: Timeout;
 
@@ -190,7 +168,7 @@ export class RelayServer extends EventEmitter {
     );
     this.printServerAddresses();
 
-    log.warn('RelayServer version', VERSION);
+    log.info('RelayServer version', VERSION);
     log.info('Using server configuration:\n', this.config);
   }
 
@@ -340,7 +318,7 @@ export class RelayServer extends EventEmitter {
 
   async validateRequestWithVerifier(
     envelopingTransaction: EnvelopingTxRequest
-  ): Promise<{ maxPossibleGas: BigNumber }> {
+  ): Promise<void> {
     const verifier =
       envelopingTransaction.relayRequest.relayData.callVerifier.toString();
 
@@ -373,8 +351,6 @@ export class RelayServer extends EventEmitter {
       throw new Error(message);
     }
 
-    const maxPossibleGas = await this.getMaxPossibleGas(envelopingTransaction);
-
     try {
       let verifyMethod: PopulatedTransaction;
       if (isDeployTransaction(envelopingTransaction)) {
@@ -398,54 +374,23 @@ export class RelayServer extends EventEmitter {
       const error = e as Error;
       throw new Error(`Verification by verifier failed: ${error.message}`);
     }
-
-    return { maxPossibleGas };
   }
 
   async getMaxPossibleGas(
     envelopingTransaction: EnvelopingTxRequest
   ): Promise<BigNumber> {
     log.debug(
-      'RequestFees - request data:',
-      JSON.stringify(envelopingTransaction, undefined, 4)
+      `Enveloping transaction: ${JSON.stringify(
+        envelopingTransaction,
+        undefined,
+        4
+      )}`
     );
 
     if (!isDeployTransaction(envelopingTransaction)) {
-      // TODO: For RIF Team
-      // The maxPossibleGas must be compared against the commitment signed with the user.
-      // The relayServer must not allow a call that requires more gas than it was agreed with the user
-      // For now, we can call estimateDestinationContractCallGas to get the "ACTUAL" gas required for the
-      // field req.relayRequest.request.gas and not relay requests that deviated too much from what the user signed
-
-      // But take into acconunt that the aggreement with the user (the one from the Arbiter) has the final decision.
-      // If the Relayer agreeed with the Client a certain percentage of deviation from the original maxGas, then it must honor that agreement
-      // and not the current hardcoded deviation
-
-      const relayRequest = envelopingTransaction.relayRequest as RelayRequest;
-
-      const estimatedDesinationGasCost = await estimateInternalCallGas({
-        from: relayRequest.relayData.callForwarder.toString(),
-        to: relayRequest.request.to.toString(),
-        gasPrice: relayRequest.relayData.gasPrice,
-        data: relayRequest.request.data,
-      });
-
-      const bigMaxEstimatedGasDeviation = BigNumberJs(
-        1 + MAX_ESTIMATED_GAS_DEVIATION
+      await validateIfGasAmountIsAcceptable(
+        envelopingTransaction.relayRequest as RelayRequest
       );
-
-      const bigGasFromRequestMaxAgreed =
-        bigMaxEstimatedGasDeviation.multipliedBy(
-          relayRequest.request.gas.toString()
-        );
-
-      if (
-        estimatedDesinationGasCost.gt(bigGasFromRequestMaxAgreed.toFixed(0))
-      ) {
-        throw new Error(
-          "Request payload's gas parameters deviate too much fom the estimated gas for this transaction"
-        );
-      }
     }
 
     // TODO: For RIF team
@@ -457,79 +402,29 @@ export class RelayServer extends EventEmitter {
       envelopingTransaction,
       this.workerAddress
     );
+    log.debug(`Initial gas estimation:  ${maxPossibleGas.toString()}`);
 
     if (!this.isSponsorshipAllowed(envelopingTransaction.relayRequest)) {
-      const {
-        app: { feePercentage },
-      } = this.config;
+      const { tokenAmount, tokenContract } =
+        envelopingTransaction.relayRequest.request;
+      const { gasPrice } = envelopingTransaction.relayRequest.relayData;
 
-      log.debug(`RelayServer - feePercentage: ${feePercentage}`);
-
-      const feeValue: BigNumber = calculateFeeValue(
+      const bigFee = await calculateFee(
+        envelopingTransaction.relayRequest,
         maxPossibleGas,
-        feePercentage
+        this.config.app
       );
-
-      const bigFee = BigNumberJs(feeValue.toString());
+      log.debug(`Total fee in gas: ${bigFee.toString()}`);
 
       maxPossibleGas = BigNumber.from(
         bigFee.plus(maxPossibleGas.toString()).toFixed(0)
       );
 
-      const tokenAmount =
-        envelopingTransaction.relayRequest.request.tokenAmount.toString();
-      const gasPrice = BigNumberJs(
-        envelopingTransaction.relayRequest.relayData.gasPrice.toString()
-      );
-
-      const provider = getProvider();
-
-      const tokenInstance = ERC20__factory.connect(
-        envelopingTransaction.relayRequest.request.tokenContract.toString(),
-        provider
-      );
-
-      const token: ExchangeToken = {
-        instance: tokenInstance,
-        name: await tokenInstance.name(),
-        symbol: await tokenInstance.symbol(),
-        decimals: await tokenInstance.decimals(),
-      };
-
-      const xRate = await getXRateFor(token);
-
-      const tokenAmountInNative: BigNumber = toNativeWeiFrom({
-        ...token,
-        amount: tokenAmount,
-        xRate,
-      });
-
-      const bigTokenInNative = BigNumberJs(tokenAmountInNative.toString());
-
-      const tokenAmountInGas: BigNumberJs =
-        bigTokenInNative.dividedBy(gasPrice);
-
-      const isTokenAmountAcceptable: boolean =
-        tokenAmountInGas.isGreaterThanOrEqualTo(maxPossibleGas.toString());
-
-      log.debug(
-        'RequestFees - isTokenAmountAcceptable? ',
-        isTokenAmountAcceptable
-      );
-
-      if (!isTokenAmountAcceptable) {
-        log.warn(
-          'TokenAmount in gas agreed by the user',
-          tokenAmountInGas.toString()
-        );
-        log.warn(
-          'MaxPossibleGas including fees required by the transaction',
-          maxPossibleGas.toString()
-        );
-        throw new Error(INSUFFICIENT_TOKEN_AMOUNT);
-      }
-      log.debug(
-        `RequestFees - total max possible gas: ${maxPossibleGas.toString()}`
+      await validateIfTokenAmountIsAcceptable(
+        maxPossibleGas,
+        tokenAmount.toString(),
+        tokenContract.toString(),
+        gasPrice.toString()
       );
     }
 
@@ -537,9 +432,7 @@ export class RelayServer extends EventEmitter {
   }
 
   isSponsorshipAllowed(envelopingRequest: EnvelopingRequest): boolean {
-    const {
-      app: { disableSponsoredTx, sponsoredDestinations },
-    } = this.config;
+    const { disableSponsoredTx, sponsoredDestinations } = this.config.app;
 
     return (
       !disableSponsoredTx ||
@@ -593,67 +486,43 @@ export class RelayServer extends EventEmitter {
   async estimateMaxPossibleGas(
     envelopingRequest: EnvelopingTxRequest
   ): Promise<RelayEstimation> {
-    const {
-      relayData: { gasPrice },
-    } = envelopingRequest.relayRequest;
-
-    let estimation = await estimateRelayMaxPossibleGas(
+    log.debug(
+      `EnvelopingRequest:${JSON.stringify(envelopingRequest, undefined, 4)}`
+    );
+    let maxPossibleGas = await estimateRelayMaxPossibleGas(
       envelopingRequest,
       this.workerAddress
     );
+    log.debug(`Initial gas estimation:  ${maxPossibleGas.toString()}`);
 
     if (!this.isSponsorshipAllowed(envelopingRequest.relayRequest)) {
-      const {
-        app: { feePercentage },
-      } = this.config;
-
-      log.debug(`RelayServer - feePercentage: ${feePercentage}`);
-
-      const feeValue: BigNumber = calculateFeeValue(
-        estimation.toString(),
-        feePercentage
+      const bigFee = await calculateFee(
+        envelopingRequest.relayRequest,
+        maxPossibleGas,
+        this.config.app
       );
 
-      const bigFee = BigNumberJs(feeValue.toString());
-
-      estimation = BigNumber.from(
-        bigFee.plus(estimation.toString()).toFixed(0)
+      maxPossibleGas = BigNumber.from(
+        bigFee.plus(maxPossibleGas.toString()).toFixed(0)
       );
+      log.debug(`Total fee in gas: ${bigFee.toString()}`);
     }
 
-    const provider = getProvider();
-
-    const tokenInstance = ERC20__factory.connect(
-      envelopingRequest.relayRequest.request.tokenContract.toString(),
-      provider
+    const conversionResult = await convertGasToTokenAndNative(
+      envelopingRequest.relayRequest,
+      maxPossibleGas
     );
-
-    const token: ExchangeToken = {
-      instance: tokenInstance,
-      name: await tokenInstance.name(),
-      symbol: await tokenInstance.symbol(),
-      decimals: await tokenInstance.decimals(),
-    };
-
-    const xRate = await getXRateFor(token);
-
-    const requiredTokenAmount = convertGasToToken(
-      estimation,
-      { ...token, xRate },
-      gasPrice.toString()
-    );
-
-    const requiredNativeAmount = convertGasToNative(
-      estimation,
-      gasPrice.toString()
+    log.debug(
+      'Final estimation:',
+      JSON.stringify(conversionResult, undefined, 4)
     );
 
     return {
-      estimation: estimation.toString(),
-      requiredTokenAmount: requiredTokenAmount.toString(),
-      requiredNativeAmount: requiredNativeAmount.toString(),
-      exchangeRate: xRate,
-      gasPrice: gasPrice.toString(),
+      gasPrice: conversionResult.gasPrice,
+      estimation: conversionResult.value,
+      requiredTokenAmount: conversionResult.valueInToken,
+      requiredNativeAmount: conversionResult.valueInNative,
+      exchangeRate: conversionResult.exchangeRate,
     };
   }
 
@@ -679,9 +548,7 @@ export class RelayServer extends EventEmitter {
       envelopingTransaction.metadata.relayMaxNonce.toString()
     );
 
-    const { maxPossibleGas } = await this.validateRequestWithVerifier(
-      envelopingTransaction
-    );
+    const maxPossibleGas = await this.getMaxPossibleGas(envelopingTransaction);
 
     // Send relayed transaction
     log.debug('maxPossibleGas is', maxPossibleGas.toString());

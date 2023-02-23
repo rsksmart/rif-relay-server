@@ -5,7 +5,7 @@
     devMode: true,
     logLevel: 0,
     disableSponsoredTx: false,
-    feePercentage: "0",
+    gasFeePercentage: "0",
     workdir: "/srv/app/environment",
   },
   blockchain: {
