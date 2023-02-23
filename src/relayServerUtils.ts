@@ -46,6 +46,9 @@ async function calculateFee(
       relayRequest.request.data.toString(),
       transferFeePercentage
     );
+    log.debug(
+      `Transfer fee applied. Fraction: ${transferFeePercentage}, fee in tokens: ${feeInToken.toString()}`
+    );
 
     return await convertTokenToGas(
       feeInToken.toString(),
@@ -55,6 +58,7 @@ async function calculateFee(
   }
 
   const { gasFeePercentage } = appConfig;
+  log.debug(`Gas fee applied. Fraction: ${gasFeePercentage}`);
 
   return calculateFeeFromGas(maxPossibleGas.toString(), gasFeePercentage);
 }
@@ -148,17 +152,17 @@ async function validateIfTokenAmountIsAcceptable(
     maxPossibleGas.toString()
   );
 
+  log.debug(
+    'TokenAmount in gas agreed by the user',
+    tokenAmountInGas.toString()
+  );
+  log.debug(
+    'MaxPossibleGas including fees required by the transaction',
+    maxPossibleGas.toString()
+  );
   log.debug('RequestFees - isTokenAmountAcceptable? ', isTokenAmountAcceptable);
 
   if (!isTokenAmountAcceptable) {
-    log.warn(
-      'TokenAmount in gas agreed by the user',
-      tokenAmountInGas.toString()
-    );
-    log.warn(
-      'MaxPossibleGas including fees required by the transaction',
-      maxPossibleGas.toString()
-    );
     throw new Error(INSUFFICIENT_TOKEN_AMOUNT);
   }
 }

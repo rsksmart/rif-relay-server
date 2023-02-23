@@ -93,7 +93,6 @@ File [./config/default.json5](config/default.json5) contains all configuration p
     and 0.01 means 1% of the value being transfered.
     - This value has priority over gasFeePercentage. If transferFeePercentage is greater than 0 and the execution
     is a tranfer or transferFrom, gasFeePercentage will be ignored.
-    -If this property is set to 0, all tranfer() and transferFrom() operations will be sponsored.
     */,
     gasFeePercentage: 0 /* sets the fee value (%) that the worker will take from all transactions 
     based on the total amount of gas used.

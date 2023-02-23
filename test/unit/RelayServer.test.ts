@@ -153,7 +153,7 @@ describe('RelayServer tests', function () {
 
         sinon.stub(relayServer, 'config').value(fakeServerConfigParams);
 
-        const maxPossibleGaseEstimation =
+        const maxPossibleGasEstimation =
           await relayServer.estimateMaxPossibleGas({
             relayRequest: {
               request: {
@@ -165,7 +165,7 @@ describe('RelayServer tests', function () {
             },
           } as EnvelopingTxRequest);
 
-        expect(maxPossibleGaseEstimation.estimation).to.be.eq(
+        expect(maxPossibleGasEstimation.estimation).to.be.eq(
           (
             FAKE_ESTIMATION_BEFORE_FEES +
             FAKE_ESTIMATION_BEFORE_FEES * FAKE_GAS_FEE_PERCENTAGE
@@ -184,7 +184,7 @@ describe('RelayServer tests', function () {
         });
 
         it('Should charge fees based on transfer value, when a transfer() is being relayed', async function () {
-          const maxPossibleGaseEstimation =
+          const maxPossibleGasEstimation =
             await relayServer.estimateMaxPossibleGas({
               relayRequest: {
                 request: {
@@ -197,7 +197,7 @@ describe('RelayServer tests', function () {
               },
             } as EnvelopingTxRequest);
 
-          expect(maxPossibleGaseEstimation.estimation).to.be.eq(
+          expect(maxPossibleGasEstimation.estimation).to.be.eq(
             BigNumberJs(FAKE_ESTIMATION_BEFORE_FEES)
               .plus(expectedFeeFromTransfer)
               .toString()
@@ -205,7 +205,7 @@ describe('RelayServer tests', function () {
         });
 
         it('Should charge fees based on transfer value, when a transferFrom() is being relayed', async function () {
-          const maxPossibleGaseEstimation =
+          const maxPossibleGasEstimation =
             await relayServer.estimateMaxPossibleGas({
               relayRequest: {
                 request: {
@@ -218,7 +218,7 @@ describe('RelayServer tests', function () {
               },
             } as EnvelopingTxRequest);
 
-          expect(maxPossibleGaseEstimation.estimation).to.be.eq(
+          expect(maxPossibleGasEstimation.estimation).to.be.eq(
             BigNumberJs(FAKE_ESTIMATION_BEFORE_FEES)
               .plus(expectedFeeFromTransfer)
               .toString()
@@ -229,7 +229,7 @@ describe('RelayServer tests', function () {
           //This just changes the hash of the method so is not a tranfer/transferFrom anymore
           const dataWhenNoTransfer = dataWhenTransfer.replace('a', 'b');
 
-          const maxPossibleGaseEstimation =
+          const maxPossibleGasEstimation =
             await relayServer.estimateMaxPossibleGas({
               relayRequest: {
                 request: {
@@ -242,7 +242,7 @@ describe('RelayServer tests', function () {
               },
             } as EnvelopingTxRequest);
 
-          expect(maxPossibleGaseEstimation.estimation).to.be.eq(
+          expect(maxPossibleGasEstimation.estimation).to.be.eq(
             (
               FAKE_ESTIMATION_BEFORE_FEES +
               FAKE_ESTIMATION_BEFORE_FEES * FAKE_GAS_FEE_PERCENTAGE
@@ -261,7 +261,7 @@ describe('RelayServer tests', function () {
           });
 
           it('Should not charge fees when a transfer() is being relayed', async function () {
-            const maxPossibleGaseEstimation =
+            const maxPossibleGasEstimation =
               await relayServer.estimateMaxPossibleGas({
                 relayRequest: {
                   request: {
@@ -274,13 +274,13 @@ describe('RelayServer tests', function () {
                 },
               } as EnvelopingTxRequest);
 
-            expect(maxPossibleGaseEstimation.estimation).to.be.eq(
+            expect(maxPossibleGasEstimation.estimation).to.be.eq(
               FAKE_ESTIMATION_BEFORE_FEES.toString()
             );
           });
 
           it('Should not charge fees when a transferFrom() is being relayed', async function () {
-            const maxPossibleGaseEstimation =
+            const maxPossibleGasEstimation =
               await relayServer.estimateMaxPossibleGas({
                 relayRequest: {
                   request: {
@@ -293,7 +293,7 @@ describe('RelayServer tests', function () {
                 },
               } as EnvelopingTxRequest);
 
-            expect(maxPossibleGaseEstimation.estimation).to.be.eq(
+            expect(maxPossibleGasEstimation.estimation).to.be.eq(
               FAKE_ESTIMATION_BEFORE_FEES.toString()
             );
           });
@@ -310,8 +310,8 @@ describe('RelayServer tests', function () {
             sinon.stub(relayServer, 'config').value(fakeServerConfigParams);
           });
 
-          it('Should sponsor transfer() operations', async function () {
-            const maxPossibleGaseEstimation =
+          it('Should not charge extra fees on transfer() operations', async function () {
+            const maxPossibleGasEstimation =
               await relayServer.estimateMaxPossibleGas({
                 relayRequest: {
                   request: {
@@ -324,13 +324,13 @@ describe('RelayServer tests', function () {
                 },
               } as EnvelopingTxRequest);
 
-            expect(maxPossibleGaseEstimation.estimation).to.be.eq(
+            expect(maxPossibleGasEstimation.estimation).to.be.eq(
               FAKE_ESTIMATION_BEFORE_FEES.toString()
             );
           });
 
-          it('Should sponsor transferFrom() operations', async function () {
-            const maxPossibleGaseEstimation =
+          it('Should not charge extra fees on transferFrom() operations', async function () {
+            const maxPossibleGasEstimation =
               await relayServer.estimateMaxPossibleGas({
                 relayRequest: {
                   request: {
@@ -343,7 +343,7 @@ describe('RelayServer tests', function () {
                 },
               } as EnvelopingTxRequest);
 
-            expect(maxPossibleGaseEstimation.estimation).to.be.eq(
+            expect(maxPossibleGasEstimation.estimation).to.be.eq(
               FAKE_ESTIMATION_BEFORE_FEES.toString()
             );
           });
@@ -576,7 +576,7 @@ describe('RelayServer tests', function () {
           sinon.stub(relayServer, 'config').value(fakeServerConfigParams);
         });
 
-        it('Should sponsor tranfer() operations', async function () {
+        it('Should not charge extra fees on tranfer() operations', async function () {
           const maxPossibleGas = await relayServer.getMaxPossibleGas({
             relayRequest: {
               request: {
@@ -595,7 +595,7 @@ describe('RelayServer tests', function () {
           );
         });
 
-        it('Should sponsor tranferFrom() operations', async function () {
+        it('Should not charge extra fees on tranferFrom() operations', async function () {
           const maxPossibleGas = await relayServer.getMaxPossibleGas({
             relayRequest: {
               request: {

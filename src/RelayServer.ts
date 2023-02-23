@@ -168,7 +168,7 @@ export class RelayServer extends EventEmitter {
     );
     this.printServerAddresses();
 
-    log.warn('RelayServer version', VERSION);
+    log.info('RelayServer version', VERSION);
     log.info('Using server configuration:\n', this.config);
   }
 
@@ -380,8 +380,11 @@ export class RelayServer extends EventEmitter {
     envelopingTransaction: EnvelopingTxRequest
   ): Promise<BigNumber> {
     log.debug(
-      'RequestFees - request data:',
-      JSON.stringify(envelopingTransaction, undefined, 4)
+      `Enveloping transaction: ${JSON.stringify(
+        envelopingTransaction,
+        undefined,
+        4
+      )}`
     );
 
     if (!isDeployTransaction(envelopingTransaction)) {
@@ -399,6 +402,7 @@ export class RelayServer extends EventEmitter {
       envelopingTransaction,
       this.workerAddress
     );
+    log.debug(`Initial gas estimation:  ${maxPossibleGas.toString()}`);
 
     if (!this.isSponsorshipAllowed(envelopingTransaction.relayRequest)) {
       const { tokenAmount, tokenContract } =
@@ -410,6 +414,7 @@ export class RelayServer extends EventEmitter {
         maxPossibleGas,
         this.config.app
       );
+      log.debug(`Total fee in gas: ${bigFee.toString()}`);
 
       maxPossibleGas = BigNumber.from(
         bigFee.plus(maxPossibleGas.toString()).toFixed(0)
@@ -481,10 +486,14 @@ export class RelayServer extends EventEmitter {
   async estimateMaxPossibleGas(
     envelopingRequest: EnvelopingTxRequest
   ): Promise<RelayEstimation> {
+    log.debug(
+      `EnvelopingRequest:${JSON.stringify(envelopingRequest, undefined, 4)}`
+    );
     let maxPossibleGas = await estimateRelayMaxPossibleGas(
       envelopingRequest,
       this.workerAddress
     );
+    log.debug(`Initial gas estimation:  ${maxPossibleGas.toString()}`);
 
     if (!this.isSponsorshipAllowed(envelopingRequest.relayRequest)) {
       const bigFee = await calculateFee(
@@ -496,11 +505,16 @@ export class RelayServer extends EventEmitter {
       maxPossibleGas = BigNumber.from(
         bigFee.plus(maxPossibleGas.toString()).toFixed(0)
       );
+      log.debug(`Total fee in gas: ${bigFee.toString()}`);
     }
 
     const conversionResult = await convertGasToTokenAndNative(
       envelopingRequest.relayRequest,
       maxPossibleGas
+    );
+    log.debug(
+      'Final estimation:',
+      JSON.stringify(conversionResult, undefined, 4)
     );
 
     return {
