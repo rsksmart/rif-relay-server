@@ -8,9 +8,10 @@ import { ERC20__factory, ERC20 } from '@rsksmart/rif-relay-contracts';
 import { expect, use } from 'chai';
 import * as Conversions from '../../src/Conversions';
 import { BigNumber as BigNumberJs } from 'bignumber.js';
-import { TRANSFER_HASH, TRANSFER_FROM_HASH } from '../../src/RelayServer';
+import { TRANSFER_HASH, TRANSFER_FROM_HASH } from '../../src/relayServerUtils';
 import { toPrecision } from '../../src/Conversions';
 import chaiAsPromised from 'chai-as-promised';
+import * as relayServerUtils from '../../src/relayServerUtils';
 
 use(chaiAsPromised);
 
@@ -121,12 +122,11 @@ describe('RelayServer tests', function () {
           },
         } as EnvelopingTxRequest
       );
-      console.log(maxPossibleGasEstimation);
 
       const expectedEstimation = {
         gasPrice: GAS_PRICE.toString(),
         estimation: FAKE_ESTIMATION_BEFORE_FEES.toString(),
-        requiredTokenAmount: BigNumberJs(GAS_PRICE)
+        requiredTokenAmount: BigNumberJs(GAS_PRICE) //Using BigNumberJs here because TOKEN_X_RATE is a fraction
           .multipliedBy(FAKE_ESTIMATION_BEFORE_FEES)
           .dividedBy(TOKEN_X_RATE)
           .toString(),
@@ -142,36 +142,6 @@ describe('RelayServer tests', function () {
     describe('When is not sponsored', function () {
       beforeEach(function () {
         mockServer.expects('isSponsorshipAllowed').returns(false);
-      });
-
-      it('Should charge fees based on gas when transferFeePercentage = 0', async function () {
-        const fakeServerConfigParams = {
-          app: {
-            gasFeePercentage: FAKE_GAS_FEE_PERCENTAGE,
-            transferFeePercentage: 0,
-          },
-        };
-
-        sinon.stub(relayServer, 'config').value(fakeServerConfigParams);
-
-        const maxPossibleGaseEstimation =
-          await relayServer.estimateMaxPossibleGas({
-            relayRequest: {
-              request: {
-                tokenContract: constants.AddressZero,
-              },
-              relayData: {
-                gasPrice: GAS_PRICE,
-              },
-            },
-          } as EnvelopingTxRequest);
-
-        expect(maxPossibleGaseEstimation.estimation).to.be.eq(
-          (
-            FAKE_ESTIMATION_BEFORE_FEES +
-            FAKE_ESTIMATION_BEFORE_FEES * FAKE_GAS_FEE_PERCENTAGE
-          ).toString()
-        );
       });
 
       it('Should charge fees based on gas when transferFeePercentage is not defined', async function () {
@@ -202,9 +172,8 @@ describe('RelayServer tests', function () {
           ).toString()
         );
       });
-
-      describe('When transferFeePercentage > 0', function () {
-        it('Should charge fees based on transfer value, when a transfer() is being relayed', async function () {
+      describe('When transferFeePercentage is defined', function () {
+        beforeEach(function () {
           const fakeServerConfigParams = {
             app: {
               gasFeePercentage: FAKE_GAS_FEE_PERCENTAGE,
@@ -212,7 +181,9 @@ describe('RelayServer tests', function () {
             },
           };
           sinon.stub(relayServer, 'config').value(fakeServerConfigParams);
+        });
 
+        it('Should charge fees based on transfer value, when a transfer() is being relayed', async function () {
           const maxPossibleGaseEstimation =
             await relayServer.estimateMaxPossibleGas({
               relayRequest: {
@@ -233,47 +204,7 @@ describe('RelayServer tests', function () {
           );
         });
 
-        it('Should not charge fees if the amount to transfer is zero when a transfer() is being relayed', async function () {
-          const dataWhenTransferingZero = dataWhenTransfer.replace(
-            tokenAmountToTransferAsHex,
-            '0'.repeat(64)
-          );
-
-          const fakeServerConfigParams = {
-            app: {
-              gasFeePercentage: FAKE_GAS_FEE_PERCENTAGE,
-              transferFeePercentage: FAKE_TRANSFER_FEE_PERCENTAGE,
-            },
-          };
-          sinon.stub(relayServer, 'config').value(fakeServerConfigParams);
-
-          const maxPossibleGaseEstimation =
-            await relayServer.estimateMaxPossibleGas({
-              relayRequest: {
-                request: {
-                  tokenContract: constants.AddressZero,
-                  data: dataWhenTransferingZero,
-                },
-                relayData: {
-                  gasPrice: GAS_PRICE,
-                },
-              },
-            } as EnvelopingTxRequest);
-
-          expect(maxPossibleGaseEstimation.estimation).to.be.eq(
-            FAKE_ESTIMATION_BEFORE_FEES.toString()
-          );
-        });
-
         it('Should charge fees based on transfer value, when a transferFrom() is being relayed', async function () {
-          const fakeServerConfigParams = {
-            app: {
-              gasFeePercentage: FAKE_GAS_FEE_PERCENTAGE,
-              transferFeePercentage: FAKE_TRANSFER_FEE_PERCENTAGE,
-            },
-          };
-          sinon.stub(relayServer, 'config').value(fakeServerConfigParams);
-
           const maxPossibleGaseEstimation =
             await relayServer.estimateMaxPossibleGas({
               relayRequest: {
@@ -294,49 +225,9 @@ describe('RelayServer tests', function () {
           );
         });
 
-        it('Should not charge fees if the amount to transfer is zero when a transferFrom() is being relayed', async function () {
-          const dataWhenTransferingZero = dataWhenTransferFrom.replace(
-            tokenAmountToTransferAsHex,
-            '0'.repeat(64)
-          );
-
-          const fakeServerConfigParams = {
-            app: {
-              gasFeePercentage: FAKE_GAS_FEE_PERCENTAGE,
-              transferFeePercentage: FAKE_TRANSFER_FEE_PERCENTAGE,
-            },
-          };
-          sinon.stub(relayServer, 'config').value(fakeServerConfigParams);
-
-          const maxPossibleGaseEstimation =
-            await relayServer.estimateMaxPossibleGas({
-              relayRequest: {
-                request: {
-                  tokenContract: constants.AddressZero,
-                  data: dataWhenTransferingZero,
-                },
-                relayData: {
-                  gasPrice: GAS_PRICE,
-                },
-              },
-            } as EnvelopingTxRequest);
-
-          expect(maxPossibleGaseEstimation.estimation).to.be.eq(
-            FAKE_ESTIMATION_BEFORE_FEES.toString()
-          );
-        });
-
         it('Should charge fees based on gas when it is not a transfer/transferFrom', async function () {
-          //This just changes the hash of the method
+          //This just changes the hash of the method so is not a tranfer/transferFrom anymore
           const dataWhenNoTransfer = dataWhenTransfer.replace('a', 'b');
-
-          const fakeServerConfigParams = {
-            app: {
-              gasFeePercentage: FAKE_GAS_FEE_PERCENTAGE,
-              transferFeePercentage: FAKE_TRANSFER_FEE_PERCENTAGE,
-            },
-          };
-          sinon.stub(relayServer, 'config').value(fakeServerConfigParams);
 
           const maxPossibleGaseEstimation =
             await relayServer.estimateMaxPossibleGas({
@@ -358,23 +249,126 @@ describe('RelayServer tests', function () {
             ).toString()
           );
         });
+
+        describe('When the value to transfer is zero', function () {
+          let dataWhenTransferingZero: string;
+
+          before(function () {
+            dataWhenTransferingZero = dataWhenTransfer.replace(
+              tokenAmountToTransferAsHex,
+              '0'.repeat(64)
+            );
+          });
+
+          it('Should not charge fees when a transfer() is being relayed', async function () {
+            const maxPossibleGaseEstimation =
+              await relayServer.estimateMaxPossibleGas({
+                relayRequest: {
+                  request: {
+                    tokenContract: constants.AddressZero,
+                    data: dataWhenTransferingZero,
+                  },
+                  relayData: {
+                    gasPrice: GAS_PRICE,
+                  },
+                },
+              } as EnvelopingTxRequest);
+
+            expect(maxPossibleGaseEstimation.estimation).to.be.eq(
+              FAKE_ESTIMATION_BEFORE_FEES.toString()
+            );
+          });
+
+          it('Should not charge fees when a transferFrom() is being relayed', async function () {
+            const maxPossibleGaseEstimation =
+              await relayServer.estimateMaxPossibleGas({
+                relayRequest: {
+                  request: {
+                    tokenContract: constants.AddressZero,
+                    data: dataWhenTransferingZero,
+                  },
+                  relayData: {
+                    gasPrice: GAS_PRICE,
+                  },
+                },
+              } as EnvelopingTxRequest);
+
+            expect(maxPossibleGaseEstimation.estimation).to.be.eq(
+              FAKE_ESTIMATION_BEFORE_FEES.toString()
+            );
+          });
+        });
+
+        describe('When transferFeePercentage = 0', function () {
+          beforeEach(function () {
+            const fakeServerConfigParams = {
+              app: {
+                gasFeePercentage: FAKE_GAS_FEE_PERCENTAGE,
+                transferFeePercentage: 0,
+              },
+            };
+            sinon.stub(relayServer, 'config').value(fakeServerConfigParams);
+          });
+
+          it('Should sponsor transfer() operations', async function () {
+            const maxPossibleGaseEstimation =
+              await relayServer.estimateMaxPossibleGas({
+                relayRequest: {
+                  request: {
+                    tokenContract: constants.AddressZero,
+                    data: dataWhenTransfer,
+                  },
+                  relayData: {
+                    gasPrice: GAS_PRICE,
+                  },
+                },
+              } as EnvelopingTxRequest);
+
+            expect(maxPossibleGaseEstimation.estimation).to.be.eq(
+              FAKE_ESTIMATION_BEFORE_FEES.toString()
+            );
+          });
+
+          it('Should sponsor transferFrom() operations', async function () {
+            const maxPossibleGaseEstimation =
+              await relayServer.estimateMaxPossibleGas({
+                relayRequest: {
+                  request: {
+                    tokenContract: constants.AddressZero,
+                    data: dataWhenTransferFrom,
+                  },
+                  relayData: {
+                    gasPrice: GAS_PRICE,
+                  },
+                },
+              } as EnvelopingTxRequest);
+
+            expect(maxPossibleGaseEstimation.estimation).to.be.eq(
+              FAKE_ESTIMATION_BEFORE_FEES.toString()
+            );
+          });
+        });
       });
     });
   });
 
   describe('Function getMaxPossibleGas()', function () {
     beforeEach(function () {
-      mockServer.expects('_validateIfGasAmountIsAcceptable').resolves();
+      sinon
+        .stub(relayServerUtils, 'validateIfGasAmountIsAcceptable')
+        .resolves();
     });
 
     //Skiping this test for lack of tools to stub/mock non configurable properties (isDeployTransaction and estimateInternalCallGas).
     //Both functions are not configurable (try Object.getOwnPropertyDescriptor(rifClient, 'estimateInternalCallGas') to know).
     it.skip('Should fail if the gas amount is lower than required', async function () {
       const fakeRequiredGas = 20000;
+      //This is the failing line:
       // sinon.replaceGetter(rifClient, 'isDeployTransaction', () =>
       //   sinon.stub().returns(false)
       // );
 
+      //This one has no compilation issues but is not doing what is supposed to do
       sinon.replaceGetter(rifClient, 'estimateInternalCallGas', () =>
         sinon.stub().resolves(BigNumber.from(fakeRequiredGas))
       );
@@ -419,36 +413,6 @@ describe('RelayServer tests', function () {
         mockServer.expects('isSponsorshipAllowed').returns(false);
       });
 
-      it('Should charge fees based on gas when transferFeePercentage = 0', async function () {
-        const fakeServerConfigParams = {
-          app: {
-            gasFeePercentage: FAKE_GAS_FEE_PERCENTAGE,
-            transferFeePercentage: 0,
-          },
-        };
-
-        sinon.stub(relayServer, 'config').value(fakeServerConfigParams);
-
-        const maxPossibleGas = await relayServer.getMaxPossibleGas({
-          relayRequest: {
-            request: {
-              tokenContract: constants.AddressZero,
-              tokenAmount: TOKEN_AMOUNT_IN_REQUEST,
-            },
-            relayData: {
-              gasPrice: GAS_PRICE,
-            },
-          },
-        } as EnvelopingTxRequest);
-
-        expect(maxPossibleGas.toString()).to.be.eq(
-          (
-            FAKE_ESTIMATION_BEFORE_FEES +
-            FAKE_ESTIMATION_BEFORE_FEES * FAKE_GAS_FEE_PERCENTAGE
-          ).toString()
-        );
-      });
-
       it('Should charge fees based on gas when transferFeePercentage is not defined', async function () {
         const fakeServerConfigParams = {
           app: {
@@ -478,8 +442,8 @@ describe('RelayServer tests', function () {
         );
       });
 
-      describe('When transferFeePercentage > 0', function () {
-        it('Should charge fees based on transfer value, when  and a transfer() is being relayed', async function () {
+      describe('When transferFeePercentage is defined', function () {
+        beforeEach(function () {
           const fakeServerConfigParams = {
             app: {
               gasFeePercentage: FAKE_GAS_FEE_PERCENTAGE,
@@ -487,7 +451,9 @@ describe('RelayServer tests', function () {
             },
           };
           sinon.stub(relayServer, 'config').value(fakeServerConfigParams);
+        });
 
+        it('Should charge fees based on transfer value, when  and a transfer() is being relayed', async function () {
           const maxPossibleGas = await relayServer.getMaxPossibleGas({
             relayRequest: {
               request: {
@@ -508,47 +474,7 @@ describe('RelayServer tests', function () {
           );
         });
 
-        it('Should not charge fees if the amount to transfer is zero when a transfer() is being relayed', async function () {
-          const dataWhenTransferingZero = dataWhenTransfer.replace(
-            tokenAmountToTransferAsHex,
-            '0'.repeat(64)
-          );
-
-          const fakeServerConfigParams = {
-            app: {
-              gasFeePercentage: FAKE_GAS_FEE_PERCENTAGE,
-              transferFeePercentage: FAKE_TRANSFER_FEE_PERCENTAGE,
-            },
-          };
-          sinon.stub(relayServer, 'config').value(fakeServerConfigParams);
-
-          const maxPossibleGas = await relayServer.getMaxPossibleGas({
-            relayRequest: {
-              request: {
-                tokenContract: constants.AddressZero,
-                tokenAmount: TOKEN_AMOUNT_IN_REQUEST,
-                data: dataWhenTransferingZero,
-              },
-              relayData: {
-                gasPrice: GAS_PRICE,
-              },
-            },
-          } as EnvelopingTxRequest);
-
-          expect(maxPossibleGas.toString()).to.be.eq(
-            FAKE_ESTIMATION_BEFORE_FEES.toString()
-          );
-        });
-
         it('Should charge fees based on transfer value, when a transferFrom() is being relayed', async function () {
-          const fakeServerConfigParams = {
-            app: {
-              gasFeePercentage: FAKE_GAS_FEE_PERCENTAGE,
-              transferFeePercentage: FAKE_TRANSFER_FEE_PERCENTAGE,
-            },
-          };
-          sinon.stub(relayServer, 'config').value(fakeServerConfigParams);
-
           const maxPossibleGas = await relayServer.getMaxPossibleGas({
             relayRequest: {
               request: {
@@ -569,26 +495,113 @@ describe('RelayServer tests', function () {
           );
         });
 
-        it('Should not charge fees if the amount to transfer is zero when a transferFrom() is being relayed', async function () {
-          const dataWhenTransferingZero = dataWhenTransferFrom.replace(
-            tokenAmountToTransferAsHex,
-            '0'.repeat(64)
-          );
+        it('Should fail when the token amount sent in request is lower than required', async function () {
+          const lowTokenAmount = '50000000';
 
+          await expect(
+            relayServer.getMaxPossibleGas({
+              relayRequest: {
+                request: {
+                  tokenContract: constants.AddressZero,
+                  tokenAmount: lowTokenAmount,
+                  data: dataWhenTransfer,
+                },
+                relayData: {
+                  gasPrice: GAS_PRICE,
+                },
+              },
+            } as EnvelopingTxRequest)
+          ).to.be.rejectedWith(
+            'User agreed to spend lower than what the transaction may require'
+          );
+        });
+        describe('When the value to transfer is zero', function () {
+          let dataWhenTransferingZero: string;
+
+          beforeEach(function () {
+            dataWhenTransferingZero = dataWhenTransfer.replace(
+              tokenAmountToTransferAsHex,
+              '0'.repeat(64)
+            );
+          });
+
+          it('Should not charge fees if the amount to transfer is zero when a transfer() is being relayed', async function () {
+            const maxPossibleGas = await relayServer.getMaxPossibleGas({
+              relayRequest: {
+                request: {
+                  tokenContract: constants.AddressZero,
+                  tokenAmount: TOKEN_AMOUNT_IN_REQUEST,
+                  data: dataWhenTransferingZero,
+                },
+                relayData: {
+                  gasPrice: GAS_PRICE,
+                },
+              },
+            } as EnvelopingTxRequest);
+
+            expect(maxPossibleGas.toString()).to.be.eq(
+              FAKE_ESTIMATION_BEFORE_FEES.toString()
+            );
+          });
+
+          it('Should not charge fees if the amount to transfer is zero when a transferFrom() is being relayed', async function () {
+            const maxPossibleGas = await relayServer.getMaxPossibleGas({
+              relayRequest: {
+                request: {
+                  tokenContract: constants.AddressZero,
+                  tokenAmount: TOKEN_AMOUNT_IN_REQUEST,
+                  data: dataWhenTransferingZero,
+                },
+                relayData: {
+                  gasPrice: GAS_PRICE,
+                },
+              },
+            } as EnvelopingTxRequest);
+
+            expect(maxPossibleGas.toString()).to.be.eq(
+              FAKE_ESTIMATION_BEFORE_FEES.toString()
+            );
+          });
+        });
+      });
+
+      describe('When tranferFeePercentage = 0', function () {
+        beforeEach(function () {
           const fakeServerConfigParams = {
             app: {
               gasFeePercentage: FAKE_GAS_FEE_PERCENTAGE,
-              transferFeePercentage: FAKE_TRANSFER_FEE_PERCENTAGE,
+              transferFeePercentage: 0,
             },
           };
           sinon.stub(relayServer, 'config').value(fakeServerConfigParams);
+        });
 
+        it('Should sponsor tranfer() operations', async function () {
           const maxPossibleGas = await relayServer.getMaxPossibleGas({
             relayRequest: {
               request: {
                 tokenContract: constants.AddressZero,
                 tokenAmount: TOKEN_AMOUNT_IN_REQUEST,
-                data: dataWhenTransferingZero,
+                data: dataWhenTransfer,
+              },
+              relayData: {
+                gasPrice: GAS_PRICE,
+              },
+            },
+          } as EnvelopingTxRequest);
+
+          expect(maxPossibleGas.toString()).to.be.eq(
+            FAKE_ESTIMATION_BEFORE_FEES.toString()
+          );
+        });
+
+        it('Should sponsor tranferFrom() operations', async function () {
+          const maxPossibleGas = await relayServer.getMaxPossibleGas({
+            relayRequest: {
+              request: {
+                tokenContract: constants.AddressZero,
+                tokenAmount: TOKEN_AMOUNT_IN_REQUEST,
+                data: dataWhenTransferFrom,
               },
               relayData: {
                 gasPrice: GAS_PRICE,
@@ -601,44 +614,16 @@ describe('RelayServer tests', function () {
           );
         });
       });
-
-      it('Should fail when the token amount sent in request is lower than required', async function () {
-        const lowTokenAmount = '50000000';
-        const fakeServerConfigParams = {
-          app: {
-            gasFeePercentage: FAKE_GAS_FEE_PERCENTAGE,
-          },
-        };
-
-        sinon.stub(relayServer, 'config').value(fakeServerConfigParams);
-
-        await expect(
-          relayServer.getMaxPossibleGas({
-            relayRequest: {
-              request: {
-                tokenContract: constants.AddressZero,
-                tokenAmount: lowTokenAmount,
-              },
-              relayData: {
-                gasPrice: GAS_PRICE,
-              },
-            },
-          } as EnvelopingTxRequest)
-        ).to.be.rejectedWith(
-          'User agreed to spend lower than what the transaction may require'
-        );
-      });
     });
   });
 
   describe('Comparisons between estimateMaxPossibleGas() and getMaxPossibleGas()', function () {
     beforeEach(function () {
-      mockServer.expects('_validateIfGasAmountIsAcceptable').resolves();
+      sinon
+        .stub(relayServerUtils, 'validateIfGasAmountIsAcceptable')
+        .resolves();
       mockServer.expects('isSponsorshipAllowed').returns(false);
-    });
 
-    //Technically the estimation can be slightly greater but here we are using stubs so they should be equal
-    it('Value obtained from estimation should be equal to value required on execution', async function () {
       const fakeServerConfigParams = {
         app: {
           gasFeePercentage: FAKE_GAS_FEE_PERCENTAGE,
@@ -646,7 +631,10 @@ describe('RelayServer tests', function () {
         },
       };
       sinon.stub(relayServer, 'config').value(fakeServerConfigParams);
+    });
 
+    //Technically the estimation can be slightly greater but here we are using stubs so they should be equal
+    it('Value obtained from estimation should be equal to value required on execution', async function () {
       const estimatedGas = await relayServer.estimateMaxPossibleGas({
         relayRequest: {
           request: {
@@ -660,7 +648,6 @@ describe('RelayServer tests', function () {
       } as EnvelopingTxRequest);
 
       mockServer.expects('isSponsorshipAllowed').returns(false);
-      mockServer.expects('_validateIfGasAmountIsAcceptable').resolves();
 
       const requiredGas = await relayServer.getMaxPossibleGas({
         relayRequest: {
