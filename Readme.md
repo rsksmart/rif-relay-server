@@ -86,22 +86,31 @@ File [./config/default.json5](config/default.json5) contains all configuration p
     readyTimeout: 30000,
     checkInterval: 10000,
     disableSponsoredTx: false,
-
-    transferFeePercentage: 0 /* It's the fee that the fee collector will take from the execution of 
+    
+    /* It's the fee that the fee collector will take from the execution of 
     transfer() or transferFrom() functions.
     - This value should be expressed as a fraction, i.e. 0.1 means 10% of the value being transfered
     and 0.01 means 1% of the value being transfered.
-    - This value has priority over gasFeePercentage. If transferFeePercentage is greater than 0 and the execution
+    - This value has priority over gasFeePercentage. If transferFeePercentage is properly configured and the execution
     is a tranfer or transferFrom, gasFeePercentage will be ignored.
-    */,
-    gasFeePercentage: 0 /* sets the fee value (%) that the worker will take from all transactions 
+    */
+    transferFeePercentage: 0,
+    /* Sets the fee value (%) that the worker will take from all transactions 
     based on the total amount of gas used.
     - Under certain conditions, this value will be ignored. See transferFeePercentage above to know more about it.
     - the fee will be added to the estimated gas and required in the transaction amount.
     - the percentage is represented as a fraction (1 = 100%) string to allow for very low or high percentages
-    - the minus sign is omitted if used
     - fractions exceeding the number of decimals of that of the native currency will be rounded up
-   */,
+   */
+    gasFeePercentage: 0,
+    /* It's a fixed fee that the feeCollector takes from all the operations regardless of their 
+   nature (deploy, relay, transfer, transferFrom, etc.). For example, if fixedUsdFee = 1.5, every transaction
+   will pay an additional fee of 1.5USD.
+   - This fee is not exclusive. If gasFeePercentage or transferFeePercentage is configured, fixedUsdFee will be
+   an additional fee, so the total amount will be initialGasEstimation + gasFee (or transferFee) + fixedFee.
+   */
+   fixedUsdFee: 0 ,
+
     sponsoredDestinations: [],
     requestMinValidSeconds: 43200,
     
@@ -166,7 +175,7 @@ File [./config/default.json5](config/default.json5) contains all configuration p
 >
 > Also note that `development` is the default NODE_ENV value.
 > The following depicts the order in which the [node-config](https://github.com/node-config/node-config/wiki/Strict-Mode#node_env-value-of-local-is-ambiguous) library merges configuration, starting from the least to the most specific config:
->
+
 ```mermaid
 flowchart TD;
   default.json5 --> |$NODE_ENV value| development.json5
@@ -303,7 +312,8 @@ After that, you need to login into the running container `docker exec -it <conta
 where `VARIABLE_LIST` can contains any of the variables defined in the [override](#overrides) section.
 
 Please remember that, in oder to properly register the server, you need to specify at least the following environment variables:
-* REGISTER_MNEMONIC or REGISTER_PRIVATE_KEY.
+
+- REGISTER_MNEMONIC or REGISTER_PRIVATE_KEY.
 
 ---
 
