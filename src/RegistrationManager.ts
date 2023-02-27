@@ -20,7 +20,6 @@ import { defaultEnvironment } from './Environments';
 
 import {
   boolString,
-  buildServerUrl,
   getLatestEventData,
   getPastEventsForHub,
   getProvider,
@@ -379,10 +378,13 @@ export class RegistrationManager {
       transactions = transactions.concat(txHash);
     }
 
-    const serverUrl = buildServerUrl();
+    const {
+      app: { url: serverUrl },
+    } = getServerConfig();
 
     const relayHub = getRelayHub(this._hubAddress);
 
+    console.log('### Calling registerRelayServer with', serverUrl);
     const registerMethod =
       await relayHub.populateTransaction.registerRelayServer(serverUrl);
     const gasLimit = await this._transactionManager.attemptEstimateGas(

@@ -5,7 +5,7 @@ import config from 'config';
 import { BigNumber, constants, Signer, utils, Wallet } from 'ethers';
 import log from 'loglevel';
 import { getServerConfig } from '../ServerConfigParams';
-import { buildServerUrl, isSameAddress, sleep } from '../Utils';
+import { isSameAddress, sleep } from '../Utils';
 
 type RegisterConfig = {
   stake: string;
@@ -15,7 +15,6 @@ type RegisterConfig = {
   hub?: string;
   signer: Signer;
   gasPrice: number;
-  relayUrl?: string;
   unstakeDelay: number;
 };
 
@@ -213,16 +212,17 @@ const executeRegister = async (): Promise<void> => {
     signer,
     gasPrice,
     hub,
-    relayUrl,
     unstakeDelay,
   }: RegisterConfig = config.get('register');
 
   const rpcProvider = new JsonRpcProvider(blockchain.rskNodeUrl);
-  const serverUrl = buildServerUrl();
+  const {
+    app: { url: serverUrl },
+  } = getServerConfig();
 
   await register(rpcProvider, {
     hub: hub || contracts.relayHubAddress,
-    relayUrl: relayUrl || serverUrl,
+    relayUrl: serverUrl,
     signer: signer._isSigner
       ? signer
       : await retreiveSigner(rpcProvider, privateKey, mnemonic),
