@@ -384,7 +384,6 @@ export class RegistrationManager {
 
     const relayHub = getRelayHub(this._hubAddress);
 
-    console.log('### Calling registerRelayServer with', serverUrl);
     const registerMethod =
       await relayHub.populateTransaction.registerRelayServer(serverUrl);
     const gasLimit = await this._transactionManager.attemptEstimateGas(
