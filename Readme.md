@@ -152,7 +152,6 @@ File [./config/default.json5](config/default.json5) contains all configuration p
     signer: {}, // Signer object (only when used as a library)
     hub: "",
     gasPrice: 60000000,
-    relayUrl: "",
     unstakeDelay: 1000,
   },
 }
@@ -195,7 +194,6 @@ Some of these options will be overrideable using environment variables defined i
     "privateKey": "REGISTER_PRIVATE_KEY",
     "hub": "REGISTER_HUB_ADDRESS",
     "gasPrice": "REGISTER_GAS_PRICE",
-    "relayUrl": "REGISTER_RELAY_URL",
     "unstakeDelay": "REGISTER_UNSTAKE_DELAY"
   }
 }
