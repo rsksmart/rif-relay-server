@@ -1,7 +1,7 @@
 name: CI
 on: [push]
 jobs:
-  linting:
+  linting_and_testing:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
