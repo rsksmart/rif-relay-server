@@ -562,7 +562,7 @@ Owner          | ${this._ownerAddress ?? chalk.red('k256')}
     );
     for (const decodedEvent of decodedEvents) {
       log.info(`
-Name      | ${decodedEvent.event!.padEnd(25)}
+Name      | ${decodedEvent.event?.padEnd(25) || ''}
 Block     | ${decodedEvent.blockNumber}
 TxHash    | ${decodedEvent.transactionHash}
 `);
