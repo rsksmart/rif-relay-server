@@ -25,22 +25,8 @@ const defaultRelayHubConfiguration: RelayHubConfiguration = {
   minimumEntryDepositValue: (1e18).toString(),
 };
 
-const environments: { [key: string]: Environment } = {
-  istanbul: {
-    chainId: 1,
-    relayHubConfiguration: defaultRelayHubConfiguration,
-    minTxGasCost: 21000,
-  },
-  constantinople: {
-    chainId: 1,
-    relayHubConfiguration: defaultRelayHubConfiguration,
-    minTxGasCost: 21000,
-  },
-  rsk: {
-    chainId: 33,
-    relayHubConfiguration: defaultRelayHubConfiguration,
-    minTxGasCost: 21000,
-  },
+export const defaultEnvironment = {
+  chainId: 33,
+  relayHubConfiguration: defaultRelayHubConfiguration,
+  minTxGasCost: 21000,
 };
-
-export const defaultEnvironment = environments['rsk'];

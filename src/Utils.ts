@@ -125,8 +125,9 @@ export function isRegistrationValid(
 ): boolean {
   if (relayData) {
     const manager = relayData.manager.toString();
-
-    const serverUrl = buildServerUrl();
+    const {
+      app: { url: serverUrl },
+    } = getServerConfig();
 
     return (
       isSameAddress(manager, managerAddress) &&
@@ -151,26 +152,6 @@ export function getProvider(): providers.Provider {
     config.get<string>(`${CONFIG_BLOCKCHAIN}.${CONFIG_RSK_URL}`)
   );
 }
-
-export const buildServerUrl = () => {
-  const {
-    app: { url, port },
-  } = getServerConfig();
-
-  if (isNaN(port)) {
-    throw new Error(`${port} Port should be numeric`);
-  }
-
-  const parsedUrl = new URL(url);
-
-  const portFromUrl = parsedUrl.port;
-
-  if (!portFromUrl && port) {
-    parsedUrl.port = port.toString();
-  }
-
-  return parsedUrl.toString();
-};
 
 //TODO improve the validating and type handling
 export const deployTransactionRequestShape = {

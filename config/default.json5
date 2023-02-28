@@ -90,7 +90,6 @@
     signer: {}, // Signer object (only when used as a library)
     hub: "",
     gasPrice: 60000000,
-    relayUrl: "",
     unstakeDelay: 1000,
   },
 }

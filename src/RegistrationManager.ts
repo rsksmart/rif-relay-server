@@ -20,7 +20,6 @@ import { defaultEnvironment } from './Environments';
 
 import {
   boolString,
-  buildServerUrl,
   getLatestEventData,
   getPastEventsForHub,
   getProvider,
@@ -379,7 +378,9 @@ export class RegistrationManager {
       transactions = transactions.concat(txHash);
     }
 
-    const serverUrl = buildServerUrl();
+    const {
+      app: { url: serverUrl },
+    } = getServerConfig();
 
     const relayHub = getRelayHub(this._hubAddress);
 
@@ -561,7 +562,7 @@ Owner          | ${this._ownerAddress ?? chalk.red('k256')}
     );
     for (const decodedEvent of decodedEvents) {
       log.info(`
-Name      | ${decodedEvent.event!.padEnd(25)}
+Name      | ${decodedEvent.event?.padEnd(25) || ''}
 Block     | ${decodedEvent.blockNumber}
 TxHash    | ${decodedEvent.transactionHash}
 `);
