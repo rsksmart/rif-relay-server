@@ -30,9 +30,10 @@
     - This value should be expressed as a fraction, i.e. 0.1 means 10% of the value being transfered
     and 0.01 means 1% of the value being transfered.
     - This value has priority over gasFeePercentage. If transferFeePercentage is properly configured and the execution
-    is a tranfer or transferFrom, gasFeePercentage will be ignored.
+    is a tranfer or transferFrom, gasFeePercentage will be ignored even if transferFeePercentage = 0.
+    - Negative values disable this fee.
     */
-    transferFeePercentage: 0,
+    transferFeePercentage: -1,
     /* Sets the fee value (%) that the worker will take from all transactions 
     based on the total amount of gas used.
     - Under certain conditions, this value will be ignored. See transferFeePercentage above to know more about it.

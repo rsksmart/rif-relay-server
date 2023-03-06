@@ -5,7 +5,6 @@ import {
   ServerConfigParams,
   ERROR_DISABLE_SPONSOR_TX_NOT_CONFIGURED,
   ERROR_GAS_FEE_PERCENTAGE_NEGATIVE,
-  ERROR_TRANSFER_FEE_PERCENTAGE_NEGATIVE,
   ERROR_FIXED_USD_FEE_NEGATIVE,
 } from '../../src/ServerConfigParams';
 import { ethers } from 'ethers';
@@ -62,14 +61,6 @@ describe('ServerConfigParams tests', function () {
         ).to.throw(ERROR_GAS_FEE_PERCENTAGE_NEGATIVE);
       });
 
-      it('Should fail if transferFeePercentage is a negative value', function () {
-        app.transferFeePercentage = -0.01;
-
-        expect(() =>
-          verifyServerConfiguration({ app, contracts } as ServerConfigParams)
-        ).to.throw(ERROR_TRANSFER_FEE_PERCENTAGE_NEGATIVE);
-      });
-
       it('Should fail if fixedUsdFee is a negative value', function () {
         app.fixedUsdFee = -1;
 
@@ -79,6 +70,16 @@ describe('ServerConfigParams tests', function () {
       });
 
       it('Should pass even if all fee parameters are undefined', function () {
+        expect(() =>
+          verifyServerConfiguration({ app, contracts } as ServerConfigParams)
+        ).not.to.throw();
+      });
+
+      it('Should pass even if all fee parameters are disabled', function () {
+        app.fixedUsdFee = 0;
+        app.transferFeePercentage = -1;
+        app.gasFeePercentage = 0;
+
         expect(() =>
           verifyServerConfiguration({ app, contracts } as ServerConfigParams)
         ).not.to.throw();

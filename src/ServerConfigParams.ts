@@ -74,8 +74,6 @@ const ERROR_DISABLE_SPONSOR_TX_NOT_CONFIGURED =
   'The param disableSponsoredTx should be properly configured. Valid values are true or false.';
 const ERROR_GAS_FEE_PERCENTAGE_NEGATIVE =
   'Param gasFeePercentage can not be a negative value';
-const ERROR_TRANSFER_FEE_PERCENTAGE_NEGATIVE =
-  'Param transferFeePercentage can not be a negative value';
 const ERROR_FIXED_USD_FEE_NEGATIVE =
   'Param fixedUsdFee can not be a negative value';
 
@@ -101,25 +99,18 @@ function verifyServerConfiguration({
   if (!app.port) throw new Error('missing param: port');
   if (!app.workdir) throw new Error('missing param: workdir');
 
-  const {
-    disableSponsoredTx,
-    gasFeePercentage,
-    transferFeePercentage,
-    fixedUsdFee,
-  } = app;
+  const { disableSponsoredTx, gasFeePercentage, fixedUsdFee } = app;
 
   //disableSponsoredTx should be defined
   if (![true, false].includes(disableSponsoredTx))
     throw new Error(ERROR_DISABLE_SPONSOR_TX_NOT_CONFIGURED);
 
   if (disableSponsoredTx) {
-    //If any of the fee parameters is a number it can not be a negative value
+    //gasFeePercentage can not be a negative number
     if (typeof gasFeePercentage == 'number' && gasFeePercentage < 0)
       throw new Error(ERROR_GAS_FEE_PERCENTAGE_NEGATIVE);
 
-    if (typeof transferFeePercentage == 'number' && transferFeePercentage < 0)
-      throw new Error(ERROR_TRANSFER_FEE_PERCENTAGE_NEGATIVE);
-
+    //fixedUsdFee can not be a negative number
     if (typeof fixedUsdFee == 'number' && fixedUsdFee < 0)
       throw new Error(ERROR_FIXED_USD_FEE_NEGATIVE);
   }
@@ -153,7 +144,6 @@ export {
   ServerDependencies,
   ERROR_DISABLE_SPONSOR_TX_NOT_CONFIGURED,
   ERROR_GAS_FEE_PERCENTAGE_NEGATIVE,
-  ERROR_TRANSFER_FEE_PERCENTAGE_NEGATIVE,
   ERROR_FIXED_USD_FEE_NEGATIVE,
   verifyServerConfiguration,
   getServerConfig,
