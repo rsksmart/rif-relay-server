@@ -5,7 +5,7 @@ import type { KeyManager } from './KeyManager';
 import type { TxStoreManager } from './TxStoreManager';
 import { validateAddress } from './Utils';
 
-export type AppConfig = {
+type AppConfig = {
   url: string;
   port: number;
   workdir: string;
@@ -14,14 +14,15 @@ export type AppConfig = {
   logLevel: LogLevelNumbers;
   checkInterval: number;
   readyTimeout: number;
-  gasFeePercentage: string;
+  gasFeePercentage: number;
   disableSponsoredTx: boolean;
   sponsoredDestinations: Array<string>;
   requestMinValidSeconds: number;
   transferFeePercentage: number;
+  fixedUsdFee: number;
 };
 
-export type ContractsConfig = {
+type ContractsConfig = {
   versionRegistryAddress: string;
   relayHubAddress: string;
   deployVerifierAddress: string;
@@ -31,7 +32,7 @@ export type ContractsConfig = {
   trustedVerifiers: string[];
 };
 
-export type BlockchainConfig = {
+type BlockchainConfig = {
   rskNodeUrl: string;
   gasPriceFactor: number;
   registrationBlockRate: number;
@@ -56,22 +57,29 @@ export type BlockchainConfig = {
 };
 
 // TODO: is there a way to merge the typescript definition ServerConfigParams with the runtime checking ConfigParamTypes ?
-export type ServerConfigParams = {
+type ServerConfigParams = {
   app: AppConfig;
   contracts: ContractsConfig;
   blockchain: BlockchainConfig;
 };
 
-export interface ServerDependencies {
+interface ServerDependencies {
   // TODO: rename as this name is terrible
   managerKeyManager: KeyManager;
   workersKeyManager: KeyManager;
   txStoreManager: TxStoreManager;
 }
 
+const ERROR_DISABLE_SPONSOR_TX_NOT_CONFIGURED =
+  'The param disableSponsoredTx should be properly configured. Valid values are true or false.';
+const ERROR_GAS_FEE_PERCENTAGE_NEGATIVE =
+  'Param gasFeePercentage can not be a negative value';
+const ERROR_FIXED_USD_FEE_NEGATIVE =
+  'Param fixedUsdFee can not be a negative value';
+
 // resolve params, and validate the resulting struct
 // TODO validate if the relayHub address can be obtain from the versionRegistry
-export function verifyServerConfiguration({
+function verifyServerConfiguration({
   app,
   contracts,
 }: ServerConfigParams): void {
@@ -90,9 +98,25 @@ export function verifyServerConfiguration({
   if (!app.url) throw new Error('missing param: url');
   if (!app.port) throw new Error('missing param: port');
   if (!app.workdir) throw new Error('missing param: workdir');
+
+  const { disableSponsoredTx, gasFeePercentage, fixedUsdFee } = app;
+
+  //disableSponsoredTx should be defined
+  if (![true, false].includes(disableSponsoredTx))
+    throw new Error(ERROR_DISABLE_SPONSOR_TX_NOT_CONFIGURED);
+
+  if (disableSponsoredTx) {
+    //gasFeePercentage can not be a negative number
+    if (typeof gasFeePercentage == 'number' && gasFeePercentage < 0)
+      throw new Error(ERROR_GAS_FEE_PERCENTAGE_NEGATIVE);
+
+    //fixedUsdFee can not be a negative number
+    if (typeof fixedUsdFee == 'number' && fixedUsdFee < 0)
+      throw new Error(ERROR_FIXED_USD_FEE_NEGATIVE);
+  }
 }
 
-export function getServerConfig(): ServerConfigParams {
+function getServerConfig(): ServerConfigParams {
   if (
     !(config.has('contracts') && config.has('app') && config.has('blockchain'))
   ) {
@@ -111,3 +135,16 @@ export function getServerConfig(): ServerConfigParams {
 
   return configuration;
 }
+
+export {
+  AppConfig,
+  ContractsConfig,
+  BlockchainConfig,
+  ServerConfigParams,
+  ServerDependencies,
+  ERROR_DISABLE_SPONSOR_TX_NOT_CONFIGURED,
+  ERROR_GAS_FEE_PERCENTAGE_NEGATIVE,
+  ERROR_FIXED_USD_FEE_NEGATIVE,
+  verifyServerConfiguration,
+  getServerConfig,
+};

@@ -48,7 +48,6 @@ import {
 import { AmountRequired } from './AmountRequired';
 import { GAS_LIMIT_EXCEEDED } from './definitions/errorMessages.const';
 import {
-  EnvelopingRequest,
   EnvelopingTxRequest,
   estimateRelayMaxPossibleGas,
   isDeployTransaction,
@@ -387,57 +386,27 @@ export class RelayServer extends EventEmitter {
       )}`
     );
 
-    if (!isDeployTransaction(envelopingTransaction)) {
-      await validateIfGasAmountIsAcceptable(
-        envelopingTransaction.relayRequest as RelayRequest
-      );
-    }
-
     // TODO: For RIF team
     // Here the server has the last chance to compare the maxPossibleGas the deploy transaction needs with
     // the aggreement signed between the client and the relayer. Take this into account during the Arbiter integration
 
     // Actual maximum gas needed to  send the relay transaction
-    let maxPossibleGas = await standardMaxPossibleGasEstimation(
+    const initialGasEstimation = await standardMaxPossibleGasEstimation(
       envelopingTransaction,
       this.workerAddress
     );
-    log.debug(`Initial gas estimation:  ${maxPossibleGas.toString()}`);
-
-    if (!this.isSponsorshipAllowed(envelopingTransaction.relayRequest)) {
-      const { tokenAmount, tokenContract } =
-        envelopingTransaction.relayRequest.request;
-      const { gasPrice } = envelopingTransaction.relayRequest.relayData;
-
-      const bigFee = await calculateFee(
-        envelopingTransaction.relayRequest,
-        maxPossibleGas,
-        this.config.app
-      );
-      log.debug(`Total fee in gas: ${bigFee.toString()}`);
-
-      maxPossibleGas = BigNumber.from(
-        bigFee.plus(maxPossibleGas.toString()).toFixed(0)
-      );
-
-      await validateIfTokenAmountIsAcceptable(
-        maxPossibleGas,
-        tokenAmount.toString(),
-        tokenContract.toString(),
-        gasPrice.toString()
-      );
-    }
-
-    return maxPossibleGas;
-  }
-
-  isSponsorshipAllowed(envelopingRequest: EnvelopingRequest): boolean {
-    const { disableSponsoredTx, sponsoredDestinations } = this.config.app;
-
-    return (
-      !disableSponsoredTx ||
-      sponsoredDestinations.includes(envelopingRequest.request.to as string)
+    log.debug(
+      `Gas estimation before fees:  ${initialGasEstimation.toString()}`
     );
+
+    const fee = await calculateFee(
+      envelopingTransaction.relayRequest,
+      initialGasEstimation,
+      this.config.app
+    );
+    log.debug(`Total fees expressed in gas: ${fee.toString()}`);
+
+    return initialGasEstimation.add(fee.toFixed(0).toString());
   }
 
   async maxPossibleGasWithViewCall(
@@ -489,24 +458,30 @@ export class RelayServer extends EventEmitter {
     log.debug(
       `EnvelopingRequest:${JSON.stringify(envelopingRequest, undefined, 4)}`
     );
-    let maxPossibleGas = await estimateRelayMaxPossibleGas(
+
+    const initialGasEstimation = await estimateRelayMaxPossibleGas(
       envelopingRequest,
       this.workerAddress
     );
-    log.debug(`Initial gas estimation:  ${maxPossibleGas.toString()}`);
+    log.debug(
+      `Gas estimation before fees:  ${initialGasEstimation.toString()}`
+    );
 
-    if (!this.isSponsorshipAllowed(envelopingRequest.relayRequest)) {
-      const bigFee = await calculateFee(
-        envelopingRequest.relayRequest,
-        maxPossibleGas,
-        this.config.app
-      );
+    const fee = await calculateFee(
+      envelopingRequest.relayRequest,
+      initialGasEstimation,
+      this.config.app
+    );
 
-      maxPossibleGas = BigNumber.from(
-        bigFee.plus(maxPossibleGas.toString()).toFixed(0)
-      );
-      log.debug(`Total fee in gas: ${bigFee.toString()}`);
-    }
+    log.debug(`Total fees expressed in gas: ${fee.toString()}`);
+
+    const maxPossibleGas = BigNumber.from(
+      fee.plus(initialGasEstimation.toString()).toFixed(0)
+    );
+
+    log.debug(
+      `Final gas estimation including fees: ${maxPossibleGas.toString()}`
+    );
 
     const conversionResult = await convertGasToTokenAndNative(
       envelopingRequest.relayRequest,
@@ -548,10 +523,18 @@ export class RelayServer extends EventEmitter {
       envelopingTransaction.metadata.relayMaxNonce.toString()
     );
 
+    await validateIfGasAmountIsAcceptable(envelopingTransaction);
+
     const maxPossibleGas = await this.getMaxPossibleGas(envelopingTransaction);
 
     // Send relayed transaction
     log.debug('maxPossibleGas is', maxPossibleGas.toString());
+
+    await validateIfTokenAmountIsAcceptable(
+      maxPossibleGas,
+      envelopingTransaction,
+      this.config.app
+    );
 
     const relayHub = getRelayHub();
 
