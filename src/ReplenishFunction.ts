@@ -6,7 +6,7 @@ import type { SendTransactionDetails } from './TransactionManager';
 import { defaultEnvironment } from './Environments';
 
 const NOTIFIER = 'Notifier |';
-// It used to trigger notifications
+// Used to trigger notifications
 const notify = (...msg: unknown[]) => log.info(NOTIFIER, ...msg);
 
 export async function replenishStrategy(
