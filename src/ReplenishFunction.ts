@@ -114,7 +114,10 @@ async function defaultReplenishFunction(
       );
       transactionHashes.push(txHash);
     } else {
-      log.info('Notifier | ', 'Not possible to replenish');
+      log.info(
+        'Notifier | ',
+        'Not possible to replenish the worker due to manager balance too low'
+      );
       const message = `== replenishServer: can't replenish: mgr balance too low ${managerBalance.toString()} refill=${refill.toString()}`;
       relayServer.emit('fundingNeeded', message);
       log.info(message);
