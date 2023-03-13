@@ -38,26 +38,51 @@ async function defaultReplenishFunction(
 
   relayServer.workerBalanceRequired.currentValue =
     await relayServer.getWorkerBalance(workerIndex);
+
+  const {
+    config: {
+      blockchain: { managerTargetBalance },
+    },
+  } = relayServer;
+
+  log.info(
+    'Notifier | ',
+    `Required Manager Balance: ${managerTargetBalance}`,
+    `Manager Balance: ${managerBalance.toString()}`
+  );
+
   if (
     managerBalance.gt(relayServer.config.blockchain.managerTargetBalance) &&
     relayServer.workerBalanceRequired.isSatisfied
   ) {
+    log.info('Notifier | ', 'Manager Balance is met');
+
     // all filled, nothing to do
     return transactionHashes;
   }
   const mustReplenishWorker = !relayServer.workerBalanceRequired.isSatisfied;
+  log.info('Notifier | ', 'Worker must be replenished: ', mustReplenishWorker);
   const isReplenishPendingForWorker =
     await relayServer.txStoreManager.isActionPending(
       ServerAction.VALUE_TRANSFER,
       relayServer.workerAddress
     );
   if (mustReplenishWorker && !isReplenishPendingForWorker) {
+    log.info('Notifier | ', 'No replenish action pending, replenishing...');
     const workerTargetBalance = BigNumber.from(
       relayServer.config.blockchain.workerTargetBalance
     );
     const refill = workerTargetBalance.sub(
       relayServer.workerBalanceRequired.currentValue
     );
+
+    log.info(
+      'Notifier | ',
+      `Worker Target Balance: ${workerTargetBalance.toString()}`,
+      `Worker Current Balance: ${relayServer.workerBalanceRequired.currentValue.toString()}`,
+      `Worker Refill Value: ${refill.toString()}`
+    );
+
     log.info(
       `== replenishServer: mgr balance=${managerBalance.toString()}
         \n${
@@ -70,7 +95,9 @@ async function defaultReplenishFunction(
         managerBalance.sub(relayServer.config.blockchain.managerMinBalance)
       )
     ) {
-      log.info('Replenishing worker balance by manager rbtc balance');
+      log.info(
+        'Notifier: | Replenishing worker balance by manager rbtc balance'
+      );
       const gasLimit = BigNumber.from(
         defaultEnvironment?.minTxGasCost ?? 21000
       );
@@ -87,6 +114,7 @@ async function defaultReplenishFunction(
       );
       transactionHashes.push(txHash);
     } else {
+      log.info('Notifier | ', 'Not possible to replenish');
       const message = `== replenishServer: can't replenish: mgr balance too low ${managerBalance.toString()} refill=${refill.toString()}`;
       relayServer.emit('fundingNeeded', message);
       log.info(message);
