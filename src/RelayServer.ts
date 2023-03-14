@@ -523,6 +523,8 @@ export class RelayServer extends EventEmitter {
       envelopingTransaction.metadata.relayMaxNonce.toString()
     );
 
+    await this.validateRequestWithVerifier(envelopingTransaction);
+
     await validateIfGasAmountIsAcceptable(envelopingTransaction);
 
     const maxPossibleGas = await this.getMaxPossibleGas(envelopingTransaction);
