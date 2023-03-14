@@ -2,8 +2,13 @@
     "url": "https://relay.rif-wallet-services.testnet.rifcomputing.net",
     "port": 8090,
     "relayHubAddress": "0xAd525463961399793f8716b0D85133ff7503a7C2",
-    "relayVerifierAddress": "0x5897E84216220663F306676458Afc7bf2A6A3C52",
-    "deployVerifierAddress": "0xAe59e767768c6c25d64619Ee1c498Fd7D83e3c24",
+    "trustedVerifiers": [
+        "0xB86c972Ff212838C4c396199B27a0DBe45560df8",
+        "0xc67f193Bb1D64F13FD49E2da6586a2F417e56b16",
+
+        "0x5897E84216220663F306676458Afc7bf2A6A3C52",
+        "0xAe59e767768c6c25d64619Ee1c498Fd7D83e3c24"
+    ],
     "gasPriceFactor": 1,
     "rskNodeUrl": "http://172.17.0.1:4444",
     "devMode": true,
