@@ -9,6 +9,16 @@ const NOTIFIER = 'Notifier |';
 // Used to trigger notifications
 const notify = (...msg: unknown[]) => log.info(NOTIFIER, ...msg);
 
+type BalanceRefill = {
+  workerAddress: string;
+  workerBalance: string;
+  managerAddress: string;
+  managerBalance: string;
+  refill: string;
+};
+const notifyBalanceRefill = (message: string, balanceRefill: BalanceRefill) =>
+  notify(message, { ...balanceRefill });
+
 export async function replenishStrategy(
   relayServer: RelayServer,
   workerIndex: number,
@@ -97,12 +107,16 @@ async function defaultReplenishFunction(
         managerBalance.sub(relayServer.config.blockchain.managerMinBalance)
       )
     ) {
-      notify(
+      notifyBalanceRefill(
         'Replenishing worker balance by manager rbtc balance',
-        `Worker address: ${relayServer.workerAddress}`,
-        `Manager address: ${relayServer.managerAddress}`,
-        `ManagerBalance: ${managerBalance.toString()}`,
-        `Refill: ${refill.toString()}`
+        {
+          workerAddress: relayServer.workerAddress,
+          workerBalance:
+            relayServer.workerBalanceRequired.currentValue.toString(),
+          managerAddress: relayServer.managerAddress,
+          managerBalance: managerBalance.toString(),
+          refill: refill.toString(),
+        }
       );
       const gasLimit = BigNumber.from(
         defaultEnvironment?.minTxGasCost ?? 21000
@@ -120,12 +134,16 @@ async function defaultReplenishFunction(
       );
       transactionHashes.push(txHash);
     } else {
-      notify(
+      notifyBalanceRefill(
         'Not possible to replenish the worker due to manager balance too low',
-        `Worker address: ${relayServer.workerAddress}`,
-        `Manager address: ${relayServer.managerAddress}`,
-        `ManagerBalance: ${managerBalance.toString()}`,
-        `Refill: ${refill.toString()}`
+        {
+          workerAddress: relayServer.workerAddress,
+          workerBalance:
+            relayServer.workerBalanceRequired.currentValue.toString(),
+          managerAddress: relayServer.managerAddress,
+          managerBalance: managerBalance.toString(),
+          refill: refill.toString(),
+        }
       );
       const message = `== replenishServer: can't replenish: mgr balance too low ${managerBalance.toString()} refill=${refill.toString()}`;
       relayServer.emit('fundingNeeded', message);
