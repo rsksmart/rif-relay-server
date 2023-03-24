@@ -83,6 +83,7 @@
     "cors": "^2.8.5",
     "ethers": "5.7.2",
     "express": "^4.18.2",
+    "joi": "^17.9.1",
     "jsonrpc-lite": "^2.2.0",
     "loglevel": "^1.8.1",
     "nedb-async": "^0.1.6",

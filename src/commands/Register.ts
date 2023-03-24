@@ -4,22 +4,12 @@ import { RelayHub__factory } from '@rsksmart/rif-relay-contracts';
 import config from 'config';
 import { BigNumber, constants, Signer, utils, Wallet } from 'ethers';
 import log from 'loglevel';
-import { getServerConfig } from '../ServerConfigParams';
+import { getServerConfig, RegisterConfig } from '../ServerConfigParams';
 import { isSameAddress, sleep } from '../Utils';
 
-type RegisterConfig = {
-  stake: string;
-  funds: string;
-  mnemonic?: string;
-  privateKey?: string;
-  hub?: string;
-  signer: Signer;
-  gasPrice: number;
-  unstakeDelay: number;
-};
-
+//TODO: This is almost the same type as RegisterConfig from /ServerConfigParams
 type RegisterOptions = {
-  hub: string;
+  relayHub: string;
   relayUrl: string;
   signer: Signer;
   gasPrice: BigNumber;
@@ -105,7 +95,7 @@ const register = async (
     );
   }
 
-  const relayHub = RelayHub__factory.connect(options.hub, provider);
+  const relayHub = RelayHub__factory.connect(options.relayHub, provider);
 
   const relayAddress = response.relayManagerAddress;
   const { stake, unstakeDelay, owner } = await relayHub.getStakeInfo(
@@ -192,42 +182,31 @@ const retreiveSigner = async (
 
 const executeRegister = async (): Promise<void> => {
   const {
-    app: { logLevel },
     contracts,
     blockchain,
+    register: {
+      stake,
+      funds,
+      mnemonic,
+      privateKey,
+      gasPrice,
+      relayHub,
+      unstakeDelay,
+    },
+    app: { logLevel, url: serverUrl },
   } = getServerConfig();
+
   log.setLevel(logLevel);
   log.debug('configSources', config.util.getConfigSources());
-  if (!config.has('register')) {
-    throw new Error(
-      'No register config found. Make sure that the register section exists in default.json5.'
-    );
-  }
-
-  const {
-    stake,
-    funds,
-    mnemonic,
-    privateKey,
-    signer,
-    gasPrice,
-    hub,
-    unstakeDelay,
-  }: RegisterConfig = config.get('register');
 
   const rpcProvider = new JsonRpcProvider(blockchain.rskNodeUrl);
-  const {
-    app: { url: serverUrl },
-  } = getServerConfig();
 
   await register(rpcProvider, {
-    hub: hub || contracts.relayHubAddress,
+    relayHub: relayHub || contracts.relayHubAddress,
     relayUrl: serverUrl,
-    signer: signer._isSigner
-      ? signer
-      : await retreiveSigner(rpcProvider, privateKey, mnemonic),
-    stake: utils.parseEther(stake),
-    funds: utils.parseEther(funds),
+    signer: await retreiveSigner(rpcProvider, privateKey, mnemonic),
+    stake: utils.parseEther(stake.toString()),
+    funds: utils.parseEther(funds.toString()),
     unstakeDelay: BigNumber.from(unstakeDelay),
     gasPrice: BigNumber.from(gasPrice),
   });
