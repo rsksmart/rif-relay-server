@@ -156,7 +156,7 @@ const ConfigParamsTypes = {
     minHubWithdrawalBalance: 'number',
     defaultGasLimit: 'number',
 
-    trustedVerifiers: 'string',
+    trustedVerifiers: 'array',
     relayVerifierAddress: 'string',
     deployVerifierAddress: 'string',
     feesReceiver: 'string',

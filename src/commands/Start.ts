@@ -40,7 +40,7 @@ async function run(): Promise<void> {
             conf.trustedVerifiers != null &&
             conf.trustedVerifiers !== ''
         ) {
-            trustedVerifiers = JSON.parse(conf.trustedVerifiers);
+            trustedVerifiers = conf.trustedVerifiers;
         }
 
         web3provider = new Web3.providers.HttpProvider(conf.rskNodeUrl);
