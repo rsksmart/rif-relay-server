@@ -7,7 +7,7 @@ import { serverConfigSchema } from './serverConfigParamsUtils';
 import {
   ERROR_GAS_FEE_PERCENTAGE_NEGATIVE,
   ERROR_FIXED_USD_FEE_NEGATIVE,
-} from '../src/definitions/errorMessages.const';
+} from './definitions/errorMessages.const';
 
 type AppConfig = {
   url: string;
