@@ -140,7 +140,6 @@ File [./config/default.json5](config/default.json5) contains all configuration p
     defaultGasLimit: 500000,
     maxGasPrice: 100000000000,
     estimateGasFactor: 1.2,
-    versionRegistryDelayPeriod: 0,
   },
   /*
     Relay contracts addresses
@@ -149,18 +148,15 @@ File [./config/default.json5](config/default.json5) contains all configuration p
     relayHubAddress: "0x0000000000000000000000000000000000000000", // relay hub contract address, you can retrieve this from the contract summary.
     relayVerifierAddress: "0x0000000000000000000000000000000000000000", // relay verifier contract address, you can retrieve this from the contract summary.
     deployVerifierAddress: "0x0000000000000000000000000000000000000000", // deploy verifier contract address, you can retrieve this from the contract summary.
-    versionRegistryAddress: "0x0000000000000000000000000000000000000000",
     feesReceiver: "0x0000000000000000000000000000000000000000",
     trustedVerifiers: [],
-    relayHubId: "",
   },
   register: {
     stake: "0.01", // amount of stake to set up
     funds: "0.02", // amount of funds to set up
     mnemonic: "", // mnemonic to use for unlocking the account parameter
     privateKey: "", // private key to retrieve the account address from
-    signer: {}, // Signer object (only when used as a library)
-    hub: "",
+    relayHub: "",
     gasPrice: 60000000,
     unstakeDelay: 1000,
   },

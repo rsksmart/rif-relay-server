@@ -1,9 +1,13 @@
 import config from 'config';
-import type { LogLevelNumbers } from 'loglevel';
 
 import type { KeyManager } from './KeyManager';
 import type { TxStoreManager } from './TxStoreManager';
-import { validateAddress } from './Utils';
+import type { LogLevelNumbers } from 'loglevel';
+import { serverConfigSchema } from './serverConfigParamsUtils';
+import {
+  ERROR_GAS_FEE_PERCENTAGE_NEGATIVE,
+  ERROR_FIXED_USD_FEE_NEGATIVE,
+} from '../src/definitions/errorMessages.const';
 
 type AppConfig = {
   url: string;
@@ -23,11 +27,9 @@ type AppConfig = {
 };
 
 type ContractsConfig = {
-  versionRegistryAddress: string;
   relayHubAddress: string;
   deployVerifierAddress: string;
   relayVerifierAddress: string;
-  relayHubId: string;
   feesReceiver: string;
   trustedVerifiers: string[];
 };
@@ -56,11 +58,22 @@ type BlockchainConfig = {
   versionRegistryDelayPeriod?: number;
 };
 
+type RegisterConfig = {
+  stake: string | number;
+  funds: string | number;
+  mnemonic?: string;
+  privateKey?: string;
+  relayHub?: string;
+  gasPrice: string | number;
+  unstakeDelay: string | number;
+};
+
 // TODO: is there a way to merge the typescript definition ServerConfigParams with the runtime checking ConfigParamTypes ?
 type ServerConfigParams = {
   app: AppConfig;
   contracts: ContractsConfig;
   blockchain: BlockchainConfig;
+  register: RegisterConfig;
 };
 
 interface ServerDependencies {
@@ -70,81 +83,49 @@ interface ServerDependencies {
   txStoreManager: TxStoreManager;
 }
 
-const ERROR_DISABLE_SPONSOR_TX_NOT_CONFIGURED =
-  'The param disableSponsoredTx should be properly configured. Valid values are true or false.';
-const ERROR_GAS_FEE_PERCENTAGE_NEGATIVE =
-  'Param gasFeePercentage can not be a negative value';
-const ERROR_FIXED_USD_FEE_NEGATIVE =
-  'Param fixedUsdFee can not be a negative value';
-
-// resolve params, and validate the resulting struct
 // TODO validate if the relayHub address can be obtain from the versionRegistry
-function verifyServerConfiguration({
-  app,
-  contracts,
-}: ServerConfigParams): void {
-  if (!contracts.relayHubAddress) {
-    throw new Error(
-      'missing param: must have either relayHubAddress or versionRegistryAddress'
-    );
+function verifyServerConfiguration(): void {
+  const validation = serverConfigSchema.validate(config);
+
+  if (validation.error) {
+    throw new Error(`Server configuration error:  ${validation.error.message}`);
   }
-  validateAddress(
-    contracts.relayHubAddress,
-    'invalid param: "relayHubAddress" is not a valid address:'
-  );
 
-  //TODO: validate blockchain.rskNodeUrl is a valid URL (and other properties)
+  //Conditional validations
 
-  if (!app.url) throw new Error('missing param: url');
-  if (!app.port) throw new Error('missing param: port');
-  if (!app.workdir) throw new Error('missing param: workdir');
-
-  const { disableSponsoredTx, gasFeePercentage, fixedUsdFee } = app;
-
-  //disableSponsoredTx should be defined
-  if (![true, false].includes(disableSponsoredTx))
-    throw new Error(ERROR_DISABLE_SPONSOR_TX_NOT_CONFIGURED);
+  const appConfig: AppConfig = config.get('app');
+  const { disableSponsoredTx, gasFeePercentage, fixedUsdFee } = appConfig;
 
   if (disableSponsoredTx) {
     //gasFeePercentage can not be a negative number
-    if (typeof gasFeePercentage == 'number' && gasFeePercentage < 0)
+    if (gasFeePercentage < 0)
       throw new Error(ERROR_GAS_FEE_PERCENTAGE_NEGATIVE);
 
     //fixedUsdFee can not be a negative number
-    if (typeof fixedUsdFee == 'number' && fixedUsdFee < 0)
-      throw new Error(ERROR_FIXED_USD_FEE_NEGATIVE);
+    if (fixedUsdFee < 0) throw new Error(ERROR_FIXED_USD_FEE_NEGATIVE);
   }
 }
 
 function getServerConfig(): ServerConfigParams {
-  if (
-    !(config.has('contracts') && config.has('app') && config.has('blockchain'))
-  ) {
-    throw new Error(
-      'missing configurations for relay server. Please consult your config file in the config folder.'
-    );
-  }
+  verifyServerConfiguration();
 
-  const configuration: ServerConfigParams = {
+  const serverConfig: ServerConfigParams = {
     contracts: config.get('contracts'),
     app: config.get('app'),
     blockchain: config.get('blockchain'),
+    register: config.get('register'),
   };
 
-  verifyServerConfiguration(configuration);
-
-  return configuration;
+  return serverConfig;
 }
 
 export {
   AppConfig,
   ContractsConfig,
   BlockchainConfig,
+  RegisterConfig,
   ServerConfigParams,
   ServerDependencies,
-  ERROR_DISABLE_SPONSOR_TX_NOT_CONFIGURED,
-  ERROR_GAS_FEE_PERCENTAGE_NEGATIVE,
-  ERROR_FIXED_USD_FEE_NEGATIVE,
   verifyServerConfiguration,
   getServerConfig,
 };
