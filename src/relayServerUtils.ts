@@ -1,7 +1,7 @@
 import {
   EnvelopingRequest,
   estimateInternalCallGas,
-  RelayPricer,
+  getExchangeRate,
   EnvelopingTxRequest,
   isDeployTransaction,
   RelayRequestBody,
@@ -105,13 +105,7 @@ async function calculateFixedUsdFee(
   const tokenInstance = ERC20__factory.connect(tokenAddress, provider);
   const tokenSymbol = await tokenInstance.symbol();
 
-  const relayPricer = new RelayPricer();
-  const exchange = relayPricer.findAvailableApi(tokenSymbol);
-  const inverseExchangeRate = await exchange.queryExchangeRate(
-    tokenSymbol,
-    US_DOLLAR_SYMBOL
-  );
-  const exchangeRate = BigNumberJs(1).dividedBy(inverseExchangeRate);
+  const exchangeRate = await getExchangeRate(US_DOLLAR_SYMBOL, tokenSymbol);
 
   let fixedFeeInToken = exchangeRate.multipliedBy(fixedUsdFee);
   fixedFeeInToken = toPrecision({ value: fixedFeeInToken, precision: 18 });

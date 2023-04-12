@@ -4,8 +4,6 @@ import type {
   EnvelopingRequestData,
   RelayRequest,
 } from '@rsksmart/rif-relay-client';
-import { TestExchange, RelayPricer } from '@rsksmart/rif-relay-client';
-
 import { BigNumber, constants, providers } from 'ethers';
 import * as utils from '../../src/Utils';
 import { ERC20__factory, ERC20 } from '@rsksmart/rif-relay-contracts';
@@ -16,6 +14,7 @@ import { TRANSFER_HASH, TRANSFER_FROM_HASH } from '../../src/relayServerUtils';
 import { toPrecision } from '../../src/Conversions';
 import chaiAsPromised from 'chai-as-promised';
 import * as relayServerUtils from '../../src/relayServerUtils';
+import * as relayClient from '@rsksmart/rif-relay-client';
 import type { AppConfig } from 'src';
 
 const ZERO_ADDRESS = constants.AddressZero;
@@ -364,14 +363,9 @@ describe('relayServerUtils tests', function () {
 
       describe('Fixed fee scenarios', function () {
         beforeEach(function () {
-          const stubExchangeApi = sinon.createStubInstance(TestExchange);
-          stubExchangeApi.queryExchangeRate.resolves(
-            BigNumberJs(TOKEN_VALUE_IN_USD)
+          sinon.replaceGetter(relayClient, 'getExchangeRate', () =>
+            sinon.stub().resolves(BigNumberJs(1 / TOKEN_VALUE_IN_USD))
           );
-
-          sinon
-            .stub(RelayPricer.prototype, 'findAvailableApi')
-            .returns(stubExchangeApi);
         });
 
         it('Should charge fixedFee when properly configured', async function () {

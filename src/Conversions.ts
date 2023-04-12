@@ -1,5 +1,5 @@
 import type ExchangeToken from './definitions/token.type';
-import { RelayPricer } from '@rsksmart/rif-relay-client';
+import { getExchangeRate } from '@rsksmart/rif-relay-client';
 import { BigNumber as BigNumberJs } from 'bignumber.js';
 import { BigNumber, constants } from 'ethers';
 import type { BigNumberish } from 'ethers';
@@ -8,8 +8,6 @@ export const TARGET_CURRENCY = 'RBTC';
 
 export const RBTC_CHAIN_DECIMALS = 18; // FIXME: should this be configurable?
 export const MAX_ETH_GAS_BLOCK_SIZE = 30_000_000;
-
-const relayPricer = new RelayPricer();
 
 type BigNumberishJs = BigNumberish | BigNumberJs;
 
@@ -58,13 +56,11 @@ export const toPrecision = ({
  * @param token Token object containing token name
  * @returns BigNumber representation of the exchange rate
  */
-export const getXRateFor = async ({
-  symbol,
-}: ExchangeToken): Promise<string> => {
-  const exchangeRate = await relayPricer.getExchangeRate(
-    symbol,
-    TARGET_CURRENCY
-  );
+export const getXRateFor = async (
+  { symbol }: ExchangeToken,
+  targetCurrency = TARGET_CURRENCY
+): Promise<string> => {
+  const exchangeRate = await getExchangeRate(symbol, targetCurrency);
 
   return exchangeRate.toString();
 };
