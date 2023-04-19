@@ -3,7 +3,7 @@
     url: "https://backend.dev.relay.rifcomputing.net",
     port: 8090,
     devMode: true,
-    logLevel: 1,
+    logLevel: 0,
     gasFeePercentage: "0",
     workdir: "/srv/app/environment"
   },
