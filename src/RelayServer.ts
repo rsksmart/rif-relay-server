@@ -31,8 +31,8 @@ import {
   PopulatedTransaction,
   BigNumber,
   providers,
+  BigNumberish,
 } from 'ethers';
-import { BigNumber as BigNumberJs } from 'bignumber.js';
 import ow from 'ow';
 import {
   deployTransactionRequestShape,
@@ -46,11 +46,12 @@ import {
   sleep,
 } from './Utils';
 import { AmountRequired } from './AmountRequired';
-import { GAS_LIMIT_EXCEEDED } from './definitions/errorMessages.const';
 import {
   EnvelopingTxRequest,
   estimateRelayMaxPossibleGas,
+  isDeployRequest,
   isDeployTransaction,
+  maxPossibleGasVerification,
   RelayRequest,
   setProvider,
   standardMaxPossibleGasEstimation,
@@ -63,8 +64,6 @@ import {
 } from './relayServerUtils';
 
 const VERSION = '2.0.1';
-const INITIAL_FACTOR_TO_TRY = 0.25;
-const LIMIT_MAX_FACTOR_TO_TRY = 2;
 
 type HubInfo = {
   relayWorkerAddress: string;
@@ -377,7 +376,7 @@ export class RelayServer extends EventEmitter {
 
   async getMaxPossibleGas(
     envelopingTransaction: EnvelopingTxRequest
-  ): Promise<BigNumber> {
+  ): Promise<{ maxPossibleGasWithFee: BigNumber; maxPossibleGas: BigNumber }> {
     log.debug(
       `Enveloping transaction: ${JSON.stringify(
         envelopingTransaction,
@@ -406,50 +405,12 @@ export class RelayServer extends EventEmitter {
     );
     log.debug(`Total fees expressed in gas: ${fee.toString()}`);
 
-    return initialGasEstimation.add(fee.toFixed(0).toString());
-  }
-
-  async maxPossibleGasWithViewCall(
-    transaction: PopulatedTransaction,
-    envelopingRequest: EnvelopingTxRequest,
-    maxPossibleGas: BigNumber
-  ): Promise<BigNumber> {
-    log.debug('Relay Server - Request sent to the worker');
-    log.debug('Relay Server - req: ', envelopingRequest);
-    const commonErrorMessage = 'relayCall (local call) reverted in server:';
-    let factor = INITIAL_FACTOR_TO_TRY;
-    let maxPossibleGasAttempt = BigNumberJs(maxPossibleGas.toString());
-    const provider = getProvider();
-    do {
-      try {
-        log.debug(
-          `RelayServer - attempting with gasLimit : ${maxPossibleGasAttempt.toString()}`
-        );
-        await provider.call(
-          {
-            ...transaction,
-            from: this.workerAddress,
-            gasPrice: envelopingRequest.relayRequest.relayData.gasPrice,
-            gasLimit: maxPossibleGasAttempt.toString(),
-          },
-          'pending'
-        );
-
-        return BigNumber.from(maxPossibleGasAttempt.toString());
-      } catch (e) {
-        const error = e as Error;
-        if (!error.message.includes('Not enough gas left')) {
-          throw `${commonErrorMessage} ${error.message}`;
-        }
-        const bigFactor = BigNumberJs(1).plus(factor);
-        maxPossibleGasAttempt = bigFactor
-          .multipliedBy(maxPossibleGas.toString())
-          .dp(0, BigNumberJs.ROUND_DOWN);
-        factor = factor * 2;
-      }
-    } while (factor <= LIMIT_MAX_FACTOR_TO_TRY);
-
-    throw Error(`${commonErrorMessage} ${GAS_LIMIT_EXCEEDED}`);
+    return {
+      maxPossibleGas: initialGasEstimation,
+      maxPossibleGasWithFee: initialGasEstimation.add(
+        fee.toFixed(0).toString()
+      ),
+    };
   }
 
   async estimateMaxPossibleGas(
@@ -527,35 +488,43 @@ export class RelayServer extends EventEmitter {
 
     await validateIfGasAmountIsAcceptable(envelopingTransaction);
 
-    const maxPossibleGas = await this.getMaxPossibleGas(envelopingTransaction);
+    const { maxPossibleGas, maxPossibleGasWithFee } =
+      await this.getMaxPossibleGas(envelopingTransaction);
 
     // Send relayed transaction
     log.debug('maxPossibleGas is', maxPossibleGas.toString());
 
     await validateIfTokenAmountIsAcceptable(
-      maxPossibleGas,
+      maxPossibleGasWithFee,
       envelopingTransaction,
       this.config.app
     );
 
     const relayHub = getRelayHub();
 
-    const method = isDeployTransaction(envelopingTransaction)
-      ? await relayHub.populateTransaction.deployCall(
-          envelopingTransaction.relayRequest,
-          envelopingTransaction.metadata.signature
-        )
+    const {
+      relayRequest,
+      metadata: { signature },
+    } = envelopingTransaction;
+    const {
+      relayData: { gasPrice },
+    } = relayRequest;
+
+    const method = isDeployRequest(relayRequest)
+      ? await relayHub.populateTransaction.deployCall(relayRequest, signature)
       : await relayHub.populateTransaction.relayCall(
-          envelopingTransaction.relayRequest as RelayRequest,
-          envelopingTransaction.metadata.signature
+          relayRequest as RelayRequest,
+          signature
         );
 
     // Call relayCall as a view function to see if we'll get paid for relaying this tx
-    const maxPossibleGasWithViewCall = await this.maxPossibleGasWithViewCall(
-      method,
-      envelopingTransaction,
-      maxPossibleGas
-    );
+    const { maxPossibleGas: maxPossibleGasWithViewCall } =
+      await maxPossibleGasVerification(
+        method,
+        gasPrice as BigNumberish,
+        maxPossibleGas,
+        this.workerAddress
+      );
 
     log.debug(
       'maxPossibleGasWithViewCall is',

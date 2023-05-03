@@ -126,7 +126,7 @@ describe('RelayServer tests', function () {
     it('Should return only the initial estimation when there are no fees configured', async function () {
       sinon.stub(relayServerUtils, 'calculateFee').resolves(BigNumberJs(0));
 
-      const maxPossibleGas = await relayServer.getMaxPossibleGas({
+      const { maxPossibleGasWithFee } = await relayServer.getMaxPossibleGas({
         relayRequest: {
           request: {
             tokenContract: constants.AddressZero,
@@ -137,7 +137,7 @@ describe('RelayServer tests', function () {
         },
       } as EnvelopingTxRequest);
 
-      expect(maxPossibleGas.toString()).to.be.equal(
+      expect(maxPossibleGasWithFee.toString()).to.be.equal(
         FAKE_ESTIMATION_BEFORE_FEES.toString()
       );
     });
@@ -147,7 +147,7 @@ describe('RelayServer tests', function () {
         .stub(relayServerUtils, 'calculateFee')
         .resolves(BigNumberJs(FAKE_FEE_AMOUNT));
 
-      const maxPossibleGas = await relayServer.getMaxPossibleGas({
+      const { maxPossibleGasWithFee } = await relayServer.getMaxPossibleGas({
         relayRequest: {
           request: {
             tokenContract: constants.AddressZero,
@@ -158,7 +158,7 @@ describe('RelayServer tests', function () {
         },
       } as EnvelopingTxRequest);
 
-      expect(maxPossibleGas.toString()).to.eq(
+      expect(maxPossibleGasWithFee.toString()).to.eq(
         BigNumberJs(FAKE_ESTIMATION_BEFORE_FEES)
           .plus(FAKE_FEE_AMOUNT)
           .toString()
@@ -184,7 +184,7 @@ describe('RelayServer tests', function () {
         },
       } as EnvelopingTxRequest);
 
-      const requiredGas = await relayServer.getMaxPossibleGas({
+      const { maxPossibleGasWithFee } = await relayServer.getMaxPossibleGas({
         relayRequest: {
           request: {
             tokenContract: constants.AddressZero,
@@ -196,7 +196,7 @@ describe('RelayServer tests', function () {
       } as EnvelopingTxRequest);
 
       expect(estimatedGas.estimation.toString()).to.be.eq(
-        requiredGas.toString()
+        maxPossibleGasWithFee.toString()
       );
     });
   });
