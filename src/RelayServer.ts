@@ -418,6 +418,32 @@ export class RelayServer extends EventEmitter {
     };
   }
 
+  async maxPossibleGasWithViewCall(
+    transaction: PopulatedTransaction,
+    envelopingRequest: EnvelopingTxRequest,
+    gasLimit: BigNumber
+  ): Promise<BigNumber> {
+    log.debug('Relay Server - Request sent to the worker');
+    log.debug('Relay Server - req: ', envelopingRequest);
+
+    const {
+      relayRequest: {
+        relayData: { gasPrice },
+      },
+    } = envelopingRequest;
+
+    log.debug('RelayServer - attempting to relay transaction');
+
+    const { maxPossibleGas } = await maxPossibleGasVerification(
+      transaction,
+      gasPrice as BigNumberish,
+      gasLimit,
+      this.workerAddress
+    );
+
+    return maxPossibleGas;
+  }
+
   async estimateMaxPossibleGas(
     envelopingRequest: EnvelopingTxRequest
   ): Promise<RelayEstimation> {
@@ -511,9 +537,6 @@ export class RelayServer extends EventEmitter {
       relayRequest,
       metadata: { signature },
     } = envelopingTransaction;
-    const {
-      relayData: { gasPrice },
-    } = relayRequest;
 
     const method = isDeployRequest(relayRequest)
       ? await relayHub.populateTransaction.deployCall(relayRequest, signature)
@@ -523,13 +546,11 @@ export class RelayServer extends EventEmitter {
         );
 
     // Call relayCall as a view function to see if we'll get paid for relaying this tx
-    const { maxPossibleGas: maxPossibleGasWithViewCall } =
-      await maxPossibleGasVerification(
-        method,
-        gasPrice as BigNumberish,
-        maxPossibleGas,
-        this.workerAddress
-      );
+    const maxPossibleGasWithViewCall = await this.maxPossibleGasWithViewCall(
+      method,
+      envelopingTransaction,
+      maxPossibleGas
+    );
 
     log.debug(
       'maxPossibleGasWithViewCall is',
