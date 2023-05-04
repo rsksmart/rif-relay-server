@@ -58,7 +58,7 @@ describe('RelayServer tests', function () {
   });
 
   describe('Function estimateMaxPossibleGas()', function () {
-    it('Should return only the initial estimation when there are no aditional fees', async function () {
+    it('should return only the initial estimation when there are no aditional fees', async function () {
       sinon.stub(relayServerUtils, 'calculateFee').resolves(BigNumberJs(0));
 
       const maxPossibleGasEstimation = await relayServer.estimateMaxPossibleGas(
@@ -90,7 +90,7 @@ describe('RelayServer tests', function () {
       expect(maxPossibleGasEstimation).to.deep.eq(expectedEstimation);
     });
 
-    it('Should return the initial estimation + fees when there are fees', async function () {
+    it('should return the initial estimation + fees when there are fees', async function () {
       sinon
         .stub(relayServerUtils, 'calculateFee')
         .resolves(BigNumberJs(FAKE_FEE_AMOUNT));
@@ -123,10 +123,10 @@ describe('RelayServer tests', function () {
         .resolves();
     });
 
-    it('Should return only the initial estimation when there are no fees configured', async function () {
+    it('should return only the initial estimation when there are no fees configured', async function () {
       sinon.stub(relayServerUtils, 'calculateFee').resolves(BigNumberJs(0));
 
-      const maxPossibleGas = await relayServer.getMaxPossibleGas({
+      const { maxPossibleGasWithFee } = await relayServer.getMaxPossibleGas({
         relayRequest: {
           request: {
             tokenContract: constants.AddressZero,
@@ -137,17 +137,17 @@ describe('RelayServer tests', function () {
         },
       } as EnvelopingTxRequest);
 
-      expect(maxPossibleGas.toString()).to.be.equal(
+      expect(maxPossibleGasWithFee.toString()).to.be.equal(
         FAKE_ESTIMATION_BEFORE_FEES.toString()
       );
     });
 
-    it('Should return the initial estimation + fees when there are fees', async function () {
+    it('should return the initial estimation + fees when there are fees', async function () {
       sinon
         .stub(relayServerUtils, 'calculateFee')
         .resolves(BigNumberJs(FAKE_FEE_AMOUNT));
 
-      const maxPossibleGas = await relayServer.getMaxPossibleGas({
+      const { maxPossibleGasWithFee } = await relayServer.getMaxPossibleGas({
         relayRequest: {
           request: {
             tokenContract: constants.AddressZero,
@@ -158,7 +158,7 @@ describe('RelayServer tests', function () {
         },
       } as EnvelopingTxRequest);
 
-      expect(maxPossibleGas.toString()).to.eq(
+      expect(maxPossibleGasWithFee.toString()).to.eq(
         BigNumberJs(FAKE_ESTIMATION_BEFORE_FEES)
           .plus(FAKE_FEE_AMOUNT)
           .toString()
@@ -184,7 +184,7 @@ describe('RelayServer tests', function () {
         },
       } as EnvelopingTxRequest);
 
-      const requiredGas = await relayServer.getMaxPossibleGas({
+      const { maxPossibleGasWithFee } = await relayServer.getMaxPossibleGas({
         relayRequest: {
           request: {
             tokenContract: constants.AddressZero,
@@ -196,7 +196,7 @@ describe('RelayServer tests', function () {
       } as EnvelopingTxRequest);
 
       expect(estimatedGas.estimation.toString()).to.be.eq(
-        requiredGas.toString()
+        maxPossibleGasWithFee.toString()
       );
     });
   });
