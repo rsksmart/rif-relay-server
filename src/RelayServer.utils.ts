@@ -4,8 +4,9 @@ export function secondsToDate(dateInSeconds: number) {
 
 export const expiredTimeErrorMessage = (
     requestExpirationDate: Date,
-    minimumAcceptableDate: Date) => 
-        `Request expired (or too close): expiration date received "${requestExpirationDate.toUTCString()}" is expected to be greater than or equal to "${minimumAcceptableDate.toUTCString()}"`
+    minimumAcceptableDate: Date
+) =>
+    `Request expired (or too close): expiration date received "${requestExpirationDate.toUTCString()}" is expected to be greater than or equal to "${minimumAcceptableDate.toUTCString()}"`;
 
 export async function validateExpirationTime(
     validUntilTime: string,

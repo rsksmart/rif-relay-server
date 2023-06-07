@@ -44,7 +44,10 @@ import {
     INSUFFICIENT_TOKEN_AMOUNT
 } from '../../src/definitions/errorMessages.const';
 import ExchangeToken from '../../src/definitions/token.type';
-import { expiredTimeErrorMessage, secondsToDate } from '../../src/RelayServer.utils';
+import {
+    expiredTimeErrorMessage,
+    secondsToDate
+} from '../../src/RelayServer.utils';
 
 use(sinonChai);
 use(chaiAsPromised);
@@ -348,7 +351,9 @@ describe('RelayServer', () => {
                 address: fakeRelayHubAddress
             } as IRelayHubInstance;
 
-            await expect(server.validateInput(fakeRelayTransactionRequest)).to.be.rejectedWith(
+            await expect(
+                server.validateInput(fakeRelayTransactionRequest)
+            ).to.be.rejectedWith(
                 `Wrong fees receiver address: ${fakeFeesReceiverAddress}\n`
             );
         });
@@ -369,19 +374,31 @@ describe('RelayServer', () => {
             server.relayHubContract = {
                 address: fakeRelayHubAddress
             } as IRelayHubInstance;
-            fakeRelayTransactionRequest.relayRequest.request.validUntilTime = (Math.round(now / 1000) - 1).toString();
-            
-            const expirationDate = secondsToDate(
-                parseInt(fakeRelayTransactionRequest.relayRequest.request.validUntilTime));
-            const minimumAcceptableDate =  secondsToDate(
-                (Math.round(Date.now() / 1000) + requestMinValidSecondsConfig)
-            );
-            console.log(expirationDate.toUTCString(), minimumAcceptableDate.toUTCString());
-            const expectedError = expiredTimeErrorMessage(expirationDate, minimumAcceptableDate);
+            fakeRelayTransactionRequest.relayRequest.request.validUntilTime = (
+                Math.round(now / 1000) - 1
+            ).toString();
 
-            await expect(server.validateInput(fakeRelayTransactionRequest)).to.be.rejectedWith(
-                expectedError
+            const expirationDate = secondsToDate(
+                parseInt(
+                    fakeRelayTransactionRequest.relayRequest.request
+                        .validUntilTime
+                )
             );
+            const minimumAcceptableDate = secondsToDate(
+                Math.round(Date.now() / 1000) + requestMinValidSecondsConfig
+            );
+            console.log(
+                expirationDate.toUTCString(),
+                minimumAcceptableDate.toUTCString()
+            );
+            const expectedError = expiredTimeErrorMessage(
+                expirationDate,
+                minimumAcceptableDate
+            );
+
+            await expect(
+                server.validateInput(fakeRelayTransactionRequest)
+            ).to.be.rejectedWith(expectedError);
             clock.restore();
         });
 
@@ -401,19 +418,28 @@ describe('RelayServer', () => {
             server.relayHubContract = {
                 address: fakeRelayHubAddress
             } as IRelayHubInstance;
-            fakeRelayTransactionRequest.relayRequest.request.validUntilTime = (Math.round(now / 1000) + (requestMinValidSecondsConfig - 1)).toString();
+            fakeRelayTransactionRequest.relayRequest.request.validUntilTime = (
+                Math.round(now / 1000) +
+                (requestMinValidSecondsConfig - 1)
+            ).toString();
 
-            
             const expirationDate = secondsToDate(
-                parseInt(fakeRelayTransactionRequest.relayRequest.request.validUntilTime));
-            const minimumAcceptableDate =  secondsToDate(
-                (Math.round(Date.now() / 1000) + requestMinValidSecondsConfig)
+                parseInt(
+                    fakeRelayTransactionRequest.relayRequest.request
+                        .validUntilTime
+                )
             );
-            const expectedError = expiredTimeErrorMessage(expirationDate, minimumAcceptableDate);
+            const minimumAcceptableDate = secondsToDate(
+                Math.round(Date.now() / 1000) + requestMinValidSecondsConfig
+            );
+            const expectedError = expiredTimeErrorMessage(
+                expirationDate,
+                minimumAcceptableDate
+            );
 
-            await expect(server.validateInput(fakeRelayTransactionRequest)).to.be.rejectedWith(
-                expectedError
-            );
+            await expect(
+                server.validateInput(fakeRelayTransactionRequest)
+            ).to.be.rejectedWith(expectedError);
             clock.restore();
         });
 
@@ -433,9 +459,12 @@ describe('RelayServer', () => {
             server.relayHubContract = {
                 address: fakeRelayHubAddress
             } as IRelayHubInstance;
-            fakeRelayTransactionRequest.relayRequest.request.validUntilTime = (Math.round(now / 1000) + 60).toString();
+            fakeRelayTransactionRequest.relayRequest.request.validUntilTime = (
+                Math.round(now / 1000) + 60
+            ).toString();
 
-            await expect(server.validateInput(fakeRelayTransactionRequest)).not.to.be.rejected;
+            await expect(server.validateInput(fakeRelayTransactionRequest)).not
+                .to.be.rejected;
             clock.restore();
         });
     });
