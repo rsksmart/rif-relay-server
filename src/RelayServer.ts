@@ -61,6 +61,7 @@ import {
   validateIfTokenAmountIsAcceptable,
   convertGasToTokenAndNative,
   calculateFee,
+  validateExpirationTime,
 } from './relayServerUtils';
 
 const VERSION = '2.0.1';
@@ -251,7 +252,7 @@ export class RelayServer extends EventEmitter {
     }
   }
 
-  validateInput(envelopingRequest: EnvelopingTxRequest): void {
+  async validateInput(envelopingRequest: EnvelopingTxRequest): Promise<void> {
     const { metadata, relayRequest } = envelopingRequest;
 
     const {
@@ -286,19 +287,10 @@ export class RelayServer extends EventEmitter {
     }
 
     // validate the validUntil is not too close
-    const secondsNow = Math.round(Date.now() / 1000);
-    const expiredInSeconds =
-      parseInt(relayRequest.request.validUntilTime.toString()) - secondsNow;
-    if (expiredInSeconds < requestMinValidSeconds) {
-      const expirationDate = new Date(
-        parseInt(relayRequest.request.validUntilTime.toString()) * 1000
-      );
-      throw new Error(
-        `Request expired (or too close): expired at (${expirationDate.toUTCString()}), we expect it to be valid until ${new Date(
-          secondsNow + requestMinValidSeconds
-        ).toUTCString()} `
-      );
-    }
+    await validateExpirationTime(
+      relayRequest.request.validUntilTime,
+      requestMinValidSeconds
+    );
   }
 
   validateVerifier(envelopingRequest: EnvelopingTxRequest): void {
@@ -510,7 +502,7 @@ export class RelayServer extends EventEmitter {
       log.error('Alerted state: slowing down traffic');
       await sleep(randomInRange(minAlertedDelayMS, maxAlertedDelayMS));
     }
-    this.validateInput(envelopingTransaction);
+    await this.validateInput(envelopingTransaction);
     await this.validateMaxNonce(
       envelopingTransaction.metadata.relayMaxNonce.toString()
     );

@@ -10,7 +10,11 @@ import { ERC20__factory, ERC20 } from '@rsksmart/rif-relay-contracts';
 import { expect, use } from 'chai';
 import * as Conversions from '../../src/Conversions';
 import { BigNumber as BigNumberJs } from 'bignumber.js';
-import { TRANSFER_HASH, TRANSFER_FROM_HASH } from '../../src/relayServerUtils';
+import {
+  TRANSFER_HASH,
+  TRANSFER_FROM_HASH,
+  validateExpirationTime,
+} from '../../src/relayServerUtils';
 import { toPrecision } from '../../src/Conversions';
 import chaiAsPromised from 'chai-as-promised';
 import * as relayServerUtils from '../../src/relayServerUtils';
@@ -437,6 +441,37 @@ describe('relayServerUtils tests', function () {
           );
         });
       });
+    });
+  });
+
+  describe('Function validateExpirationTime()', function () {
+    const MINIMUM_ACCEPTABLE_TIME = 1000;
+
+    it('should throw an error if the time is expired', async function () {
+      const nowInSeconds = Math.round(Date.now() / 1000);
+      const threeSecondsBefore = nowInSeconds - 3;
+
+      await expect(
+        validateExpirationTime(threeSecondsBefore, MINIMUM_ACCEPTABLE_TIME)
+      ).to.be.rejectedWith('Request expired (or too close)');
+    });
+
+    it('should throw an error if the time is about to expire', async function () {
+      const nowInSeconds = Math.round(Date.now() / 1000);
+      const threeSecondsBefore = nowInSeconds + (MINIMUM_ACCEPTABLE_TIME - 1);
+
+      await expect(
+        validateExpirationTime(threeSecondsBefore, MINIMUM_ACCEPTABLE_TIME)
+      ).to.be.rejectedWith('Request expired (or too close)');
+    });
+
+    it('should not throw an error if the time is greater than the minimum acceptable time', async function () {
+      const nowInSeconds = Math.round(Date.now() / 1000);
+      const threeSecondsBefore = nowInSeconds + MINIMUM_ACCEPTABLE_TIME;
+
+      await expect(
+        validateExpirationTime(threeSecondsBefore, MINIMUM_ACCEPTABLE_TIME)
+      ).not.to.be.rejected;
     });
   });
 });
