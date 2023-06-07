@@ -59,6 +59,7 @@ import {
 } from './TransactionManager';
 import { TxStoreManager } from './TxStoreManager';
 import Timeout = NodeJS.Timeout;
+import { validateExpirationTime } from './RelayServer.utils';
 
 const VERSION = '2.0.1';
 const INITIAL_FACTOR_TO_TRY = 0.25;
@@ -228,9 +229,9 @@ export class RelayServer extends EventEmitter {
         }
     }
 
-    validateInput(
+    async validateInput(
         req: RelayTransactionRequest | DeployTransactionRequest
-    ): void {
+    ): Promise<void> {
         // Check that the relayHub is the correct one
         if (
             req.metadata.relayHubAddress.toLowerCase() !==
@@ -259,19 +260,10 @@ export class RelayServer extends EventEmitter {
         }
 
         // validate the validUntil is not too close
-        const secondsNow = Math.round(Date.now() / 1000);
-        const expiredInSeconds =
-            parseInt(req.relayRequest.request.validUntilTime) - secondsNow;
-        if (expiredInSeconds < this.config.requestMinValidSeconds) {
-            const expirationDate = new Date(
-                parseInt(req.relayRequest.request.validUntilTime) * 1000
-            );
-            throw new Error(
-                `Request expired (or too close): expired at (${expirationDate.toUTCString()}), we expect it to be valid until ${new Date(
-                    secondsNow + this.config.requestMinValidSeconds
-                ).toUTCString()} `
-            );
-        }
+        await validateExpirationTime(
+            req.relayRequest.request.validUntilTime,
+            this.config.requestMinValidSeconds
+        );
     }
 
     validateVerifier(
@@ -626,7 +618,7 @@ export class RelayServer extends EventEmitter {
                 )
             );
         }
-        this.validateInput(req);
+        await this.validateInput(req);
         await this.validateMaxNonce(req.metadata.relayMaxNonce);
 
         const { maxPossibleGas } = await this.validateRequestWithVerifier(req);

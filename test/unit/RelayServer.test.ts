@@ -24,7 +24,8 @@ import {
     stub,
     restore,
     replace,
-    fake
+    fake,
+    useFakeTimers
 } from 'sinon';
 import sinonChai from 'sinon-chai';
 import { stubInterface } from 'ts-sinon';
@@ -43,6 +44,7 @@ import {
     INSUFFICIENT_TOKEN_AMOUNT
 } from '../../src/definitions/errorMessages.const';
 import ExchangeToken from '../../src/definitions/token.type';
+import { expiredTimeErrorMessage, secondsToDate } from '../../src/RelayServer.utils';
 
 use(sinonChai);
 use(chaiAsPromised);
@@ -335,7 +337,7 @@ describe('RelayServer', () => {
             } as RelayMetadata
         };
 
-        it('should throw error if feesReceiver on request is not the same as server', () => {
+        it('should throw error if feesReceiver on request is not the same as server', async () => {
             const server = new RelayServer(
                 {
                     feesReceiver: 'fake_different_relay_hub_address'
@@ -346,29 +348,95 @@ describe('RelayServer', () => {
                 address: fakeRelayHubAddress
             } as IRelayHubInstance;
 
-            expect(() =>
-                server.validateInput(fakeRelayTransactionRequest)
-            ).to.throw(
+            await expect(server.validateInput(fakeRelayTransactionRequest)).to.be.rejectedWith(
                 `Wrong fees receiver address: ${fakeFeesReceiverAddress}\n`
             );
         });
 
-        it('should throw error if request is expired', () => {
+        it('should throw error if request is expired', async () => {
+            // we call `useFakeTimers` to be sure the error message is the same
+            const now = Date.now();
+            const clock = useFakeTimers(now);
+
+            const requestMinValidSecondsConfig = 0;
             const server = new RelayServer(
                 {
-                    requestMinValidSeconds: 0
+                    requestMinValidSeconds: requestMinValidSecondsConfig,
+                    feesReceiver: fakeFeesReceiverAddress
                 },
                 mockDependencies
             );
             server.relayHubContract = {
                 address: fakeRelayHubAddress
             } as IRelayHubInstance;
-
-            expect(() =>
-                server.validateInput(fakeRelayTransactionRequest)
-            ).to.throw(
-                `Wrong fees receiver address: ${fakeFeesReceiverAddress}\n`
+            fakeRelayTransactionRequest.relayRequest.request.validUntilTime = (Math.round(now / 1000) - 1).toString();
+            
+            const expirationDate = secondsToDate(
+                parseInt(fakeRelayTransactionRequest.relayRequest.request.validUntilTime));
+            const minimumAcceptableDate =  secondsToDate(
+                (Math.round(Date.now() / 1000) + requestMinValidSecondsConfig)
             );
+            console.log(expirationDate.toUTCString(), minimumAcceptableDate.toUTCString());
+            const expectedError = expiredTimeErrorMessage(expirationDate, minimumAcceptableDate);
+
+            await expect(server.validateInput(fakeRelayTransactionRequest)).to.be.rejectedWith(
+                expectedError
+            );
+            clock.restore();
+        });
+
+        it('should throw error if request is about to expire', async () => {
+            // we call `useFakeTimers` to be sure the error message is the same
+            const now = Date.now();
+            const clock = useFakeTimers(now);
+
+            const requestMinValidSecondsConfig = 60;
+            const server = new RelayServer(
+                {
+                    requestMinValidSeconds: requestMinValidSecondsConfig,
+                    feesReceiver: fakeFeesReceiverAddress
+                },
+                mockDependencies
+            );
+            server.relayHubContract = {
+                address: fakeRelayHubAddress
+            } as IRelayHubInstance;
+            fakeRelayTransactionRequest.relayRequest.request.validUntilTime = (Math.round(now / 1000) + (requestMinValidSecondsConfig - 1)).toString();
+
+            
+            const expirationDate = secondsToDate(
+                parseInt(fakeRelayTransactionRequest.relayRequest.request.validUntilTime));
+            const minimumAcceptableDate =  secondsToDate(
+                (Math.round(Date.now() / 1000) + requestMinValidSecondsConfig)
+            );
+            const expectedError = expiredTimeErrorMessage(expirationDate, minimumAcceptableDate);
+
+            await expect(server.validateInput(fakeRelayTransactionRequest)).to.be.rejectedWith(
+                expectedError
+            );
+            clock.restore();
+        });
+
+        it('should not throw error if request is not expired', async () => {
+            // we call `useFakeTimers` to be sure the error message is the same
+            const now = Date.now();
+            const clock = useFakeTimers(now);
+
+            const requestMinValidSecondsConfig = 60;
+            const server = new RelayServer(
+                {
+                    requestMinValidSeconds: requestMinValidSecondsConfig,
+                    feesReceiver: fakeFeesReceiverAddress
+                },
+                mockDependencies
+            );
+            server.relayHubContract = {
+                address: fakeRelayHubAddress
+            } as IRelayHubInstance;
+            fakeRelayTransactionRequest.relayRequest.request.validUntilTime = (Math.round(now / 1000) + 60).toString();
+
+            await expect(server.validateInput(fakeRelayTransactionRequest)).not.to.be.rejected;
+            clock.restore();
         });
     });
 
