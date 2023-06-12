@@ -1,6 +1,6 @@
 {
   "name": "rif-relay-server",
-  "version": "1.0.0-alpha.4",
+  "version": "1.0.1",
   "description": "This project contains all the server code for the rif relay system.",
   "main": "dist/index.js",
   "scripts": {
