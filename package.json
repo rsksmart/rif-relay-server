@@ -1,6 +1,6 @@
 {
   "name": "rif-relay-server",
-  "version": "2.0.0-beta.0",
+  "version": "2.0.0",
   "private": false,
   "description": "This project contains all the server code for the rif relay system.",
   "license": "MIT",
