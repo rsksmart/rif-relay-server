@@ -35,8 +35,8 @@ This project works as a dependency as well as a stand-alone project.
 
 - Node version 16.x
 - RSKj Running Node.
-  - **Note: To work properly with this server in Regtest, please use the RSKj configuration that can be found [here](https://github.com/rsksmart/rif-relay/blob/master/rsknode/node.conf).**
-- [RIF Relay Contracts](https://github.com/anarancio/rif-relay-contracts) deployed
+  - **Note: To work properly with this server in Regtest, please use the RSKj configuration that can be found [here](https://github.com/rsksmart/rif-relay/blob/develop/docker/node.conf).**
+- [RIF Relay Contracts](https://github.com/rsksmart/rif-relay-contracts) deployed
 
 ### Dependencies
 
