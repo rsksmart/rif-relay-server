@@ -40,7 +40,7 @@ export class KeyManager {
           ) as keystore;
           genseed = seedObject.seed;
         } else {
-          genseed = Wallet.createRandom().privateKey;
+          genseed = this.generateRandomSeed();
           fs.writeFileSync(keyStorePath, JSON.stringify({ seed: genseed }), {
             flag: 'w',
           });
@@ -56,7 +56,7 @@ export class KeyManager {
     } else {
       // no workdir: working in-memory
       if (seed == null) {
-        seed = Wallet.createRandom().privateKey;
+        seed = this.generateRandomSeed();
       }
       this._hdkey = utils.HDNode.fromSeed(seed ?? Buffer.from(''));
     }
@@ -64,7 +64,11 @@ export class KeyManager {
     this.generateKeys(count);
   }
 
-  generateKeys(count: number): void {
+  private generateRandomSeed() {
+    return Buffer.from(utils.randomBytes(16).buffer).toString('hex');
+  }
+
+  private generateKeys(count: number): void {
     this._privateKeys = {};
     this._nonces = {};
     for (let index = 0; index < count; index++) {
