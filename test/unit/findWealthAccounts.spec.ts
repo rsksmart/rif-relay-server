@@ -11,7 +11,7 @@ use(chaiAsPromised);
 const TESTNET_CHAIN_ID = 31;
 const MAINNET_CHAIN_ID = 30;
 
-describe.only('findWealthAccounts', function () {
+describe('findWealthAccounts', function () {
   const expectedSigner = {
     getAddress: () => '0x123abc',
     getBalance: () => Promise.resolve(utils.parseUnits('2', 'ether')),
@@ -45,11 +45,12 @@ describe.only('findWealthAccounts', function () {
     await expectFindWealthyAccountToFail(MAINNET_CHAIN_ID);
   });
 
-  it('should raise an error if no accounts are found with enough balance', async function() {
+  it('should raise an error if no accounts are found with enough balance', async function () {
     const mockRpcProvider = getMockedProvider(REGTEST_CHAIN_ID);
-    await expect(findWealthyAccount(mockRpcProvider, utils.parseUnits('3', 'ether'))).to.rejectedWith(
+    await expect(
+      findWealthyAccount(mockRpcProvider, utils.parseUnits('3', 'ether'))
+    ).to.rejectedWith(
       'could not find unlocked account with sufficient balance;'
     );
-  })
-
+  });
 });
