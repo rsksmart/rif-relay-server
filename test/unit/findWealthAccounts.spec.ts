@@ -37,11 +37,11 @@ describe('findWealthAccounts', function () {
     expect(account).to.be.eq(expectedSigner);
   });
 
-  it('should raise an error if it is not used on Testnet', async function () {
+  it('should raise an error if it is used on Testnet', async function () {
     await expectFindWealthyAccountToFail(TESTNET_CHAIN_ID);
   });
 
-  it('should raise an error if it is not used on Mainnet', async function () {
+  it('should raise an error if it is used on Mainnet', async function () {
     await expectFindWealthyAccountToFail(MAINNET_CHAIN_ID);
   });
 
