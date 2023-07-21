@@ -152,9 +152,10 @@ export class RelayServer extends EventEmitter {
     const {
       app: { customReplenish },
       contracts: { feesReceiver },
-      blockchain: { workerMinBalance },
+      blockchain: { workerMinBalance, initialBlockToScan },
     } = this.config;
     setProvider(getProvider());
+    this._lastScannedBlock = initialBlockToScan;
     this.txStoreManager = dependencies.txStoreManager;
     this.transactionManager = new TransactionManager(dependencies);
     this.managerAddress =
@@ -694,6 +695,7 @@ export class RelayServer extends EventEmitter {
     log.debug('Relay Server - Transaction Manager initialized');
     const {
       contracts: { relayHubAddress, trustedVerifiers },
+      blockchain: { initialBlockToScan },
     } = this.config;
     this._initTrustedVerifiers(trustedVerifiers);
     log.debug(`Relay Server - Relay hub: ${relayHubAddress}`);
@@ -709,7 +711,7 @@ export class RelayServer extends EventEmitter {
       this.managerAddress,
       this.workerAddress
     );
-    await this.registrationManager.init();
+    await this.registrationManager.init(initialBlockToScan);
     log.debug('Relay Server - Registration manager initialized');
 
     const provider = getProvider() as providers.JsonRpcProvider;
@@ -789,6 +791,8 @@ latestBlock timestamp   | ${latestBlock.timestamp}
 
   async _handleChanges(currentBlockNumber: number): Promise<string[]> {
     let transactionHashes: string[] = [];
+    // TODO: we get all the events since last scan looking for
+    // (RelayServerRegistered,RelayWorkersAdded,TransactionRelayed,TransactionRelayedButRevertedByRecipient)
     const hubEventsSinceLastScan = await this.getAllHubEventsSinceLastScan();
     await this._updateLatestTxBlockNumber(hubEventsSinceLastScan);
     const shouldRegisterAgain = await this._shouldRegisterAgain(
@@ -796,6 +800,8 @@ latestBlock timestamp   | ${latestBlock.timestamp}
       hubEventsSinceLastScan
     );
     transactionHashes = transactionHashes.concat(
+      // TODO: we get all the events since last scan looking for
+      // (StakeAdded, StakeUnlocked, StakeWithdrawn)
       await this.registrationManager.handlePastEvents(
         hubEventsSinceLastScan,
         this._lastScannedBlock,
@@ -976,10 +982,13 @@ latestBlock timestamp   | ${latestBlock.timestamp}
   }
 
   async _queryLatestActiveEvent(): Promise<TypedEvent | undefined> {
+    const {
+      blockchain: { initialBlockToScan },
+    } = this.config;
     const events: Array<TypedEvent> = await getPastEventsForHub(
       [this.managerAddress],
       {
-        fromBlock: 1,
+        fromBlock: initialBlockToScan,
       }
     );
 

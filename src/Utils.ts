@@ -16,6 +16,7 @@ import type {
 } from './definitions/event.type';
 import { getServerConfig } from './ServerConfigParams';
 import { getAddress } from 'ethers/lib/utils';
+import log from 'loglevel';
 
 const DEFAULT_MANAGER_EVENTS: DefaultManagerEvent[] = [
   'RelayServerRegistered',
@@ -67,7 +68,14 @@ export async function getPastEventsForHub(
   { fromBlock, toBlock }: PastEventOptions,
   names: ManagerEvent[] = DEFAULT_MANAGER_EVENTS
 ): Promise<Array<TypedEvent>> {
+  // TODO: We need to change this method to handle timeout exceptions
   const relayHub = getRelayHub();
+
+  log.trace(
+    `getPastEventsForHub: [${fromBlock || 'undefined'}, ${
+      toBlock || 'undefined'
+    }], (${names.join(',')})`
+  );
 
   const eventFilters = await Promise.all(
     names.map((name) => {

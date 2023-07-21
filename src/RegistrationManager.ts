@@ -121,10 +121,10 @@ export class RegistrationManager {
     this._txStoreManager = txStoreManager;
   }
 
-  async init(): Promise<void> {
+  async init(initialBlockToScan = 1): Promise<void> {
     if (this._lastWorkerAddedTransaction == null) {
       this._lastWorkerAddedTransaction =
-        await this._queryLatestWorkerAddedEvent();
+        await this._queryLatestWorkerAddedEvent(initialBlockToScan);
     }
 
     this._isInitialized = true;
@@ -503,13 +503,13 @@ export class RegistrationManager {
     return transactionHashes;
   }
 
-  private async _queryLatestWorkerAddedEvent(): Promise<
-    TypedEvent | undefined
-  > {
+  private async _queryLatestWorkerAddedEvent(
+    initialBlockToScan: number
+  ): Promise<TypedEvent | undefined> {
     const workersAddedEvents = await getPastEventsForHub(
       [this._managerAddress],
       {
-        fromBlock: 1,
+        fromBlock: initialBlockToScan,
       },
       ['RelayWorkersAdded']
     );

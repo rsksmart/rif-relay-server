@@ -56,6 +56,7 @@ type BlockchainConfig = {
   defaultGasLimit: string | number;
   estimateGasFactor: number;
   versionRegistryDelayPeriod?: number;
+  initialBlockToScan: number;
 };
 
 type RegisterConfig = {
