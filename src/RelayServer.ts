@@ -935,7 +935,7 @@ latestBlock timestamp   | ${latestBlock.timestamp}
       fromBlock: this._lastScannedBlock + 1,
       toBlock: 'latest',
     };
-    const events = await getPastEventsForHub([this.managerAddress], options);
+    const events = await getPastEventsForHub(this.managerAddress, options);
     if (events.length !== 0) {
       log.debug(`Found ${events.length} events since last scan`);
     }
@@ -986,7 +986,7 @@ latestBlock timestamp   | ${latestBlock.timestamp}
       blockchain: { initialBlockToScan },
     } = this.config;
     const events: Array<TypedEvent> = await getPastEventsForHub(
-      [this.managerAddress],
+      this.managerAddress,
       {
         fromBlock: initialBlockToScan,
       }

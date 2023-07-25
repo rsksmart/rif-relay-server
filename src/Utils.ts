@@ -11,11 +11,10 @@ import {
 import type {
   DefaultManagerEvent,
   ManagerEvent,
-  ManagerEventParameters,
   PastEventOptions,
 } from './definitions/event.type';
 import { getServerConfig } from './ServerConfigParams';
-import { getAddress } from 'ethers/lib/utils';
+import { BytesLike, deepCopy, getAddress } from 'ethers/lib/utils';
 import log from 'loglevel';
 
 const DEFAULT_MANAGER_EVENTS: DefaultManagerEvent[] = [
@@ -29,6 +28,8 @@ const CONFIG_CONTRACTS = 'contracts';
 const CONFIG_BLOCKCHAIN = 'blockchain';
 const CONFIG_RELAY_HUB_ADDRESS = 'relayHubAddress';
 const CONFIG_RSK_URL = 'rskNodeUrl';
+// TODO: do we want to configure this param?
+const MAX_BLOCK_RANGE_LENGTH = 1000;
 
 const getConfiguredRelayHubAddress = () =>
   config.get<string>(`${CONFIG_CONTRACTS}.${CONFIG_RELAY_HUB_ADDRESS}`);
@@ -63,8 +64,97 @@ export function boolString(bool: boolean): string {
   return bool ? chalk.green('good'.padEnd(14)) : chalk.red('wrong'.padEnd(14));
 }
 
+const logToEvent = (
+  log: providers.Log,
+  relayHub = getRelayHub(),
+  provider = getProvider()
+) => {
+  const event = <TypedEvent>deepCopy(log);
+  event.removeListener = () => {
+    return;
+  };
+  event.getBlock = () => provider.getBlock(log.blockHash);
+  event.getTransaction = () => provider.getTransaction(log.transactionHash);
+  event.getTransactionReceipt = () =>
+    provider.getTransactionReceipt(log.transactionHash);
+
+  const parsedLog = relayHub.interface.parseLog(log);
+  event.event = parsedLog.name;
+  event.eventSignature = parsedLog.signature;
+  event.decode = (data: BytesLike, topics?: Array<string>) =>
+    relayHub.interface.decodeEventLog(parsedLog.eventFragment, data, topics);
+  event.args = parsedLog.args;
+  // decodeError is missing here
+
+  return event;
+};
+
 export async function getPastEventsForHub(
-  parameters: ManagerEventParameters,
+  managerAddress: string,
+  { fromBlock, toBlock }: PastEventOptions,
+  names: ManagerEvent[] = DEFAULT_MANAGER_EVENTS
+): Promise<Array<TypedEvent>> {
+  const relayHub = getRelayHub();
+
+  log.debug(
+    `getPastEventsForHub: [${fromBlock || 'undefined'}, ${
+      toBlock || 'undefined'
+    }], (${names.join(',')})`
+  );
+
+  const provider = getProvider();
+
+  const filterTopics = names.map((name) =>
+    relayHub.interface.encodeFilterTopics(name, [managerAddress])
+  );
+  const encodedManagerAddress = relayHub.interface._abiCoder.encode(
+    ['address'],
+    [managerAddress]
+  );
+  const topicZero = filterTopics.map((topic) => topic[0] as string);
+  const topics = [topicZero, [encodedManagerAddress]];
+  log.debug(`getPastEventsForHub - topics`, topics);
+
+  // TODO: We need to change this method to handle timeout exceptions
+  const fromBlockNumber = fromBlock || 1;
+  let toBlockNumber = 0;
+  if ( toBlock === 'latest') {
+    toBlockNumber = await provider.getBlockNumber();
+  }
+  const commonOptions = {
+    address: relayHub.address,
+    topics,
+  }
+  const range = toBlockNumber - fromBlockNumber;
+  if ( range > MAX_BLOCK_RANGE_LENGTH) {
+    const totalRequests = Math.ceil(range / MAX_BLOCK_RANGE_LENGTH); 
+    // to
+    const requestOptions = Array(totalRequests).fill(commonOptions).map((opt, index) => {
+      const fromBlock = fromBlockNumber + (MAX_BLOCK_RANGE_LENGTH * index);
+      const toBlock = (fromBlock + MAX_BLOCK_RANGE_LENGTH) > fromBlockNumber ? fromBlockNumber : (fromBlock + MAX_BLOCK_RANGE_LENGTH);
+
+      return {
+        ...opt,
+        fromBlock,
+        toBlock
+      } as providers.Filter;
+    });
+  }
+  
+  const events = (
+    await provider.getLogs({
+      address: relayHub.address,
+      fromBlock,
+      toBlock,
+      topics,
+    })
+  ).map((log) => logToEvent(log, relayHub, provider));
+
+  return events;
+}
+
+export async function getPastEventsForHubOld(
+  managerAddress: string,
   { fromBlock, toBlock }: PastEventOptions,
   names: ManagerEvent[] = DEFAULT_MANAGER_EVENTS
 ): Promise<Array<TypedEvent>> {
@@ -77,11 +167,24 @@ export async function getPastEventsForHub(
     }], (${names.join(',')})`
   );
 
+  const filterTopics = names.map((name) =>
+    relayHub.interface.encodeFilterTopics(name, [managerAddress])
+  );
+  const encodedManagerAddress = relayHub.interface._abiCoder.encode(
+    ['address'],
+    [managerAddress]
+  );
+  const topicZero = filterTopics.map((topic) => topic[0] as string);
+  const topics = [topicZero, [encodedManagerAddress]];
+  log.debug(`getPastEventsForHub - filterTopics`, topics);
+
+  // TODO: here we perform one request per event type, while we could do one single request
   const eventFilters = await Promise.all(
     names.map((name) => {
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
-      const filter = relayHub.filters[name](...parameters);
+      // FIXME: how is it possible to filter different events using the same parameters???
+      const filter = relayHub.filters[name](...[managerAddress]);
 
       return relayHub.queryFilter(filter, fromBlock, toBlock);
     })

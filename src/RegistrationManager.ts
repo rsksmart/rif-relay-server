@@ -155,7 +155,7 @@ export class RegistrationManager {
     ];
 
     const decodedEvents = await getPastEventsForHub(
-      [this._managerAddress],
+      this._managerAddress,
       options,
       eventsNames
     );
@@ -507,7 +507,7 @@ export class RegistrationManager {
     initialBlockToScan: number
   ): Promise<TypedEvent | undefined> {
     const workersAddedEvents = await getPastEventsForHub(
-      [this._managerAddress],
+      this._managerAddress,
       {
         fromBlock: initialBlockToScan,
       },
