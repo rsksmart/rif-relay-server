@@ -78,6 +78,7 @@
     defaultGasLimit: 500000,
     maxGasPrice: 100000000000,
     estimateGasFactor: 1.2,
+    initialBlockToScan: 1
   },
   /*
     Relay contracts addresses

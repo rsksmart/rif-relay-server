@@ -114,6 +114,7 @@ const blockchainSchema = Joi.object({
     .custom(isBigNumberish)
     .required(),
   estimateGasFactor: Joi.number().min(0).required(),
+  initialBlockToScan: Joi.number().min(1).required()
 });
 
 const contractsSchema = Joi.object({
