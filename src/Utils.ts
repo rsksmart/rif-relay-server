@@ -139,6 +139,10 @@ export async function getPastEventsForHub(
         toBlock
       } as providers.Filter;
     });
+
+    const requests = requestOptions.map((requestOptions) => provider.getLogs(requestOptions));
+    const eventsAccumulated = await Promise.allSettled(requests);
+    // FIXME: WIP
   }
   
   const events = (
