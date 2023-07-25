@@ -6,6 +6,7 @@ import { BigNumber, constants, Signer, utils, Wallet } from 'ethers';
 import log from 'loglevel';
 import { getServerConfig, RegisterConfig } from '../ServerConfigParams';
 import { isSameAddress, sleep } from '../Utils';
+import { findWealthyAccount } from './findWealthyAccount';
 
 //TODO: This is almost the same type as RegisterConfig from /ServerConfigParams
 type RegisterOptions = {
@@ -16,32 +17,6 @@ type RegisterOptions = {
   stake: BigNumber;
   funds: BigNumber;
   unstakeDelay: BigNumber;
-};
-
-const findWealthyAccount = async (
-  rpcProvider: JsonRpcProvider,
-  requiredBalance: BigNumber = utils.parseUnits('2', 'ether')
-): Promise<Signer> => {
-  let accounts: string[] = [];
-  try {
-    accounts = await rpcProvider.listAccounts();
-    for (let i = 0; i < accounts.length; i++) {
-      const signer = rpcProvider.getSigner(i);
-      const balance = await signer.getBalance();
-      if (balance.gte(requiredBalance)) {
-        log.info(`Found funded account ${await signer.getAddress()}`);
-
-        return signer;
-      }
-    }
-  } catch (error) {
-    log.error('Failed to retrieve accounts and balances:', error);
-  }
-  throw new Error(
-    `could not find unlocked account with sufficient balance; all accounts:\n - ${accounts.join(
-      '\n - '
-    )}`
-  );
 };
 
 const waitForRelay = async (
@@ -164,7 +139,7 @@ const register = async (
   log.info('Executed Transactions', transactions);
 };
 
-const retreiveSigner = async (
+const retrieveSigner = async (
   rpcProvider: JsonRpcProvider,
   privateKey?: string,
   mnemonic?: string
@@ -204,7 +179,7 @@ const executeRegister = async (): Promise<void> => {
   await register(rpcProvider, {
     relayHub: relayHub || contracts.relayHubAddress,
     relayUrl: serverUrl,
-    signer: await retreiveSigner(rpcProvider, privateKey, mnemonic),
+    signer: await retrieveSigner(rpcProvider, privateKey, mnemonic),
     stake: utils.parseEther(stake.toString()),
     funds: utils.parseEther(funds.toString()),
     unstakeDelay: BigNumber.from(unstakeDelay),

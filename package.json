@@ -63,7 +63,7 @@
     "register": "ts-node src/commands/Register.ts",
     "start": "ts-node src/commands/Start.ts",
     "tdd": "npm run test -- --watch --watch-files src,test",
-    "test": "ALLOW_CONFIG_MUTATIONS=true npx mocha -r ts-node/register --extensions ts 'test/**/*.{test,spec}.ts'"
+    "test": "ALLOW_CONFIG_MUTATIONS=true npx mocha -r ts-node/register -r tsconfig-paths/register --extensions ts 'test/**/*.{test,spec}.ts'"
   },
   "lint-staged": {
     "*": "npx embedme \"*.md\"",
@@ -121,6 +121,7 @@
     "prettier": "^2.8.3",
     "sinon": "^15.0.1",
     "ts-node": "^10.9.1",
+    "tsconfig-paths": "^4.2.0",
     "typescript": "4.8.2"
   }
 }
