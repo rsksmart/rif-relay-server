@@ -65,7 +65,7 @@ export async function getPastEventsForHub(
   return logs.map((log) => logToEvent(log));
 }
 
-async function performLogRequests(
+export async function performLogRequests(
   logFilters: providers.Filter[],
   provider: providers.Provider = getProvider()
 ) {
@@ -99,25 +99,24 @@ async function performLogRequests(
     .flat();
 }
 
-function getTopicsFromEvents(
+export function getTopicsFromEvents(
   names: ManagerEvent[],
   managerAddress: string,
   relayHub: RelayHub = getRelayHub()
 ) {
   const filterTopics = names.map((name) =>
-    relayHub.interface.encodeFilterTopics(name, [managerAddress])
+    relayHub.interface.getEventTopic(name)
   );
   const encodedManagerAddress = relayHub.interface._abiCoder.encode(
     ['address'],
     [managerAddress]
   );
-  const topicZero = filterTopics.map((topic) => topic[0] as string);
-  const topics = [topicZero, [encodedManagerAddress]];
+  const topics = [filterTopics, [encodedManagerAddress]];
 
   return topics;
 }
 
-async function getLogFilters(
+export async function getLogFilters(
   managerAddress: string,
   { fromBlock, toBlock }: PastEventOptions,
   names: ManagerEvent[] = DEFAULT_MANAGER_EVENTS,
@@ -139,18 +138,20 @@ async function getLogFilters(
     address: relayHub.address,
     topics,
   };
-  
+
   const range = toBlockNumber - fromBlockNumber;
   const {
     blockchain: { maxBlockRange },
   } = getServerConfig();
   if (range > maxBlockRange) {
-
-    return splitRange(fromBlockNumber, toBlockNumber, maxBlockRange).map(({from, to}) => ({
-      ...commonOptions,
-      fromBlock: from,
-      toBlock: to
-    } as providers.Filter));
+    return splitRange(fromBlockNumber, toBlockNumber, maxBlockRange).map(
+      ({ from, to }) =>
+        ({
+          ...commonOptions,
+          fromBlock: from,
+          toBlock: to,
+        } as providers.Filter)
+    );
   }
 
   // return one single range, no need to split it
@@ -163,13 +164,15 @@ async function getLogFilters(
   ];
 }
 
-const splitRange = (min: number, max: number, desiredRange: number) => {
-  const splits = Math.ceil((max - min)/ desiredRange);
+export function splitRange(min: number, max: number, desiredRange: number) {
+  const splits = Math.ceil((max - min) / desiredRange);
 
-  return Array(splits).fill(null).map((_, index) => {
-    const from = min + desiredRange * index;
-    const to = from + desiredRange > max ? max : from + desiredRange;
+  return Array(splits)
+    .fill(null)
+    .map((_, index) => {
+      const from = min + desiredRange * index;
+      const to = from + desiredRange > max ? max : from + desiredRange;
 
-    return { from, to};
-  })
-};
+      return { from, to };
+    });
+}
