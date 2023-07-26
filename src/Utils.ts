@@ -16,7 +16,6 @@ const CONFIG_BLOCKCHAIN = 'blockchain';
 const CONFIG_RELAY_HUB_ADDRESS = 'relayHubAddress';
 const CONFIG_RSK_URL = 'rskNodeUrl';
 
-
 const getConfiguredRelayHubAddress = () =>
   config.get<string>(`${CONFIG_CONTRACTS}.${CONFIG_RELAY_HUB_ADDRESS}`);
 
@@ -49,9 +48,6 @@ export function randomInRange(min: number, max: number): number {
 export function boolString(bool: boolean): string {
   return bool ? chalk.green('good'.padEnd(14)) : chalk.red('wrong'.padEnd(14));
 }
-
-
-
 
 export async function getRelayInfo(
   relayManagers: Set<string>

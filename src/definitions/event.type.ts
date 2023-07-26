@@ -1,7 +1,6 @@
 import type { RelayHub } from '@rsksmart/rif-relay-contracts';
 
-
-export type LatestTag = 'latest' ;
+export type LatestTag = 'latest';
 
 export type PastEventOptions = {
   fromBlock?: number;

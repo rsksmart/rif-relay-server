@@ -27,7 +27,11 @@ import {
   isRegistrationValid,
   isSecondEventLater,
 } from './Utils';
-import type { LatestTag, ManagerEvent, PastEventOptions } from './definitions/event.type';
+import type {
+  LatestTag,
+  ManagerEvent,
+  PastEventOptions,
+} from './definitions/event.type';
 import { getServerConfig } from './ServerConfigParams';
 import { getPastEventsForHub } from './getPastEventsForHub';
 
