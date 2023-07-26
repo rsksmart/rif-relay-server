@@ -37,7 +37,6 @@ import ow from 'ow';
 import {
   deployTransactionRequestShape,
   getLatestEventData,
-  getPastEventsForHub,
   getProvider,
   getRelayHub,
   isContractDeployed,
@@ -63,6 +62,8 @@ import {
   calculateFee,
   validateExpirationTime,
 } from './relayServerUtils';
+import { getPastEventsForHub } from './getPastEventsForHub';
+import type { LatestTag } from './definitions';
 
 const VERSION = '2.0.1';
 
@@ -933,7 +934,7 @@ latestBlock timestamp   | ${latestBlock.timestamp}
   async getAllHubEventsSinceLastScan(): Promise<Array<TypedEvent>> {
     const options = {
       fromBlock: this._lastScannedBlock + 1,
-      toBlock: 'latest',
+      toBlock: 'latest' as LatestTag,
     };
     const events = await getPastEventsForHub(this.managerAddress, options);
     if (events.length !== 0) {

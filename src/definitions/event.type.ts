@@ -1,16 +1,11 @@
 import type { RelayHub } from '@rsksmart/rif-relay-contracts';
 
-export type BlockTag =
-  | number
-  | string
-  | 'latest'
-  | 'pending'
-  | 'earliest'
-  | 'genesis';
+
+export type LatestTag = 'latest' ;
 
 export type PastEventOptions = {
   fromBlock?: number;
-  toBlock?: BlockTag;
+  toBlock?: LatestTag | number;
 };
 
 export type ManagerEvent = keyof RelayHub['filters'];

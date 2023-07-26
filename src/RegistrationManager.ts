@@ -21,15 +21,15 @@ import { defaultEnvironment } from './Environments';
 import {
   boolString,
   getLatestEventData,
-  getPastEventsForHub,
   getProvider,
   getRelayHub,
   getRelayInfo,
   isRegistrationValid,
   isSecondEventLater,
 } from './Utils';
-import type { ManagerEvent, PastEventOptions } from './definitions/event.type';
+import type { LatestTag, ManagerEvent, PastEventOptions } from './definitions/event.type';
 import { getServerConfig } from './ServerConfigParams';
+import { getPastEventsForHub } from './getPastEventsForHub';
 
 export type RelayServerRegistryInfo = {
   url: string;
@@ -141,7 +141,7 @@ export class RegistrationManager {
     }
     const options = {
       fromBlock: lastScannedBlock + 1,
-      toBlock: 'latest',
+      toBlock: 'latest' as LatestTag,
     };
 
     type DefaultManagerEvent = Extract<

@@ -1,7 +1,8 @@
-import type { RelayHub } from "@rsksmart/rif-relay-contracts/dist/typechain-types/contracts/RelayHub";
+import type { RelayHub } from "@rsksmart/rif-relay-contracts";
 import { expect } from "chai";
 import sinon from "sinon";
 import * as utils from "src/Utils";
+import { getPastEventsForHub } from "src/getPastEventsForHub";
 
 describe.only('getPastEventsFromHub', function() {
     it('should fail', async function () {
@@ -26,7 +27,7 @@ describe.only('getPastEventsFromHub', function() {
             queryFilter: (filter: 'RelayServerRegistered' | 'RelayWorkersAdded') => eventMapping[filter]
         } as unknown as RelayHub;
         sinon.stub(utils, 'getRelayHub').returns(stubRelayHub);
-        const events = await utils.getPastEventsForHub("0x123abc", {}, ['RelayServerRegistered']);
+        const events = await getPastEventsForHub("0x123abc", {}, ['RelayServerRegistered']);
         expect(events).to.eql(eventMapping['RelayServerRegistered']);
     });
 
