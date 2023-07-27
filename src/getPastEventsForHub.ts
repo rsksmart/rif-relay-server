@@ -78,8 +78,7 @@ export async function performLogRequests(
       },
       {
         retries: 3,
-        minTimeout: 0,
-        maxTimeout: 300,
+        minTimeout: 300,
         onRetry: (error) => {
           log.error(error);
         },
