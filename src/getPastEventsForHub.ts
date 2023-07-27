@@ -24,6 +24,11 @@ const logToEvent = (
   relayHub = getRelayHub(),
   provider = getProvider()
 ) => {
+  /**
+   * Conversion from log to event is performed using ethers.js code, see:
+   * - https://github.com/ethers-io/ethers.js/blob/f97b92bbb1bde22fcc44100af78d7f31602863ab/packages/contracts/src.ts/index.ts#L976
+   * - https://github.com/ethers-io/ethers.js/blob/f97b92bbb1bde22fcc44100af78d7f31602863ab/packages/contracts/src.ts/index.ts#L562
+   */
   const event = <TypedEvent>deepCopy(log);
   event.removeListener = () => {
     return;
