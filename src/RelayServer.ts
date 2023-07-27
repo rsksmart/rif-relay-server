@@ -63,7 +63,7 @@ import {
   validateExpirationTime,
 } from './relayServerUtils';
 import { getPastEventsForHub } from './getPastEventsForHub';
-import type { LatestTag } from './definitions';
+import type { PastEventOptions } from './definitions';
 
 const VERSION = '2.0.1';
 
@@ -386,7 +386,7 @@ export class RelayServer extends EventEmitter {
 
     // TODO: For RIF team
     // Here the server has the last chance to compare the maxPossibleGas the deploy transaction needs with
-    // the aggreement signed between the client and the relayer. Take this into account during the Arbiter integration
+    // the agreement signed between the client and the relayer. Take this into account during the Arbiter integration
 
     // Actual maximum gas needed to  send the relay transaction
     const initialGasEstimation = await standardMaxPossibleGasEstimation(
@@ -932,9 +932,9 @@ latestBlock timestamp   | ${latestBlock.timestamp}
   }
 
   async getAllHubEventsSinceLastScan(): Promise<Array<TypedEvent>> {
-    const options = {
+    const options: PastEventOptions = {
       fromBlock: this._lastScannedBlock + 1,
-      toBlock: 'latest' as LatestTag,
+      toBlock: 'latest',
     };
     const events = await getPastEventsForHub(this.managerAddress, options);
     if (events.length !== 0) {
