@@ -338,7 +338,11 @@ describe('getPastEventsFromHub', function () {
             topics: [['eventA'], ['managerAddress']],
           },
         ],
-        stubProvider
+        stubProvider,
+        {
+          minTimeout: 0,
+          maxTimeout: 200,
+        }
       );
       const expectedLogs = [...getLogsResponse, ...getLogsResponse];
       expect(logs).to.be.eql(expectedLogs);
@@ -374,7 +378,11 @@ describe('getPastEventsFromHub', function () {
             topics: [['eventA'], ['managerAddress']],
           },
         ],
-        stubProvider
+        stubProvider,
+        {
+          minTimeout: 0,
+          maxTimeout: 200,
+        }
       );
       const expectedLogs = [
         ...getLogsResponse,

@@ -10,6 +10,7 @@ import type {
 } from './definitions/event.type';
 import retry from 'async-retry';
 import { getServerConfig } from './ServerConfigParams';
+import type AsyncRetry from 'async-retry';
 
 const DEFAULT_MANAGER_EVENTS: DefaultManagerEvent[] = [
   'RelayServerRegistered',
@@ -67,7 +68,8 @@ export async function getPastEventsForHub(
 
 export async function performLogRequests(
   logFilters: providers.Filter[],
-  provider: providers.Provider = getProvider()
+  provider: providers.Provider = getProvider(),
+  opts?: AsyncRetry.Options
 ) {
   const getProviderLogsRequests = (logFilter: providers.Filter) =>
     retry(
@@ -82,6 +84,7 @@ export async function performLogRequests(
         onRetry: (error) => {
           log.error(error);
         },
+        ...opts,
       }
     );
   const requests = logFilters.map((logFilter) =>
