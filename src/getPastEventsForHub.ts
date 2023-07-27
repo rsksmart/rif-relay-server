@@ -24,7 +24,7 @@ const logToEvent = (
   relayHub = getRelayHub(),
   provider = getProvider()
 ) => {
-  /**
+  /*
    * Conversion from log to event is performed using ethers.js code, see:
    * - https://github.com/ethers-io/ethers.js/blob/f97b92bbb1bde22fcc44100af78d7f31602863ab/packages/contracts/src.ts/index.ts#L976
    * - https://github.com/ethers-io/ethers.js/blob/f97b92bbb1bde22fcc44100af78d7f31602863ab/packages/contracts/src.ts/index.ts#L562
@@ -118,6 +118,13 @@ export function getTopicsFromEvents(
     ['address'],
     [managerAddress]
   );
+  /*
+   * First element is the list of events to filter any of the events (OR)
+   * Second element is the manager address (indexed arg), that is always the same,
+   * so the total filter would hit all the logs related to any of the events that have
+   * the manager address as the first indexed arg.
+   * See [Solidity#Events](https://docs.soliditylang.org/en/latest/abi-spec.html#events) for further d
+   */
   const topics = [filterTopics, [encodedManagerAddress]];
 
   return topics;
