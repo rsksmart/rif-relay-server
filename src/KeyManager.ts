@@ -5,9 +5,14 @@ import type { SignedTransactionDetails } from './TransactionManager';
 
 export const KEYSTORE_FILENAME = 'keystore';
 
+const HEX_PREFIX = '0x';
+
 type keystore = {
   seed: string;
 };
+
+const getPrefixedSeed = (seed: string): utils.BytesLike =>
+  seed.startsWith(HEX_PREFIX) ? seed : `${HEX_PREFIX}${seed}`;
 
 export class KeyManager {
   private readonly _hdkey!: utils.HDNode;
@@ -45,7 +50,7 @@ export class KeyManager {
             flag: 'w',
           });
         }
-        this._hdkey = utils.HDNode.fromSeed(genseed);
+        this._hdkey = utils.HDNode.fromSeed(getPrefixedSeed(genseed));
       } catch (e) {
         if (e instanceof Error && !e.message.includes('file already exists')) {
           throw e;
@@ -58,7 +63,9 @@ export class KeyManager {
       if (seed == null) {
         seed = this.generateRandomSeed();
       }
-      this._hdkey = utils.HDNode.fromSeed(seed ?? Buffer.from(''));
+      this._hdkey = utils.HDNode.fromSeed(
+        seed ? getPrefixedSeed(seed) : Buffer.from('')
+      );
     }
 
     this.generateKeys(count);
