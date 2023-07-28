@@ -797,7 +797,7 @@ latestBlock timestamp   | ${latestBlock.timestamp}
      * Here we get all the events since last scan looking for
      * (RelayServerRegistered,RelayWorkersAdded,TransactionRelayed,TransactionRelayedButRevertedByRecipient).
      * We could also retrieve (StakeAdded, StakeUnlocked, StakeWithdrawn)
-    */ 
+     */
     const hubEventsSinceLastScan = await this.getAllHubEventsSinceLastScan();
     await this._updateLatestTxBlockNumber(hubEventsSinceLastScan);
     const shouldRegisterAgain = await this._shouldRegisterAgain(
@@ -810,7 +810,7 @@ latestBlock timestamp   | ${latestBlock.timestamp}
        * Here we get all the events since last scan looking for
        * (StakeAdded, StakeUnlocked, StakeWithdrawn). We could retrieve those events
        * before and removing them from the handlePastEvents function.
-       */ 
+       */
       await this.registrationManager.handlePastEvents(
         hubEventsSinceLastScan,
         this._lastScannedBlock,
