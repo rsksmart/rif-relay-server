@@ -143,9 +143,9 @@ export class RegistrationManager {
     if (!this._isInitialized) {
       throw new Error('RegistrationManager not initialized');
     }
-    const options = {
+    const options: PastEventOptions = {
       fromBlock: lastScannedBlock + 1,
-      toBlock: 'latest' as LatestTag,
+      toBlock: 'latest',
     };
 
     type DefaultManagerEvent = Extract<
