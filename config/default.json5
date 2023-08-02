@@ -78,6 +78,8 @@
     defaultGasLimit: 500000,
     maxGasPrice: 100000000000,
     estimateGasFactor: 1.2,
+    initialBlockToScan: 1, // the first block to scan to look for events
+    maxBlockRange: 1000   // the maximum amount of blocks to include while requesting events
   },
   /*
     Relay contracts addresses

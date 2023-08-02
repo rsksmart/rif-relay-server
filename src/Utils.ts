@@ -1,28 +1,15 @@
-import { getDefaultProvider, providers, utils } from 'ethers';
+import {
+  IRelayHub,
+  RelayHub,
+  RelayHub__factory,
+  TypedEvent,
+} from '@rsksmart/rif-relay-contracts';
 import chalk from 'chalk';
 import config from 'config';
-import ow from 'ow';
-import {
-  TypedEvent,
-  IRelayHub,
-  RelayHub__factory,
-  RelayHub,
-} from '@rsksmart/rif-relay-contracts';
-import type {
-  DefaultManagerEvent,
-  ManagerEvent,
-  ManagerEventParameters,
-  PastEventOptions,
-} from './definitions/event.type';
-import { getServerConfig } from './ServerConfigParams';
+import { getDefaultProvider, providers, utils } from 'ethers';
 import { getAddress } from 'ethers/lib/utils';
-
-const DEFAULT_MANAGER_EVENTS: DefaultManagerEvent[] = [
-  'RelayServerRegistered',
-  'RelayWorkersAdded',
-  'TransactionRelayed',
-  'TransactionRelayedButRevertedByRecipient',
-];
+import ow from 'ow';
+import { getServerConfig } from './ServerConfigParams';
 
 const CONFIG_CONTRACTS = 'contracts';
 const CONFIG_BLOCKCHAIN = 'blockchain';
@@ -60,26 +47,6 @@ export function randomInRange(min: number, max: number): number {
 
 export function boolString(bool: boolean): string {
   return bool ? chalk.green('good'.padEnd(14)) : chalk.red('wrong'.padEnd(14));
-}
-
-export async function getPastEventsForHub(
-  parameters: ManagerEventParameters,
-  { fromBlock, toBlock }: PastEventOptions,
-  names: ManagerEvent[] = DEFAULT_MANAGER_EVENTS
-): Promise<Array<TypedEvent>> {
-  const relayHub = getRelayHub();
-
-  const eventFilters = await Promise.all(
-    names.map((name) => {
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore
-      const filter = relayHub.filters[name](...parameters);
-
-      return relayHub.queryFilter(filter, fromBlock, toBlock);
-    })
-  );
-
-  return eventFilters.flat();
 }
 
 export async function getRelayInfo(

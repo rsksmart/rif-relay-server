@@ -21,7 +21,6 @@ import { defaultEnvironment } from './Environments';
 import {
   boolString,
   getLatestEventData,
-  getPastEventsForHub,
   getProvider,
   getRelayHub,
   getRelayInfo,
@@ -30,6 +29,7 @@ import {
 } from './Utils';
 import type { ManagerEvent, PastEventOptions } from './definitions/event.type';
 import { getServerConfig } from './ServerConfigParams';
+import { getPastEventsForHub } from './getPastEventsForHub';
 
 export type RelayServerRegistryInfo = {
   url: string;
@@ -121,10 +121,10 @@ export class RegistrationManager {
     this._txStoreManager = txStoreManager;
   }
 
-  async init(): Promise<void> {
+  async init(initialBlockToScan = 1): Promise<void> {
     if (this._lastWorkerAddedTransaction == null) {
       this._lastWorkerAddedTransaction =
-        await this._queryLatestWorkerAddedEvent();
+        await this._queryLatestWorkerAddedEvent(initialBlockToScan);
     }
 
     this._isInitialized = true;
@@ -139,7 +139,7 @@ export class RegistrationManager {
     if (!this._isInitialized) {
       throw new Error('RegistrationManager not initialized');
     }
-    const options = {
+    const options: PastEventOptions = {
       fromBlock: lastScannedBlock + 1,
       toBlock: 'latest',
     };
@@ -155,7 +155,7 @@ export class RegistrationManager {
     ];
 
     const decodedEvents = await getPastEventsForHub(
-      [this._managerAddress],
+      this._managerAddress,
       options,
       eventsNames
     );
@@ -503,13 +503,13 @@ export class RegistrationManager {
     return transactionHashes;
   }
 
-  private async _queryLatestWorkerAddedEvent(): Promise<
-    TypedEvent | undefined
-  > {
+  private async _queryLatestWorkerAddedEvent(
+    initialBlockToScan: number
+  ): Promise<TypedEvent | undefined> {
     const workersAddedEvents = await getPastEventsForHub(
-      [this._managerAddress],
+      this._managerAddress,
       {
-        fromBlock: 1,
+        fromBlock: initialBlockToScan,
       },
       ['RelayWorkersAdded']
     );

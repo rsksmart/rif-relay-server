@@ -37,7 +37,6 @@ import ow from 'ow';
 import {
   deployTransactionRequestShape,
   getLatestEventData,
-  getPastEventsForHub,
   getProvider,
   getRelayHub,
   isContractDeployed,
@@ -63,6 +62,8 @@ import {
   calculateFee,
   validateExpirationTime,
 } from './relayServerUtils';
+import { getPastEventsForHub } from './getPastEventsForHub';
+import type { PastEventOptions } from './definitions';
 
 const VERSION = '2.0.1';
 
@@ -152,9 +153,10 @@ export class RelayServer extends EventEmitter {
     const {
       app: { customReplenish },
       contracts: { feesReceiver },
-      blockchain: { workerMinBalance },
+      blockchain: { workerMinBalance, initialBlockToScan },
     } = this.config;
     setProvider(getProvider());
+    this._lastScannedBlock = initialBlockToScan;
     this.txStoreManager = dependencies.txStoreManager;
     this.transactionManager = new TransactionManager(dependencies);
     this.managerAddress =
@@ -384,7 +386,7 @@ export class RelayServer extends EventEmitter {
 
     // TODO: For RIF team
     // Here the server has the last chance to compare the maxPossibleGas the deploy transaction needs with
-    // the aggreement signed between the client and the relayer. Take this into account during the Arbiter integration
+    // the agreement signed between the client and the relayer. Take this into account during the Arbiter integration
 
     // Actual maximum gas needed to  send the relay transaction
     const initialGasEstimation = await standardMaxPossibleGasEstimation(
@@ -694,6 +696,7 @@ export class RelayServer extends EventEmitter {
     log.debug('Relay Server - Transaction Manager initialized');
     const {
       contracts: { relayHubAddress, trustedVerifiers },
+      blockchain: { initialBlockToScan },
     } = this.config;
     this._initTrustedVerifiers(trustedVerifiers);
     log.debug(`Relay Server - Relay hub: ${relayHubAddress}`);
@@ -709,7 +712,7 @@ export class RelayServer extends EventEmitter {
       this.managerAddress,
       this.workerAddress
     );
-    await this.registrationManager.init();
+    await this.registrationManager.init(initialBlockToScan);
     log.debug('Relay Server - Registration manager initialized');
 
     const provider = getProvider() as providers.JsonRpcProvider;
@@ -789,6 +792,12 @@ latestBlock timestamp   | ${latestBlock.timestamp}
 
   async _handleChanges(currentBlockNumber: number): Promise<string[]> {
     let transactionHashes: string[] = [];
+    // TODO: We could request all the events just once
+    /*
+     * Here we get all the events since last scan looking for
+     * (RelayServerRegistered,RelayWorkersAdded,TransactionRelayed,TransactionRelayedButRevertedByRecipient).
+     * We could also retrieve (StakeAdded, StakeUnlocked, StakeWithdrawn)
+     */
     const hubEventsSinceLastScan = await this.getAllHubEventsSinceLastScan();
     await this._updateLatestTxBlockNumber(hubEventsSinceLastScan);
     const shouldRegisterAgain = await this._shouldRegisterAgain(
@@ -796,6 +805,12 @@ latestBlock timestamp   | ${latestBlock.timestamp}
       hubEventsSinceLastScan
     );
     transactionHashes = transactionHashes.concat(
+      // TODO: We could request all the events just once
+      /*
+       * Here we get all the events since last scan looking for
+       * (StakeAdded, StakeUnlocked, StakeWithdrawn). We could retrieve those events
+       * before and removing them from the handlePastEvents function.
+       */
       await this.registrationManager.handlePastEvents(
         hubEventsSinceLastScan,
         this._lastScannedBlock,
@@ -925,11 +940,11 @@ latestBlock timestamp   | ${latestBlock.timestamp}
   }
 
   async getAllHubEventsSinceLastScan(): Promise<Array<TypedEvent>> {
-    const options = {
+    const options: PastEventOptions = {
       fromBlock: this._lastScannedBlock + 1,
       toBlock: 'latest',
     };
-    const events = await getPastEventsForHub([this.managerAddress], options);
+    const events = await getPastEventsForHub(this.managerAddress, options);
     if (events.length !== 0) {
       log.debug(`Found ${events.length} events since last scan`);
     }
@@ -976,10 +991,13 @@ latestBlock timestamp   | ${latestBlock.timestamp}
   }
 
   async _queryLatestActiveEvent(): Promise<TypedEvent | undefined> {
+    const {
+      blockchain: { initialBlockToScan },
+    } = this.config;
     const events: Array<TypedEvent> = await getPastEventsForHub(
-      [this.managerAddress],
+      this.managerAddress,
       {
-        fromBlock: 1,
+        fromBlock: initialBlockToScan,
       }
     );
 
