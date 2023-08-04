@@ -18,5 +18,7 @@ export const checkReplenish = (
       }
       log.info(`checkReplenish: Replenishment wasn't required`);
     })
-    .catch((err) => log.error(`checkReplenish: Error while replenishing the server`, err));
+    .catch((err) =>
+      log.error(`checkReplenish: Error while replenishing the server`, err)
+    );
 };
