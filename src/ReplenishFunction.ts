@@ -19,6 +19,13 @@ type BalanceRefill = {
 const notifyBalanceRefill = (message: string, balanceRefill: BalanceRefill) =>
   notify(message, { ...balanceRefill });
 
+/**
+ * It withdraws excess balance from the relayHub to the relayManager, and refills the relayWorker with
+ * balance if required.
+ * @param relayServer The currently running instance of the relay server
+ * @param workerIndex Not used so it can be any number
+ * @param currentBlock Where to place the replenish action
+ */
 export async function replenishStrategy(
   relayServer: RelayServer,
   workerIndex: number,

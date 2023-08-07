@@ -64,6 +64,10 @@ import {
 } from './relayServerUtils';
 import { getPastEventsForHub } from './getPastEventsForHub';
 import type { PastEventOptions } from './definitions';
+import {
+  EVENT_REPLENISH_CHECK_REQUIRED,
+  registerEventHandlers,
+} from './events';
 
 const VERSION = '2.0.1';
 
@@ -176,6 +180,7 @@ export class RelayServer extends EventEmitter {
 
     log.info('RelayServer version', VERSION);
     log.info('Using server configuration:\n', this.config);
+    registerEventHandlers(this);
   }
 
   printServerAddresses(): void {
@@ -567,7 +572,7 @@ export class RelayServer extends EventEmitter {
     };
     const txDetails = await this.transactionManager.sendTransaction(details);
     // after sending a transaction is a good time to check the worker's balance, and replenish it.
-    await this.replenishServer(0, currentBlock);
+    this.emit(EVENT_REPLENISH_CHECK_REQUIRED, this, 0, currentBlock);
 
     return txDetails;
   }
@@ -745,20 +750,6 @@ latestBlock timestamp   | ${latestBlock.timestamp}
     this.registrationManager.printNotRegisteredMessage();
   }
 
-  /**
-   * It withdraws excess balance from the relayHub to the relayManager, and refills the relayWorker with
-   * balance if required.
-   * @param workerIndex Not used so it can be any number
-   * @param currentBlock Where to place the replenish action
-   */
-
-  async replenishServer(
-    workerIndex: number,
-    currentBlock: number
-  ): Promise<string[]> {
-    return await replenishStrategy(this, workerIndex, currentBlock);
-  }
-
   async _worker(blockNumber: number): Promise<string[]> {
     if (!this._initialized) {
       await this.init();
@@ -832,7 +823,11 @@ latestBlock timestamp   | ${latestBlock.timestamp}
     this.handlePastHubEvents(currentBlockNumber, hubEventsSinceLastScan);
     const workerIndex = 0;
     transactionHashes = transactionHashes.concat(
-      await this.replenishServer(workerIndex, currentBlockNumber)
+      /*
+       * Here we don't need to emit the EVENT_REPLENISH_CHECK_REQUIRED event since
+       * this operation isn't performed while relaying a transaction
+       */
+      await replenishStrategy(this, workerIndex, currentBlockNumber)
     );
     const {
       blockchain: { workerMinBalance, alertedBlockDelay },
