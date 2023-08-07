@@ -1,5 +1,5 @@
-import type { RelayServer } from 'src/RelayServer';
-import { replenishStrategy } from 'src/ReplenishFunction';
+import type { RelayServer } from '../RelayServer';
+import { replenishStrategy } from '../ReplenishFunction';
 import log from 'loglevel';
 
 export const EVENT_REPLENISH_CHECK_REQUIRED = 'REPLENISH_CHECK_REQUIRED';
