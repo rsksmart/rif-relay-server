@@ -64,8 +64,10 @@ import {
 } from './relayServerUtils';
 import { getPastEventsForHub } from './getPastEventsForHub';
 import type { PastEventOptions } from './definitions';
-import { EVENT_REPLENISH_CHECK_REQUIRED } from './events/checkReplenish';
-import { registerEventHandlers } from './events';
+import {
+  EVENT_REPLENISH_CHECK_REQUIRED,
+  registerEventHandlers,
+} from './events';
 
 const VERSION = '2.0.1';
 
