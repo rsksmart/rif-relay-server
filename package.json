@@ -60,8 +60,8 @@
     "lint": "npx eslint --cache \"{,test/**/}*.ts\" \"{,src/**/}*.ts\"",
     "lint:fix": "npm run lint -- --fix",
     "prepare": "scripts/prepare",
-    "register": "ts-node -r tsconfig-paths/register src/commands/Register.ts",
-    "start": "ts-node -r tsconfig-paths/register src/commands/Start.ts",
+    "register": "ts-node src/commands/Register.ts",
+    "start": "ts-node src/commands/Start.ts",
     "tdd": "npm run test -- --watch --watch-files src,test",
     "test": "ALLOW_CONFIG_MUTATIONS=true npx mocha -r ts-node/register -r tsconfig-paths/register --extensions ts 'test/**/*.{test,spec}.ts'"
   },

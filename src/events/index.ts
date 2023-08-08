@@ -1,4 +1,4 @@
-import type { RelayServer } from 'src/RelayServer';
+import type { RelayServer } from '../RelayServer';
 import {
   EVENT_REPLENISH_CHECK_REQUIRED as replenishCheckRequiredEvent,
   checkReplenish,
