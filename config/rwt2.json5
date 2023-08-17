@@ -1,6 +1,6 @@
 {
   app: {
-    url: "https://relay-02.rif-wallet-services.testnet.rifcomputing.net",
+    url: "https://v2.relay.rif-wallet-services.testnet.rifcomputing.net",
     port: 8090,
     devMode: true,
     logLevel: 0,
