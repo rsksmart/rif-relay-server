@@ -74,7 +74,7 @@
     "package.json": "npx sort-package-json"
   },
   "dependencies": {
-    "@rsksmart/rif-relay-client": "^2.0.0",
+    "@rsksmart/rif-relay-client": "^2.1.0",
     "@rsksmart/rif-relay-contracts": "2.0.0-beta.1",
     "async-mutex": "^0.4.0",
     "async-retry": "^1.3.3",
