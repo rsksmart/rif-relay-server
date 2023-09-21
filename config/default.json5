@@ -94,8 +94,8 @@
   register: {
     stake: "0.01", // amount of stake to set up
     funds: "0.02", // amount of funds to set up
-    mnemonic: "", // mnemonic to use for unlocking the account parameter
-    privateKey: "", // private key to retrieve the account address from
+    mnemonic: "", // mnemonic to use for unlocking the account parameter; DO NOT STORE IT HERE, use REGISTER_MNEMONIC as env variable. 
+    privateKey: "", // private key to retrieve the account address from; DO NOT STORE IT HERE, use REGISTER_PRIVATE_KEY as env variable. 
     relayHub: "",
     gasPrice: 60000000,
     unstakeDelay: 1000,

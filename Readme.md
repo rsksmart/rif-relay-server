@@ -156,8 +156,8 @@ File [./config/default.json5](config/default.json5) contains all configuration p
   register: {
     stake: "0.01", // amount of stake to set up
     funds: "0.02", // amount of funds to set up
-    mnemonic: "", // mnemonic to use for unlocking the account parameter
-    privateKey: "", // private key to retrieve the account address from
+    mnemonic: "", // mnemonic to use for unlocking the account parameter; DO NOT STORE IT HERE, use REGISTER_MNEMONIC as env variable. 
+    privateKey: "", // private key to retrieve the account address from; DO NOT STORE IT HERE, use REGISTER_PRIVATE_KEY as env variable. 
     relayHub: "",
     gasPrice: 60000000,
     unstakeDelay: 1000,
@@ -207,6 +207,10 @@ Some of these options will be overrideable using environment variables defined i
 }
 
 ```
+
+> ### :warning: Warning
+>
+> Keep in mind that neither `mnemonic` or `privateKey` are intended to be set in the file directly and doing it can lead to security issues. Please refer to the [server registration section](#server-registration) for further details.
 
 </details>
 
