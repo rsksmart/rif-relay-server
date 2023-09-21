@@ -275,6 +275,12 @@ After this you will see several log entries indicating the registration progress
 Relayer state: READY
 ```
 
+> ### :warning: Warning
+>
+> Keep in mind that there are different ways to specify the keys during the registration steps.
+> 1. If nothing is specified, the register scrips tries to retrieve the signer from the RPC accounts configured in the node; this method is enabled for development purposes only (Regtest)
+> 2. The user could use either a private key or a mnemonic using the [custom environment variable method](https://github.com/rsksmart/rif-relay-server/blob/main/Readme.md#overrides) hence by specifying `REGISTER_PRIVATE_KEY` or `REGISTER_MNEMONIC` as environment variables (e.g.: `REGISTER_PRIVATE_KEY=0xabc123 npm run register` or `REGISTER_MNEMONIC=0xabc123 npm run register`).
+
 ### Execute as a Docker container
 
 You can run the server as a Docker container. Docker and Docker compose should be installed and an RSK Node should be running.
