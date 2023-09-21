@@ -6,3 +6,6 @@ manager/keystore
 workers/keystore
 .eslintcache
 config/local.*
+
+# automatically generated in the predist script
+version.ts
