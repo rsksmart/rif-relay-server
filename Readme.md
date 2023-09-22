@@ -283,7 +283,7 @@ Relayer state: READY
 >
 > Keep in mind that there are different ways to specify the keys during the registration steps.
 > 1. If nothing is specified, the register scrips tries to retrieve the signer from the RPC accounts configured in the node; this method is enabled for development purposes only (Regtest)
-> 2. The user could use either a private key or a mnemonic using the [custom environment variable method](#overrides) hence by specifying `REGISTER_PRIVATE_KEY` or `REGISTER_MNEMONIC` as environment variables (e.g.: `REGISTER_PRIVATE_KEY=0xabc123 npm run register` or `REGISTER_MNEMONIC=0xabc123 npm run register`).
+> 2. The user could use either a private key or a mnemonic using the [custom environment variable method](#overrides) hence by specifying `REGISTER_PRIVATE_KEY` or `REGISTER_MNEMONIC` as environment variables (e.g.: `REGISTER_PRIVATE_KEY="0xabc123" npm run register` or `REGISTER_MNEMONIC="word1 word2 etc..." npm run register`).
 
 ### Execute as a Docker container
 
