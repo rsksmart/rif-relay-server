@@ -192,7 +192,8 @@ executeRegister()
     log.info('Registration is done!');
   })
   .catch((error) => {
-    log.info('Error registering relay server', error);
+    // we don't use the log library here because an error could be raised before setting the log level.
+    console.error('Error registering relay server', error);
   });
 
 export type { RegisterOptions, RegisterConfig };
