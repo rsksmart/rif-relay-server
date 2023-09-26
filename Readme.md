@@ -156,8 +156,8 @@ File [./config/default.json5](config/default.json5) contains all configuration p
   register: {
     stake: "0.01", // amount of stake to set up
     funds: "0.02", // amount of funds to set up
-    mnemonic: "", // mnemonic to use for unlocking the account parameter
-    privateKey: "", // private key to retrieve the account address from
+    mnemonic: "", // mnemonic to use for unlocking the account parameter; DO NOT STORE IT HERE, use REGISTER_MNEMONIC as env variable. 
+    privateKey: "", // private key to retrieve the account address from; DO NOT STORE IT HERE, use REGISTER_PRIVATE_KEY as env variable. 
     relayHub: "",
     gasPrice: 60000000,
     unstakeDelay: 1000,
@@ -207,6 +207,10 @@ Some of these options will be overrideable using environment variables defined i
 }
 
 ```
+
+> ### :warning: Warning
+>
+> Keep in mind that neither `mnemonic` or `privateKey` are intended to be set in the file directly and doing it can lead to security issues. Please refer to the [server registration section](#server-registration) for further details.
 
 </details>
 
@@ -274,6 +278,12 @@ After this you will see several log entries indicating the registration progress
 ```text
 Relayer state: READY
 ```
+
+> ### :warning: Warning
+>
+> Keep in mind that there are different ways to specify the keys during the registration steps.
+> 1. If nothing is specified, the register scrips tries to retrieve the signer from the RPC accounts configured in the node; this method is enabled for development purposes only (Regtest)
+> 2. The user could use either a private key or a mnemonic using the [custom environment variable method](#overrides) hence by specifying `REGISTER_PRIVATE_KEY` or `REGISTER_MNEMONIC` as environment variables (e.g.: `REGISTER_PRIVATE_KEY="0xabc123" npm run register` or `REGISTER_MNEMONIC="word1 word2 etc..." npm run register`).
 
 ### Execute as a Docker container
 
