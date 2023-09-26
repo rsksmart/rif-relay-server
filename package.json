@@ -54,6 +54,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
+    "predist": "node -p \"'export const SERVER_VERSION = ' + JSON.stringify(require('./package.json').version) + ';'\" > src/version.ts",
     "dist": "scripts/dist",
     "format": "npx prettier \"{,test/**/}*.ts\" \"{,src/**/}*.ts\" !.gitignore  --list-different --no-editorconfig",
     "format:fix": "npm run format -- --write",

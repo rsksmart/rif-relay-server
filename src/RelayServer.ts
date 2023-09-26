@@ -68,8 +68,7 @@ import {
   EVENT_REPLENISH_CHECK_REQUIRED,
   registerEventHandlers,
 } from './events';
-
-const VERSION = '2.0.1';
+import { SERVER_VERSION as version } from './version';
 
 type HubInfo = {
   relayWorkerAddress: string;
@@ -178,7 +177,7 @@ export class RelayServer extends EventEmitter {
     );
     this.printServerAddresses();
 
-    log.info('RelayServer version', VERSION);
+    log.info('RelayServer version', version);
     log.info('Using server configuration:\n', this.config);
     registerEventHandlers(this);
   }
@@ -206,7 +205,7 @@ export class RelayServer extends EventEmitter {
       chainId: this.chainId?.toString(),
       networkId: this.networkId?.toString(),
       ready: this.isReady() ?? false,
-      version: VERSION,
+      version: version,
     };
   }
 
