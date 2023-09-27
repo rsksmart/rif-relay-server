@@ -441,8 +441,8 @@ data         | 0x${transaction.data ?? ''}
       );
 
       //TODO check if there is no issue with the type conversion
-      const underpricedTransactions = sortedTxs.filter(
-        (it) => it.gasPrice && it.gasPrice < newGasPrice
+      const underpricedTransactions = sortedTxs.filter((it) =>
+        it.gasPrice?.lt(newGasPrice)
       );
       for (const transaction of underpricedTransactions) {
         const boostedTransactionDetails = await this.resendTransaction(
