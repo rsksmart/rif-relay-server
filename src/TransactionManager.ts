@@ -238,8 +238,11 @@ data         | 0x${transaction.data ?? ''}
   ): Promise<SignedTransactionDetails> {
     // Resend transaction with exactly the same values except for gas price
     const txToSign: PopulatedTransaction = {
-      ...tx,
+      to: tx.to,
+      gasLimit: tx.gasLimit,
       gasPrice: newGasPrice,
+      data: tx.data,
+      nonce: tx.nonce,
     };
 
     const keyManager = this.managerKeyManager.isSigner(tx.from)
