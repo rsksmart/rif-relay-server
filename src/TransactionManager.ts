@@ -440,7 +440,6 @@ data         | 0x${transaction.data ?? ''}
         oldestPendingTx.gasPrice
       );
 
-      //TODO check if there is no issue with the type conversion
       const underpricedTransactions = sortedTxs.filter((it) =>
         it.gasPrice?.lt(newGasPrice)
       );
