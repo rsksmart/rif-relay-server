@@ -3,6 +3,16 @@ import log from 'loglevel';
 import ow from 'ow';
 import { isSameAddress } from './Utils';
 import type { ServerAction, StoredTransaction } from './StoredTransaction';
+import { BigNumber } from 'ethers';
+
+const parseBigNumberIfDefined = (bn?: BigNumber) =>
+  bn !== undefined ? BigNumber.from(bn) : undefined;
+
+const parseBigNumberValues = (tx: StoredTransaction) => ({
+  ...tx,
+  gasPrice: parseBigNumberIfDefined(tx.gasPrice),
+  gasLimit: parseBigNumberIfDefined(tx.gasLimit),
+});
 
 // FIXME: replace hardcoded values with config or env vars
 export const TXSTORE_FILENAME = 'txstore.db';
@@ -64,12 +74,14 @@ export class TxStoreManager {
     ow(nonce, ow.any(ow.number, ow.string));
     ow(signer, ow.string);
 
-    return await this._txstore.asyncFindOne({
-      nonceSigner: {
-        signer: signer.toLowerCase(),
-        nonce,
-      },
-    });
+    return parseBigNumberValues(
+      await this._txstore.asyncFindOne({
+        nonceSigner: {
+          signer: signer.toLowerCase(),
+          nonce,
+        },
+      })
+    );
   }
 
   /**
@@ -78,19 +90,23 @@ export class TxStoreManager {
   async getTxById(txId: string): Promise<StoredTransaction> {
     ow(txId, ow.string);
 
-    return await this._txstore.asyncFindOne({ txId: txId.toLowerCase() });
+    return parseBigNumberValues(
+      await this._txstore.asyncFindOne({ txId: txId.toLowerCase() })
+    );
   }
 
   async getTxsUntilNonce(
     signer: string,
     nonce: number
   ): Promise<StoredTransaction[]> {
-    return await this._txstore.asyncFind({
-      $and: [
-        { 'nonceSigner.nonce': { $lte: nonce } },
-        { 'nonceSigner.signer': signer.toLowerCase() },
-      ],
-    });
+    return (
+      await this._txstore.asyncFind({
+        $and: [
+          { 'nonceSigner.nonce': { $lte: nonce } },
+          { 'nonceSigner.signer': signer.toLowerCase() },
+        ],
+      })
+    ).map(parseBigNumberValues);
   }
 
   async removeTxsUntilNonce(signer: string, nonce: number): Promise<unknown> {
@@ -117,13 +133,15 @@ export class TxStoreManager {
       await this._txstore.asyncFind<StoredTransaction>({
         'nonceSigner.signer': signer.toLowerCase(),
       })
-    ).sort((tx1, tx2) => this._sortTransactionByNonce(tx1, tx2));
+    )
+      .sort((tx1, tx2) => this._sortTransactionByNonce(tx1, tx2))
+      .map(parseBigNumberValues);
   }
 
   async getAll(): Promise<StoredTransaction[]> {
-    return (await this._txstore.asyncFind<StoredTransaction>({})).sort(
-      (tx1, tx2) => this._sortTransactionByNonce(tx1, tx2)
-    );
+    return (await this._txstore.asyncFind<StoredTransaction>({}))
+      .sort((tx1, tx2) => this._sortTransactionByNonce(tx1, tx2))
+      .map(parseBigNumberValues);
   }
 
   private _sortTransactionByNonce(
