@@ -291,10 +291,10 @@ data         | 0x${transaction.data ?? ''}
     const bigRetryGasPriceFactor = BigNumberJs(
       this.config.blockchain.retryGasPriceFactor
     );
-    const oldPrice = BigNumber.from(oldGasPrice);
-    const bigOldGasPrice = BigNumberJs(oldPrice.toString());
 
-    const bigNewGasPrice = bigRetryGasPriceFactor.multipliedBy(bigOldGasPrice);
+    const bigNewGasPrice = bigRetryGasPriceFactor.multipliedBy(
+      oldGasPrice ? oldGasPrice.toString() : 0
+    );
 
     let newGasPrice = BigNumber.from(bigNewGasPrice.toFixed(0));
 

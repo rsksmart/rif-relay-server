@@ -30,6 +30,7 @@ import {
 import type { ManagerEvent, PastEventOptions } from './definitions/event.type';
 import { getServerConfig } from './ServerConfigParams';
 import { getPastEventsForHub } from './getPastEventsForHub';
+import type { RelayManagerData } from '@rsksmart/rif-relay-client';
 
 export type RelayServerRegistryInfo = {
   url: string;
@@ -68,7 +69,7 @@ export class RegistrationManager {
 
   private readonly _txStoreManager: TxStoreManager;
 
-  private _relayData: IRelayHub.RelayManagerDataStruct | undefined;
+  private _relayData: RelayManagerData | undefined;
 
   private _lastWorkerAddedTransaction: TypedEvent | undefined;
 
@@ -186,7 +187,14 @@ export class RegistrationManager {
       }
     }
 
-    this._relayData = await this.getRelayData();
+    const relayData = await this.getRelayData();
+
+    this._relayData = {
+      currentlyStaked: await relayData.currentlyStaked,
+      manager: await relayData.manager,
+      registered: await relayData.registered,
+      url: await relayData.url,
+    };
 
     for (const eventData of hubEventsSinceLastScan) {
       switch (eventData.event) {
@@ -423,7 +431,7 @@ export class RegistrationManager {
     const provider = getProvider();
 
     const gasPrice = await provider.getGasPrice();
-    const gasLimit = BigNumber.from(minTxGasCost ? minTxGasCost : 21000);
+    const gasLimit = BigNumber.from(minTxGasCost ?? 21000);
     const txCost = gasLimit.mul(gasPrice);
 
     const managerBalance = await provider.getBalance(this._managerAddress);
@@ -470,7 +478,7 @@ export class RegistrationManager {
 
     const provider = getProvider();
     const gasPrice = await provider.getGasPrice();
-    const gasLimit = BigNumber.from(minTxGasCost ? minTxGasCost : 21000);
+    const gasLimit = BigNumber.from(minTxGasCost ?? 21000);
     const txCost = gasPrice.mul(gasLimit);
 
     const workerBalance = await provider.getBalance(this._workerAddress);

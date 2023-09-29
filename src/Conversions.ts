@@ -79,7 +79,7 @@ export const toNativeWeiFrom = ({
   const bigxRate = BigNumberJs(xRate ?? '0');
 
   if (bigAmount.isZero() || bigxRate.isZero()) {
-    return BigNumberJs(constants.Zero.toString());
+    return BigNumberJs(0);
   }
 
   const amountAsFraction = toPrecision({
