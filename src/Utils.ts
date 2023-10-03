@@ -10,6 +10,7 @@ import { getDefaultProvider, providers, utils } from 'ethers';
 import { getAddress } from 'ethers/lib/utils';
 import ow from 'ow';
 import { getServerConfig } from './ServerConfigParams';
+import type { RelayManagerData } from '@rsksmart/rif-relay-client';
 
 const CONFIG_CONTRACTS = 'contracts';
 const CONFIG_BLOCKCHAIN = 'blockchain';
@@ -87,18 +88,17 @@ export function isSecondEventLater(a: TypedEvent, b: TypedEvent): boolean {
 }
 
 export function isRegistrationValid(
-  relayData: IRelayHub.RelayManagerDataStruct | undefined,
+  relayData: RelayManagerData | undefined,
   managerAddress: string
 ): boolean {
   if (relayData) {
-    const manager = relayData.manager.toString();
     const {
       app: { url: serverUrl },
     } = getServerConfig();
 
     return (
-      isSameAddress(manager, managerAddress) &&
-      relayData.url.toString() === serverUrl
+      isSameAddress(relayData.manager, managerAddress) &&
+      relayData.url === serverUrl
     );
   }
 

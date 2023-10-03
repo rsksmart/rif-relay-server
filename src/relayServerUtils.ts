@@ -57,14 +57,11 @@ async function calculateFee(
   }
 
   const { transferFeePercentage } = appConfig;
-
+  const data = await relayRequest.request.data;
   //Even if transferFeePercentage = 0, it has priority over gas fee
-  if (
-    transferFeePercentage >= 0 &&
-    isTransferOrTransferFrom(relayRequest.request.data.toString())
-  ) {
+  if (transferFeePercentage >= 0 && isTransferOrTransferFrom(data.toString())) {
     const transferFee = await calculateFeeFromTransfer(
-      relayRequest.request.data.toString(),
+      data.toString(),
       transferFeePercentage,
       relayRequest
     );
@@ -97,12 +94,12 @@ async function calculateFixedUsdFee(
   envelopingRequest: EnvelopingRequest,
   fixedUsdFee: number
 ) {
-  const tokenAddress = envelopingRequest.request.tokenContract.toString();
-  const gasPrice = envelopingRequest.relayData.gasPrice.toString();
+  const tokenContractAddress = await envelopingRequest.request.tokenContract;
+  const gasPrice = await envelopingRequest.relayData.gasPrice;
 
   const provider = getProvider();
 
-  const tokenInstance = ERC20__factory.connect(tokenAddress, provider);
+  const tokenInstance = ERC20__factory.connect(tokenContractAddress, provider);
   const tokenSymbol = await tokenInstance.symbol();
 
   const exchangeRate = await getExchangeRate(US_DOLLAR_SYMBOL, tokenSymbol);
@@ -112,8 +109,8 @@ async function calculateFixedUsdFee(
 
   return await convertTokenToGas(
     fixedFeeInToken.toString(),
-    tokenAddress,
-    gasPrice
+    tokenContractAddress,
+    gasPrice.toString()
   );
 }
 
@@ -125,7 +122,7 @@ async function calculateFixedUsdFee(
 async function calculateFeeFromTransfer(
   data: string,
   transferFeePercentage: number,
-  relayRequest: EnvelopingRequest
+  envelopingRequest: EnvelopingRequest
 ): Promise<BigNumberJs> {
   if (!isTransferOrTransferFrom(data)) {
     return BigNumberJs(0);
@@ -140,11 +137,13 @@ async function calculateFeeFromTransfer(
   const valueInDecimal = BigNumberJs('0x' + valueHex);
 
   const feeInToken = valueInDecimal.multipliedBy(transferFeePercentage);
+  const tokenContractAddress = await envelopingRequest.request.tokenContract;
+  const gasPrice = await envelopingRequest.relayData.gasPrice;
 
   return await convertTokenToGas(
     feeInToken.toString(),
-    relayRequest.request.tokenContract.toString(),
-    relayRequest.relayData.gasPrice.toString()
+    tokenContractAddress,
+    gasPrice.toString()
   );
 }
 
@@ -196,8 +195,8 @@ async function validateIfGasAmountIsAcceptable(
   const relayRequest = envelopingTransaction.relayRequest;
 
   const estimatedDestinationGasCost = await estimateInternalCallGas({
-    from: relayRequest.relayData.callForwarder.toString(),
-    to: relayRequest.request.to.toString(),
+    from: relayRequest.relayData.callForwarder,
+    to: relayRequest.request.to,
     gasPrice: relayRequest.relayData.gasPrice,
     data: relayRequest.request.data,
   });
@@ -207,8 +206,9 @@ async function validateIfGasAmountIsAcceptable(
   );
 
   const { gas } = relayRequest.request as RelayRequestBody;
+  const gasValue = await gas;
   const bigGasFromRequestMaxAgreed = bigMaxEstimatedGasDeviation.multipliedBy(
-    gas.toString()
+    gasValue.toString()
   );
 
   if (estimatedDestinationGasCost.gt(bigGasFromRequestMaxAgreed.toFixed(0))) {
@@ -227,14 +227,19 @@ async function validateIfTokenAmountIsAcceptable(
     return;
   }
 
-  const { tokenAmount, tokenContract } =
-    envelopingTransaction.relayRequest.request;
-  const { gasPrice } = envelopingTransaction.relayRequest.relayData;
+  const {
+    request: { tokenAmount, tokenContract },
+    relayData: { gasPrice },
+  } = envelopingTransaction.relayRequest;
+
+  const tokenContractAddress = await tokenContract;
+  const tokenAmountValue = await tokenAmount;
+  const gasPriceValue = await gasPrice;
 
   const tokenAmountInGas = await convertTokenToGas(
-    tokenAmount.toString(),
-    tokenContract.toString(),
-    gasPrice.toString()
+    tokenAmountValue.toString(),
+    tokenContractAddress,
+    gasPriceValue.toString()
   );
 
   const isTokenAmountAcceptable = tokenAmountInGas.isGreaterThanOrEqualTo(
@@ -294,14 +299,12 @@ async function convertGasToTokenAndNative(
   relayRequest: EnvelopingRequest,
   initialEstimation: BigNumber
 ) {
-  const gasPrice = relayRequest.relayData.gasPrice.toString();
+  const gasPrice = await relayRequest.relayData.gasPrice;
+  const tokenContractAddress = await relayRequest.request.tokenContract;
 
   const provider = getProvider();
 
-  const tokenInstance = ERC20__factory.connect(
-    relayRequest.request.tokenContract.toString(),
-    provider
-  );
+  const tokenInstance = ERC20__factory.connect(tokenContractAddress, provider);
 
   const token: ExchangeToken = {
     instance: tokenInstance,
@@ -328,7 +331,7 @@ async function convertGasToTokenAndNative(
     valueInToken: initialEstimationInToken.toString(),
     valueInNative: initialEstimationInNative.toString(),
     exchangeRate: xRate,
-    gasPrice,
+    gasPrice: gasPrice.toString(),
   };
 }
 

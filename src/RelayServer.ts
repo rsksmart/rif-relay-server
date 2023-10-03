@@ -266,29 +266,26 @@ export class RelayServer extends EventEmitter {
       contracts: { relayHubAddress },
     } = this.config;
 
+    const relayHubAddressValue = await metadata.relayHubAddress;
+
     // Check that the relayHub is the correct one
-    if (
-      metadata.relayHubAddress.toString().toLowerCase() !==
-      relayHubAddress.toLowerCase()
-    ) {
+    if (relayHubAddressValue.toLowerCase() !== relayHubAddress.toLowerCase()) {
       throw new Error(
-        `Wrong hub address.\nRelay server's hub address: ${
-          this.config.contracts.relayHubAddress
-        }, request's hub address: ${metadata.relayHubAddress.toString()}\n`
+        `Wrong hub address.\nRelay server's hub address: ${this.config.contracts.relayHubAddress}, request's hub address: ${relayHubAddressValue}\n`
       );
     }
 
-    const feesReceiver = relayRequest.relayData.feesReceiver.toString();
+    const feesReceiver = await relayRequest.relayData.feesReceiver;
     // Check the relayWorker (todo: once migrated to multiple relays, check if exists)
     if (feesReceiver.toLowerCase() !== this.feesReceiver.toLowerCase()) {
       throw new Error(`Wrong fees receiver address: ${feesReceiver}\n`);
     }
 
-    const gasPrice = relayRequest.relayData.gasPrice.toString();
+    const gasPrice = await relayRequest.relayData.gasPrice;
     // Check that the gasPrice is initialized & acceptable
     if (this.gasPrice.gt(gasPrice)) {
       throw new Error(
-        `Unacceptable gasPrice: relayServer's gasPrice:${this.gasPrice.toString()} request's gasPrice: ${gasPrice}`
+        `Unacceptable gasPrice: relayServer's gasPrice:${this.gasPrice.toString()} request's gasPrice: ${gasPrice.toString()}`
       );
     }
 
@@ -299,9 +296,11 @@ export class RelayServer extends EventEmitter {
     );
   }
 
-  validateVerifier(envelopingRequest: EnvelopingTxRequest): void {
-    const callVerifier =
-      envelopingRequest.relayRequest.relayData.callVerifier.toString();
+  async validateVerifier(
+    envelopingRequest: EnvelopingTxRequest
+  ): Promise<void> {
+    const callVerifier = await envelopingRequest.relayRequest.relayData
+      .callVerifier;
     if (!this.isTrustedVerifier(callVerifier)) {
       throw new Error(`Invalid verifier: ${callVerifier}`);
     }
@@ -320,8 +319,8 @@ export class RelayServer extends EventEmitter {
   async validateRequestWithVerifier(
     envelopingTransaction: EnvelopingTxRequest
   ): Promise<void> {
-    const verifier =
-      envelopingTransaction.relayRequest.relayData.callVerifier.toString();
+    const verifier = await envelopingTransaction.relayRequest.relayData
+      .callVerifier;
 
     if (!this.isTrustedVerifier(verifier)) {
       throw new Error('Invalid verifier');
@@ -410,9 +409,7 @@ export class RelayServer extends EventEmitter {
 
     return {
       maxPossibleGas: initialGasEstimation,
-      maxPossibleGasWithFee: initialGasEstimation.add(
-        fee.toFixed(0).toString()
-      ),
+      maxPossibleGasWithFee: initialGasEstimation.add(fee.toFixed(0)),
     };
   }
 
@@ -557,17 +554,20 @@ export class RelayServer extends EventEmitter {
 
     const provider = getProvider();
 
+    const relayHubAddress = await envelopingTransaction.metadata
+      .relayHubAddress;
+    const gasPrice = await envelopingTransaction.relayRequest.relayData
+      .gasPrice;
+
     const currentBlock = await provider.getBlockNumber();
     const details: SendTransactionDetails = {
       signer: this.workerAddress,
       serverAction: ServerAction.RELAY_CALL,
       method,
-      destination: envelopingTransaction.metadata.relayHubAddress.toString(),
+      destination: relayHubAddress,
       gasLimit: maxPossibleGasWithViewCall,
       creationBlockNumber: currentBlock,
-      gasPrice: BigNumber.from(
-        envelopingTransaction.relayRequest.relayData.gasPrice
-      ),
+      gasPrice: BigNumber.from(gasPrice.toString()),
     };
     const txDetails = await this.transactionManager.sendTransaction(details);
     // after sending a transaction is a good time to check the worker's balance, and replenish it.
