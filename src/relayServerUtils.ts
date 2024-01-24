@@ -3,11 +3,9 @@ import {
   estimateInternalCallGas,
   getExchangeRate,
   EnvelopingTxRequest,
-  isDeployTransaction,
-  RelayRequestBody,
 } from '@rsksmart/rif-relay-client';
 import { BigNumber as BigNumberJs } from 'bignumber.js';
-import type { BigNumber, BigNumberish } from 'ethers';
+import { constants, BigNumber, type BigNumberish } from 'ethers';
 import { MAX_ESTIMATED_GAS_DEVIATION } from './definitions/server.const';
 import { getProvider } from './Utils';
 import { ERC20__factory, PromiseOrValue } from '@rsksmart/rif-relay-contracts';
@@ -99,13 +97,24 @@ async function calculateFixedUsdFee(
 
   const provider = getProvider();
 
-  const tokenInstance = ERC20__factory.connect(tokenContractAddress, provider);
-  const tokenSymbol = await tokenInstance.symbol();
+  let symbol;
+  let precision;
+  if (tokenContractAddress === constants.AddressZero) {
+    symbol = 'RBTC';
+    precision = 18;
+  } else {
+    const tokenInstance = ERC20__factory.connect(
+      tokenContractAddress,
+      provider
+    );
+    symbol = await tokenInstance.symbol();
+    precision = await tokenInstance.decimals();
+  }
 
-  const exchangeRate = await getExchangeRate(US_DOLLAR_SYMBOL, tokenSymbol);
+  const exchangeRate = await getExchangeRate(US_DOLLAR_SYMBOL, symbol);
 
   let fixedFeeInToken = exchangeRate.multipliedBy(fixedUsdFee);
-  fixedFeeInToken = toPrecision({ value: fixedFeeInToken, precision: 18 });
+  fixedFeeInToken = toPrecision({ value: fixedFeeInToken, precision });
 
   return await convertTokenToGas(
     fixedFeeInToken.toString(),
@@ -175,37 +184,35 @@ function getMethodHashFromData(data: string) {
   return data.substring(2, 10);
 }
 
-async function validateIfGasAmountIsAcceptable(
-  envelopingTransaction: EnvelopingTxRequest
-) {
+async function validateIfGasAmountIsAcceptable({
+  relayRequest: { request, relayData },
+}: EnvelopingTxRequest) {
   // TODO: For RIF Team
   // The maxPossibleGas must be compared against the commitment signed with the user.
   // The relayServer must not allow a call that requires more gas than it was agreed with the user
   // For now, we can call estimateDestinationContractCallGas to get the "ACTUAL" gas required for the
   // field req.relayRequest.request.gas and not relay requests that deviated too much from what the user signed
 
-  // But take into acconunt that the aggreement with the user (the one from the Arbiter) has the final decision.
+  // But take into account that the agreement with the user (the one from the Arbiter) has the final decision.
   // If the Relayer agreed with the Client a certain percentage of deviation from the original maxGas, then it must honor that agreement
   // and not the current hardcoded deviation
 
-  if (isDeployTransaction(envelopingTransaction)) {
+  if (request.to == constants.AddressZero) {
     return;
   }
 
-  const relayRequest = envelopingTransaction.relayRequest;
-
   const estimatedDestinationGasCost = await estimateInternalCallGas({
-    from: relayRequest.relayData.callForwarder,
-    to: relayRequest.request.to,
-    gasPrice: relayRequest.relayData.gasPrice,
-    data: relayRequest.request.data,
+    from: relayData.callForwarder,
+    to: request.to,
+    gasPrice: relayData.gasPrice,
+    data: request.data,
   });
 
   const bigMaxEstimatedGasDeviation = BigNumberJs(
     1 + MAX_ESTIMATED_GAS_DEVIATION
   );
 
-  const { gas } = relayRequest.request as RelayRequestBody;
+  const { gas } = request;
   const gasValue = await gas;
   const bigGasFromRequestMaxAgreed = bigMaxEstimatedGasDeviation.multipliedBy(
     gasValue.toString()
@@ -236,11 +243,14 @@ async function validateIfTokenAmountIsAcceptable(
   const tokenAmountValue = await tokenAmount;
   const gasPriceValue = await gasPrice;
 
-  const tokenAmountInGas = await convertTokenToGas(
-    tokenAmountValue.toString(),
-    tokenContractAddress,
-    gasPriceValue.toString()
-  );
+  let tokenAmountInGas = BigNumberJs(tokenAmountValue.toString());
+  if (tokenContractAddress !== constants.AddressZero) {
+    tokenAmountInGas = await convertTokenToGas(
+      tokenAmountValue.toString(),
+      tokenContractAddress,
+      gasPriceValue.toString()
+    );
+  }
 
   const isTokenAmountAcceptable = tokenAmountInGas.isGreaterThanOrEqualTo(
     maxPossibleGas.toString()
@@ -284,6 +294,7 @@ async function convertTokenToGas(
     amount: tokenAmount,
     xRate,
   });
+
   const bigTokenAmountInNative = BigNumberJs(tokenAmountInNative.toString());
 
   return bigTokenAmountInNative.dividedBy(gasPrice);
@@ -302,29 +313,34 @@ async function convertGasToTokenAndNative(
   const gasPrice = await relayRequest.relayData.gasPrice;
   const tokenContractAddress = await relayRequest.request.tokenContract;
 
-  const provider = getProvider();
+  let xRate = '1';
+  let initialEstimationInNative: BigNumber = initialEstimation.mul(gasPrice);
+  let initialEstimationInToken: BigNumber = initialEstimationInNative;
+  if (tokenContractAddress !== constants.AddressZero) {
+    const provider = getProvider();
 
-  const tokenInstance = ERC20__factory.connect(tokenContractAddress, provider);
+    const tokenInstance = ERC20__factory.connect(
+      tokenContractAddress,
+      provider
+    );
 
-  const token: ExchangeToken = {
-    instance: tokenInstance,
-    name: await tokenInstance.name(),
-    symbol: await tokenInstance.symbol(),
-    decimals: await tokenInstance.decimals(),
-  };
+    const token: ExchangeToken = {
+      instance: tokenInstance,
+      name: await tokenInstance.name(),
+      symbol: await tokenInstance.symbol(),
+      decimals: await tokenInstance.decimals(),
+    };
 
-  const xRate = await getXRateFor(token);
+    xRate = await getXRateFor(token);
 
-  const initialEstimationInToken = convertGasToToken(
-    initialEstimation,
-    { ...token, xRate },
-    gasPrice
-  );
+    initialEstimationInToken = convertGasToToken(
+      initialEstimation,
+      { ...token, xRate },
+      gasPrice
+    );
 
-  const initialEstimationInNative = convertGasToNative(
-    initialEstimation,
-    gasPrice
-  );
+    initialEstimationInNative = convertGasToNative(initialEstimation, gasPrice);
+  }
 
   return {
     value: initialEstimation.toString(),

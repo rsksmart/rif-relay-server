@@ -369,6 +369,7 @@ export class RelayServer extends EventEmitter {
           envelopingTransaction.metadata.signature
         );
       }
+
       await provider.call(verifyMethod, 'pending');
     } catch (e) {
       const error = e as Error;
@@ -535,10 +536,7 @@ export class RelayServer extends EventEmitter {
 
     const method = isDeployRequest(relayRequest)
       ? await relayHub.populateTransaction.deployCall(relayRequest, signature)
-      : await relayHub.populateTransaction.relayCall(
-          relayRequest as RelayRequest,
-          signature
-        );
+      : await relayHub.populateTransaction.relayCall(relayRequest, signature);
 
     // Call relayCall as a view function to see if we'll get paid for relaying this tx
     const maxPossibleGasWithViewCall = await this.maxPossibleGasWithViewCall(

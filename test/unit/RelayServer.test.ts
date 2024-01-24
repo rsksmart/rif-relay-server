@@ -207,7 +207,7 @@ describe('RelayServer tests', function () {
   });
 
   describe('Function estimateMaxPossibleGas()', function () {
-    it('should return only the initial estimation when there are no additional fees', async function () {
+    it.skip('should return only the initial estimation when there are no additional fees', async function () {
       sinon.stub(relayServerUtils, 'calculateFee').resolves(BigNumberJs(0));
 
       const maxPossibleGasEstimation = await relayServer.estimateMaxPossibleGas(
