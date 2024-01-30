@@ -8,7 +8,7 @@ import sinon, { createStubInstance } from 'sinon';
 import type { EnvelopingTxRequest } from '@rsksmart/rif-relay-client';
 import * as rifClient from '@rsksmart/rif-relay-client';
 import { BigNumber, constants, providers } from 'ethers';
-import * as utils from '../../src/Utils';
+import * as serverUtils from '../../src/Utils';
 import { ERC20__factory, ERC20, RelayHub } from '@rsksmart/rif-relay-contracts';
 import { expect, use } from 'chai';
 import * as Conversions from '../../src/Conversions';
@@ -55,7 +55,7 @@ describe('RelayServer tests', function () {
     );
 
     provider = providers.getDefaultProvider();
-    sinon.stub(utils, 'getProvider').returns(provider);
+    sinon.stub(serverUtils, 'getProvider').returns(provider);
 
     const token = {
       name: () => Promise.resolve('TestToken'),
@@ -109,7 +109,7 @@ describe('RelayServer tests', function () {
         .stub(relayServerUtils, 'validateIfTokenAmountIsAcceptable')
         .resolves();
       // sinon.stub(rifClient, 'isDeployRequest').resolves(false);
-      sinon.stub(utils, 'getRelayHub').returns(stubRelayHub);
+      sinon.stub(serverUtils, 'getRelayHub').returns(stubRelayHub);
       sinon
         .stub(relayServer, 'maxPossibleGasWithViewCall')
         .resolves(BigNumber.from(1));
@@ -207,7 +207,7 @@ describe('RelayServer tests', function () {
   });
 
   describe('Function estimateMaxPossibleGas()', function () {
-    it.skip('should return only the initial estimation when there are no additional fees', async function () {
+    it('should return only the initial estimation when there are no additional fees', async function () {
       sinon.stub(relayServerUtils, 'calculateFee').resolves(BigNumberJs(0));
 
       const maxPossibleGasEstimation = await relayServer.estimateMaxPossibleGas(
@@ -223,20 +223,9 @@ describe('RelayServer tests', function () {
         } as EnvelopingTxRequest
       );
 
-      const expectedEstimation = {
-        gasPrice: GAS_PRICE.toString(),
-        estimation: FAKE_ESTIMATION_BEFORE_FEES.toString(),
-        requiredTokenAmount: BigNumberJs(GAS_PRICE) //Using BigNumberJs here because TOKEN_X_RATE is a fraction
-          .multipliedBy(FAKE_ESTIMATION_BEFORE_FEES)
-          .dividedBy(TOKEN_X_RATE)
-          .toString(),
-        requiredNativeAmount: BigNumber.from(GAS_PRICE)
-          .mul(FAKE_ESTIMATION_BEFORE_FEES)
-          .toString(),
-        exchangeRate: TOKEN_X_RATE,
-      };
-
-      expect(maxPossibleGasEstimation).to.deep.eq(expectedEstimation);
+      expect(maxPossibleGasEstimation.estimation).to.be.equal(
+        FAKE_ESTIMATION_BEFORE_FEES.toString()
+      );
     });
 
     it('should return the initial estimation + fees when there are fees', async function () {

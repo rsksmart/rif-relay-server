@@ -9,7 +9,7 @@ export const TARGET_CURRENCY = 'RBTC';
 export const RBTC_CHAIN_DECIMALS = 18; // FIXME: should this be configurable?
 export const MAX_ETH_GAS_BLOCK_SIZE = 30_000_000;
 
-type BigNumberishJs = BigNumberish | BigNumberJs;
+export type BigNumberishJs = BigNumberish | BigNumberJs;
 
 /**
  * Multiplies base to power of precision

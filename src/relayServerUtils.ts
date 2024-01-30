@@ -11,6 +11,7 @@ import { getProvider } from './Utils';
 import { ERC20__factory, PromiseOrValue } from '@rsksmart/rif-relay-contracts';
 import type ExchangeToken from './definitions/token.type';
 import {
+  BigNumberishJs,
   convertGasToNative,
   convertGasToToken,
   getXRateFor,
@@ -91,22 +92,19 @@ async function calculateFee(
 async function calculateFixedUsdFee(
   envelopingRequest: EnvelopingRequest,
   fixedUsdFee: number
-) {
-  const tokenContractAddress = await envelopingRequest.request.tokenContract;
+): Promise<BigNumberJs> {
+  const tokenContract = await envelopingRequest.request.tokenContract;
   const gasPrice = await envelopingRequest.relayData.gasPrice;
 
   const provider = getProvider();
 
   let symbol;
   let precision;
-  if (tokenContractAddress === constants.AddressZero) {
+  if (tokenContract === constants.AddressZero) {
     symbol = 'RBTC';
     precision = 18;
   } else {
-    const tokenInstance = ERC20__factory.connect(
-      tokenContractAddress,
-      provider
-    );
+    const tokenInstance = ERC20__factory.connect(tokenContract, provider);
     symbol = await tokenInstance.symbol();
     precision = await tokenInstance.decimals();
   }
@@ -116,11 +114,7 @@ async function calculateFixedUsdFee(
   let fixedFeeInToken = exchangeRate.multipliedBy(fixedUsdFee);
   fixedFeeInToken = toPrecision({ value: fixedFeeInToken, precision });
 
-  return await convertTokenToGas(
-    fixedFeeInToken.toString(),
-    tokenContractAddress,
-    gasPrice.toString()
-  );
+  return await convertTokenToGas(fixedFeeInToken, tokenContract, gasPrice);
 }
 
 /*
@@ -146,19 +140,15 @@ async function calculateFeeFromTransfer(
   const valueInDecimal = BigNumberJs('0x' + valueHex);
 
   const feeInToken = valueInDecimal.multipliedBy(transferFeePercentage);
-  const tokenContractAddress = await envelopingRequest.request.tokenContract;
+  const tokenContract = await envelopingRequest.request.tokenContract;
   const gasPrice = await envelopingRequest.relayData.gasPrice;
 
-  return await convertTokenToGas(
-    feeInToken.toString(),
-    tokenContractAddress,
-    gasPrice.toString()
-  );
+  return await convertTokenToGas(feeInToken, tokenContract, gasPrice);
 }
 
 function calculateFeeFromGas(
-  maxPossibleGas: BigNumberish,
-  feePercentage: BigNumberish
+  maxPossibleGas: BigNumberishJs,
+  feePercentage: BigNumberishJs
 ): BigNumberJs {
   const bigMaxPossibleGas = BigNumberJs(maxPossibleGas.toString());
   const bigFeePercentage = BigNumberJs(feePercentage.toString());
@@ -234,23 +224,17 @@ async function validateIfTokenAmountIsAcceptable(
     return;
   }
 
-  const {
-    request: { tokenAmount, tokenContract },
-    relayData: { gasPrice },
-  } = envelopingTransaction.relayRequest;
+  const { request, relayData } = envelopingTransaction.relayRequest;
 
-  const tokenContractAddress = await tokenContract;
-  const tokenAmountValue = await tokenAmount;
-  const gasPriceValue = await gasPrice;
+  const tokenContract = await request.tokenContract;
+  const tokenAmount = await request.tokenAmount;
+  const gasPrice = await relayData.gasPrice;
 
-  let tokenAmountInGas = BigNumberJs(tokenAmountValue.toString());
-  if (tokenContractAddress !== constants.AddressZero) {
-    tokenAmountInGas = await convertTokenToGas(
-      tokenAmountValue.toString(),
-      tokenContractAddress,
-      gasPriceValue.toString()
-    );
-  }
+  const tokenAmountInGas = await convertTokenToGas(
+    tokenAmount,
+    tokenContract,
+    gasPrice
+  );
 
   const isTokenAmountAcceptable = tokenAmountInGas.isGreaterThanOrEqualTo(
     maxPossibleGas.toString()
@@ -272,14 +256,17 @@ async function validateIfTokenAmountIsAcceptable(
 }
 
 async function convertTokenToGas(
-  tokenAmount: string,
-  tokenAddress: string,
-  gasPrice: string
+  tokenAmount: BigNumberishJs,
+  tokenContract: string,
+  gasPrice: BigNumberishJs
 ) {
+  let tokenAmountInNative = BigNumberJs(tokenAmount.toString());
+  if (tokenContract === constants.AddressZero) {
+    return tokenAmountInNative.dividedBy(gasPrice.toString());
+  }
+
   const provider = getProvider();
-
-  const tokenInstance = ERC20__factory.connect(tokenAddress, provider);
-
+  const tokenInstance = ERC20__factory.connect(tokenContract, provider);
   const token: ExchangeToken = {
     instance: tokenInstance,
     name: await tokenInstance.name(),
@@ -289,15 +276,13 @@ async function convertTokenToGas(
 
   const xRate = await getXRateFor(token);
 
-  const tokenAmountInNative = toNativeWeiFrom({
+  tokenAmountInNative = toNativeWeiFrom({
     ...token,
-    amount: tokenAmount,
+    amount: tokenAmount.toString(),
     xRate,
   });
 
-  const bigTokenAmountInNative = BigNumberJs(tokenAmountInNative.toString());
-
-  return bigTokenAmountInNative.dividedBy(gasPrice);
+  return tokenAmountInNative.dividedBy(gasPrice.toString());
 }
 
 function isTransferOrTransferFrom(data: string) {
