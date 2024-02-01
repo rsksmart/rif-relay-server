@@ -168,7 +168,7 @@ describe('relayServerUtils tests', function () {
 
     describe('When is not sponsored', function () {
       describe('Transfer fee scenarios', function () {
-        describe('Token', function () {
+        describe('Using ERC20 token', function () {
           it('Should charge transferFee when a transfer is being relayed', async function () {
             const request = createRequest({
               data: dataWhenTransfer,
@@ -218,7 +218,7 @@ describe('relayServerUtils tests', function () {
           });
         });
 
-        describe('Native token', function () {
+        describe('Using native token', function () {
           it('Should charge transferFee when a transfer is being relayed', async function () {
             const request = createRequest({
               data: dataWhenTransfer,
@@ -435,7 +435,7 @@ describe('relayServerUtils tests', function () {
           );
         });
 
-        describe('Token', function () {
+        describe('Using ERC20 token', function () {
           it('Should charge fixedFee when properly configured', async function () {
             const request = createRequest({ tokenContract: fakeToAddress });
 
@@ -509,7 +509,7 @@ describe('relayServerUtils tests', function () {
           });
         });
 
-        describe('Native token', function () {
+        describe('Using native token', function () {
           it('Should charge fixedFee when properly configured', async function () {
             const request = createRequest({});
 

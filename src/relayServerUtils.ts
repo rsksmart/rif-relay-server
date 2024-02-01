@@ -40,7 +40,7 @@ async function calculateFee(
   maxPossibleGas: BigNumber,
   appConfig: AppConfig
 ): Promise<BigNumberJs> {
-  if (isSponsorshipAllowed(relayRequest, appConfig)) {
+  if (await isSponsorshipAllowed(relayRequest, appConfig)) {
     return BigNumberJs(0);
   }
 
@@ -158,16 +158,29 @@ function calculateFeeFromGas(
   );
 }
 
-function isSponsorshipAllowed(
+async function isSponsorshipAllowed(
   envelopingRequest: EnvelopingRequest,
   config: AppConfig
-): boolean {
+): Promise<boolean> {
   const { disableSponsoredTx, sponsoredDestinations } = config;
 
   return (
     !disableSponsoredTx ||
-    sponsoredDestinations.includes(envelopingRequest.request.to as string)
+    sponsoredDestinations.includes(await envelopingRequest.request.to)
   );
+}
+
+async function isDestinationAllowed(
+  envelopingRequest: EnvelopingRequest,
+  config: AppConfig
+): Promise<void> {
+  const { allowedDestinations } = config;
+
+  const to = await envelopingRequest.request.to;
+
+  if (to != constants.AddressZero && !allowedDestinations.includes(to)) {
+    throw new Error('Destination contract is not allowed');
+  }
 }
 
 function getMethodHashFromData(data: string) {
@@ -220,7 +233,9 @@ async function validateIfTokenAmountIsAcceptable(
   envelopingTransaction: EnvelopingTxRequest,
   appConfig: AppConfig
 ) {
-  if (isSponsorshipAllowed(envelopingTransaction.relayRequest, appConfig)) {
+  if (
+    await isSponsorshipAllowed(envelopingTransaction.relayRequest, appConfig)
+  ) {
     return;
   }
 
@@ -261,26 +276,24 @@ async function convertTokenToGas(
   gasPrice: BigNumberishJs
 ) {
   let tokenAmountInNative = BigNumberJs(tokenAmount.toString());
-  if (tokenContract === constants.AddressZero) {
-    return tokenAmountInNative.dividedBy(gasPrice.toString());
+  if (tokenContract !== constants.AddressZero) {
+    const provider = getProvider();
+    const tokenInstance = ERC20__factory.connect(tokenContract, provider);
+    const token: ExchangeToken = {
+      instance: tokenInstance,
+      name: await tokenInstance.name(),
+      symbol: await tokenInstance.symbol(),
+      decimals: await tokenInstance.decimals(),
+    };
+
+    const xRate = await getXRateFor(token);
+
+    tokenAmountInNative = toNativeWeiFrom({
+      ...token,
+      amount: tokenAmount.toString(),
+      xRate,
+    });
   }
-
-  const provider = getProvider();
-  const tokenInstance = ERC20__factory.connect(tokenContract, provider);
-  const token: ExchangeToken = {
-    instance: tokenInstance,
-    name: await tokenInstance.name(),
-    symbol: await tokenInstance.symbol(),
-    decimals: await tokenInstance.decimals(),
-  };
-
-  const xRate = await getXRateFor(token);
-
-  tokenAmountInNative = toNativeWeiFrom({
-    ...token,
-    amount: tokenAmount.toString(),
-    xRate,
-  });
 
   return tokenAmountInNative.dividedBy(gasPrice.toString());
 }
@@ -366,6 +379,7 @@ export {
   calculateFee,
   convertGasToTokenAndNative,
   isSponsorshipAllowed,
+  isDestinationAllowed,
   TRANSFER_HASH,
   TRANSFER_FROM_HASH,
   validateExpirationTime,

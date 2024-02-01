@@ -66,6 +66,7 @@ const appSchema = Joi.object({
   fixedUsdFee: Joi.number().optional(),
   disableSponsoredTx: Joi.boolean().required(),
   sponsoredDestinations: Joi.array().items(Joi.string().custom(isAddress)),
+  allowedDestinations: Joi.array().items(Joi.string().custom(isAddress)),
   requestMinValidSeconds: Joi.number().min(0).required(),
 });
 

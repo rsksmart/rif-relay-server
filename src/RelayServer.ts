@@ -51,7 +51,6 @@ import {
   isDeployRequest,
   isDeployTransaction,
   maxPossibleGasVerification,
-  RelayRequest,
   setProvider,
   standardMaxPossibleGasEstimation,
 } from '@rsksmart/rif-relay-client';
@@ -61,6 +60,7 @@ import {
   convertGasToTokenAndNative,
   calculateFee,
   validateExpirationTime,
+  isDestinationAllowed,
 } from './relayServerUtils';
 import { getPastEventsForHub } from './getPastEventsForHub';
 import type { PastEventOptions } from './definitions';
@@ -294,6 +294,8 @@ export class RelayServer extends EventEmitter {
       relayRequest.request.validUntilTime,
       requestMinValidSeconds
     );
+
+    await isDestinationAllowed(relayRequest, this.config.app);
   }
 
   async validateVerifier(
@@ -365,8 +367,9 @@ export class RelayServer extends EventEmitter {
         verifyMethod = await (
           verifierContract as IRelayVerifier
         ).populateTransaction.verifyRelayedCall(
-          envelopingTransaction.relayRequest as RelayRequest,
-          envelopingTransaction.metadata.signature
+          envelopingTransaction.relayRequest,
+          envelopingTransaction.metadata.signature,
+          { from: this.workerAddress }
         );
       }
 
