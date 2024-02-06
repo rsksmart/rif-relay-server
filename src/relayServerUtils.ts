@@ -8,7 +8,11 @@ import { BigNumber as BigNumberJs } from 'bignumber.js';
 import { constants, BigNumber, type BigNumberish } from 'ethers';
 import { MAX_ESTIMATED_GAS_DEVIATION } from './definitions/server.const';
 import { getProvider } from './Utils';
-import { ERC20__factory, PromiseOrValue } from '@rsksmart/rif-relay-contracts';
+import {
+  ERC20,
+  ERC20__factory,
+  PromiseOrValue,
+} from '@rsksmart/rif-relay-contracts';
 import type ExchangeToken from './definitions/token.type';
 import {
   BigNumberishJs,
@@ -105,8 +109,8 @@ async function calculateFixedUsdFee(
     precision = 18;
   } else {
     const tokenInstance = ERC20__factory.connect(tokenContract, provider);
-    symbol = await tokenInstance.symbol();
-    precision = await tokenInstance.decimals();
+    symbol = await callERC20Symbol(tokenInstance);
+    precision = await callERC20Decimals(tokenInstance);
   }
 
   const exchangeRate = await getExchangeRate(US_DOLLAR_SYMBOL, symbol);
@@ -270,6 +274,26 @@ async function validateIfTokenAmountIsAcceptable(
   }
 }
 
+type ERC20OptionalMethod = 'symbol' | 'decimals' | 'name';
+
+async function callERC20OptionalMethod<T>(
+  tokenInstance: ERC20,
+  methodName: ERC20OptionalMethod,
+  defaultValue: T
+): Promise<T> {
+  return tokenInstance[methodName]
+    ? ((await tokenInstance[methodName]()) as T)
+    : defaultValue;
+}
+
+async function callERC20Symbol(tokenInstance: ERC20, defaultValue = 'ERC20') {
+  return callERC20OptionalMethod(tokenInstance, 'symbol', defaultValue);
+}
+
+async function callERC20Decimals(tokenInstance: ERC20, defaultValue = 18) {
+  return callERC20OptionalMethod(tokenInstance, 'decimals', defaultValue);
+}
+
 async function convertTokenToGas(
   tokenAmount: BigNumberishJs,
   tokenContract: string,
@@ -279,11 +303,13 @@ async function convertTokenToGas(
   if (tokenContract !== constants.AddressZero) {
     const provider = getProvider();
     const tokenInstance = ERC20__factory.connect(tokenContract, provider);
+    const symbol = await callERC20Symbol(tokenInstance, 'ERC20');
+    const decimals = await callERC20Decimals(tokenInstance, 18);
     const token: ExchangeToken = {
       instance: tokenInstance,
       name: await tokenInstance.name(),
-      symbol: await tokenInstance.symbol(),
-      decimals: await tokenInstance.decimals(),
+      symbol,
+      decimals,
     };
 
     const xRate = await getXRateFor(token);
@@ -325,8 +351,8 @@ async function convertGasToTokenAndNative(
     const token: ExchangeToken = {
       instance: tokenInstance,
       name: await tokenInstance.name(),
-      symbol: await tokenInstance.symbol(),
-      decimals: await tokenInstance.decimals(),
+      symbol: await callERC20Symbol(tokenInstance),
+      decimals: await callERC20Decimals(tokenInstance),
     };
 
     xRate = await getXRateFor(token);
