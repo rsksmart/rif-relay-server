@@ -281,9 +281,13 @@ async function callERC20OptionalMethod<T>(
   methodName: ERC20OptionalMethod,
   defaultValue: T
 ): Promise<T> {
-  return tokenInstance[methodName]
-    ? ((await tokenInstance[methodName]()) as T)
-    : defaultValue;
+  try {
+    return (await tokenInstance[methodName]()) as T;
+  } catch (error) {
+    log.warn(`ERC20 method ${methodName} failed`, error);
+
+    return defaultValue;
+  }
 }
 
 async function callERC20Symbol(tokenInstance: ERC20, defaultValue = 'ERC20') {
