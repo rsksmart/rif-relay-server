@@ -3,6 +3,8 @@ import {
   estimateInternalCallGas,
   getExchangeRate,
   EnvelopingTxRequest,
+  isDeployRequest,
+  RelayRequestBody,
 } from '@rsksmart/rif-relay-client';
 import { BigNumber as BigNumberJs } from 'bignumber.js';
 import { constants, BigNumber, type BigNumberish } from 'ethers';
@@ -192,7 +194,7 @@ function getMethodHashFromData(data: string) {
 }
 
 async function validateIfGasAmountIsAcceptable({
-  relayRequest: { request, relayData },
+  relayRequest,
 }: EnvelopingTxRequest) {
   // TODO: For RIF Team
   // The maxPossibleGas must be compared against the commitment signed with the user.
@@ -204,9 +206,11 @@ async function validateIfGasAmountIsAcceptable({
   // If the Relayer agreed with the Client a certain percentage of deviation from the original maxGas, then it must honor that agreement
   // and not the current hardcoded deviation
 
-  if (request.to == constants.AddressZero) {
+  if (isDeployRequest(relayRequest)) {
     return;
   }
+
+  const { request, relayData } = relayRequest;
 
   const estimatedDestinationGasCost = await estimateInternalCallGas({
     from: relayData.callForwarder,
@@ -219,7 +223,7 @@ async function validateIfGasAmountIsAcceptable({
     1 + MAX_ESTIMATED_GAS_DEVIATION
   );
 
-  const { gas } = request;
+  const { gas } = request as RelayRequestBody;
   const gasValue = await gas;
   const bigGasFromRequestMaxAgreed = bigMaxEstimatedGasDeviation.multipliedBy(
     gasValue.toString()

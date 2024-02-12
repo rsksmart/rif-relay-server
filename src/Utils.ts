@@ -128,7 +128,6 @@ export const deployTransactionRequestShape = {
       from: ow.string,
       to: ow.string,
       value: ow.string,
-      gas: ow.string,
       nonce: ow.string,
       data: ow.string,
       tokenContract: ow.string,

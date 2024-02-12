@@ -47,6 +47,7 @@ import {
 import { AmountRequired } from './AmountRequired';
 import {
   EnvelopingTxRequest,
+  RelayRequest,
   estimateRelayMaxPossibleGas,
   isDeployRequest,
   isDeployTransaction,
@@ -367,7 +368,7 @@ export class RelayServer extends EventEmitter {
         verifyMethod = await (
           verifierContract as IRelayVerifier
         ).populateTransaction.verifyRelayedCall(
-          envelopingTransaction.relayRequest,
+          envelopingTransaction.relayRequest as RelayRequest,
           envelopingTransaction.metadata.signature,
           { from: this.workerAddress }
         );
@@ -539,7 +540,10 @@ export class RelayServer extends EventEmitter {
 
     const method = isDeployRequest(relayRequest)
       ? await relayHub.populateTransaction.deployCall(relayRequest, signature)
-      : await relayHub.populateTransaction.relayCall(relayRequest, signature);
+      : await relayHub.populateTransaction.relayCall(
+          relayRequest as RelayRequest,
+          signature
+        );
 
     // Call relayCall as a view function to see if we'll get paid for relaying this tx
     const maxPossibleGasWithViewCall = await this.maxPossibleGasWithViewCall(
