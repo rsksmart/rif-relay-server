@@ -113,7 +113,6 @@ File [./config/default.json5](config/default.json5) contains all configuration p
    fixedUsdFee: 0 ,
 
    sponsoredDestinations: [],
-   allowedDestinations: [],
    requestMinValidSeconds: 43200,
     
   },

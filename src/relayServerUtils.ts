@@ -176,19 +176,6 @@ async function isSponsorshipAllowed(
   );
 }
 
-async function isDestinationAllowed(
-  envelopingRequest: EnvelopingRequest,
-  config: AppConfig
-): Promise<void> {
-  const { allowedDestinations } = config;
-
-  const to = await envelopingRequest.request.to;
-
-  if (to != constants.AddressZero && !allowedDestinations.includes(to)) {
-    throw new Error('Destination contract is not allowed');
-  }
-}
-
 function getMethodHashFromData(data: string) {
   return data.substring(2, 10);
 }
@@ -413,7 +400,6 @@ export {
   calculateFee,
   convertGasToTokenAndNative,
   isSponsorshipAllowed,
-  isDestinationAllowed,
   TRANSFER_HASH,
   TRANSFER_FROM_HASH,
   validateExpirationTime,

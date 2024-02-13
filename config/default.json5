@@ -51,7 +51,6 @@
    fixedUsdFee: 0 ,
 
    sponsoredDestinations: [],
-   allowedDestinations: [],
    requestMinValidSeconds: 43200,
     
   },

@@ -21,7 +21,6 @@ type AppConfig = {
   gasFeePercentage: number;
   disableSponsoredTx: boolean;
   sponsoredDestinations: Array<string>;
-  allowedDestinations: Array<string>;
   requestMinValidSeconds: number;
   transferFeePercentage: number;
   fixedUsdFee: number;

@@ -61,7 +61,6 @@ import {
   convertGasToTokenAndNative,
   calculateFee,
   validateExpirationTime,
-  isDestinationAllowed,
 } from './relayServerUtils';
 import { getPastEventsForHub } from './getPastEventsForHub';
 import type { PastEventOptions } from './definitions';
@@ -295,8 +294,6 @@ export class RelayServer extends EventEmitter {
       relayRequest.request.validUntilTime,
       requestMinValidSeconds
     );
-
-    await isDestinationAllowed(relayRequest, this.config.app);
   }
 
   async validateVerifier(
