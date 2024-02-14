@@ -4,7 +4,9 @@ name: CD for Boltz Testnet
 on:
     push:
         tags:
-            - '**beta-boltz-testnet**'
+            - '**beta-boltz**'
+        branches: [ DEVOPS-1891/add-ci-for-boltz ]
+
 
 jobs:
     deploy-testnet:
