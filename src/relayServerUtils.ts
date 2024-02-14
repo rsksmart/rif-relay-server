@@ -11,9 +11,11 @@ import { constants, BigNumber, type BigNumberish } from 'ethers';
 import { MAX_ESTIMATED_GAS_DEVIATION } from './definitions/server.const';
 import { getProvider } from './Utils';
 import {
+  DestinationContractHandler__factory,
   ERC20,
   ERC20__factory,
   PromiseOrValue,
+  TokenHandler__factory,
 } from '@rsksmart/rif-relay-contracts';
 import type ExchangeToken from './definitions/token.type';
 import {
@@ -394,6 +396,47 @@ async function validateExpirationTime(
   }
 }
 
+type VerifierQueries = 'Token' | 'Contract';
+
+async function callVerifierMethod(
+  verifier: string,
+  type: VerifierQueries
+): Promise<string[]> {
+  try {
+    const provider = getProvider();
+    if (type === 'Token') {
+      const handler = TokenHandler__factory.connect(verifier, provider);
+
+      return await handler.getAcceptedTokens();
+    } else {
+      const handler = DestinationContractHandler__factory.connect(
+        verifier,
+        provider
+      );
+
+      return await handler.getAcceptedContracts();
+    }
+  } catch (error) {
+    log.warn(`Verifier ${verifier} failed while query ${type} `, error);
+  }
+
+  return [];
+}
+
+function queryVerifiers(verifier: string | undefined, verifiers: Set<string>) {
+  // if no verifier was supplied, query all trusted verifiers
+  if (!verifier) {
+    return Array.from(verifiers);
+  }
+
+  // if a verifier was supplied, check that it is trusted
+  if (!verifiers.has(verifier.toLowerCase())) {
+    throw new Error('supplied verifier is not trusted');
+  }
+
+  return [verifier];
+}
+
 export {
   validateIfGasAmountIsAcceptable,
   validateIfTokenAmountIsAcceptable,
@@ -403,4 +446,6 @@ export {
   TRANSFER_HASH,
   TRANSFER_FROM_HASH,
   validateExpirationTime,
+  callVerifierMethod,
+  queryVerifiers,
 };

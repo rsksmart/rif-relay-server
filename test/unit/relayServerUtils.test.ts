@@ -615,4 +615,8 @@ describe('relayServerUtils tests', function () {
       ).not.to.be.rejected;
     });
   });
+  /* 
+  describe('Function callVerifierMethod()', function(){});
+
+  describe('Function queryVerifiers()', function(){}); */
 });
