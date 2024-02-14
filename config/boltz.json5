@@ -1,0 +1,21 @@
+{
+  app: {
+    url: "https://boltz.testnet.relay.rifcomputing.net",
+    port: 8090,
+    devMode: true,
+    logLevel: 0,
+    workdir: "/srv/app/environment",
+    disableSponsoredTx: true,
+    gasFeePercentage: "0",
+  },
+  blockchain: {
+    rskNodeUrl: "http://172.17.0.1:4444",
+  },
+  contracts: {
+    relayHubAddress: "0xAd525463961399793f8716b0D85133ff7503a7C2", // FIXME:
+    relayVerifierAddress: "0xB86c972Ff212838C4c396199B27a0DBe45560df8", // FIXME:
+    deployVerifierAddress: "0xc67f193Bb1D64F13FD49E2da6586a2F417e56b16", // FIXME:
+    feesReceiver: "0xf3846680e634D21339086CB227f353b571D95E73",
+    trustedVerifiers: [], // FIXME:
+  }
+}
