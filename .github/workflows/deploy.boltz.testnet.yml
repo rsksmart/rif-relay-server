@@ -5,7 +5,6 @@ on:
     push:
         tags:
             - '**beta-boltz**'
-        branches: [ DEVOPS-1891/add-ci-for-boltz ]
 
 
 jobs:
