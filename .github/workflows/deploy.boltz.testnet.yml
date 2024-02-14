@@ -9,7 +9,7 @@ on:
 
 
 jobs:
-    deploy-testnet:
+    deploy-boltz-testnet:
         runs-on: ubuntu-latest
         environment:
             name: Boltz-Testnet
