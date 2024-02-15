@@ -374,7 +374,7 @@ export class HttpServer {
       res.send(tokenResponse);
     } catch (e) {
       if (e instanceof Error) {
-        const message: string = e.message;
+        const message: string = e.name;
         res.send({ message });
         log.error(`token handler rejected: ${message}`);
       } else {
@@ -423,7 +423,7 @@ export class HttpServer {
       res.send(tokenResponse);
     } catch (e) {
       if (e instanceof Error) {
-        const message: string = e.message;
+        const message: string = e.name;
         res.send({ message });
         log.error(`destination contract handler rejected: ${message}`);
       } else {

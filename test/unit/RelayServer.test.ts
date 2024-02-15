@@ -4,10 +4,10 @@ import {
   ServerDependencies,
   TxStoreManager,
 } from '../../src';
-import sinon, { createStubInstance } from 'sinon';
+import sinon, { SinonSpy, SinonStub, createStubInstance } from 'sinon';
 import type { EnvelopingTxRequest } from '@rsksmart/rif-relay-client';
 import * as rifClient from '@rsksmart/rif-relay-client';
-import { BigNumber, constants, providers } from 'ethers';
+import { BigNumber, constants, providers, utils } from 'ethers';
 import * as serverUtils from '../../src/Utils';
 import { ERC20__factory, ERC20, RelayHub } from '@rsksmart/rif-relay-contracts';
 import { expect, use } from 'chai';
@@ -335,6 +335,121 @@ describe('RelayServer tests', function () {
 
       expect(estimatedGas.estimation.toString()).to.be.eq(
         maxPossibleGasWithFee.toString()
+      );
+    });
+  });
+
+  describe('Function tokenHandler()', function () {
+    let queryVerifiersSpy: SinonSpy;
+    let callVerifierMehodStub: SinonStub;
+    let trustedVerifiers: Set<string>;
+    const verifier = '0x145845fd06c85B7EA1AA2d030E1a747B3d8d15D7';
+    const addressArray = ['0x145845fd06c85B7EA1AA2d030E1a747B3d8d15D7'];
+
+    beforeEach(function () {
+      queryVerifiersSpy = sinon.spy(relayServerUtils, 'queryVerifiers');
+      callVerifierMehodStub = sinon.stub(
+        relayServerUtils,
+        'callVerifierMethod'
+      );
+      callVerifierMehodStub.returns(addressArray);
+      trustedVerifiers = new Set<string>();
+      trustedVerifiers.add(verifier.toLowerCase());
+      trustedVerifiers.add(
+        '0x155845fd06c85B7EA1AA2d030E1a747B3d8d15D7'.toLowerCase()
+      );
+      sinon.replace(relayServer, 'trustedVerifiers', trustedVerifiers);
+    });
+
+    it('should throw error if verifier is not trusted', async function () {
+      const untrustedVerifier = '0x165845fd06c85B7EA1AA2d030E1a747B3d8d15D7';
+
+      await expect(
+        relayServer.tokenHandler(untrustedVerifier)
+      ).to.be.rejectedWith('Supplied verifier is not trusted');
+    });
+
+    it('should return tokens from all trusted verifiers', async function () {
+      const expectedResult = Array.from(trustedVerifiers).reduce(
+        (a, v) => ({ ...a, [utils.getAddress(v)]: addressArray }),
+        {}
+      );
+      const result = await relayServer.tokenHandler();
+
+      expect(result).to.be.deep.equal(expectedResult);
+      expect(queryVerifiersSpy).to.be.calledOnce;
+      for (const v of trustedVerifiers) {
+        expect(callVerifierMehodStub).to.be.calledWithExactly(v, 'Token');
+      }
+    });
+
+    it('should return token from provided verifier', async function () {
+      const expectedResult = {
+        [utils.getAddress(verifier)]: addressArray,
+      };
+      const result = await relayServer.tokenHandler(verifier);
+
+      expect(result).to.be.deep.equal(expectedResult);
+      expect(queryVerifiersSpy).to.be.calledOnce;
+      expect(callVerifierMehodStub).to.be.calledWithExactly(verifier, 'Token');
+    });
+  });
+
+  describe('Function destinationContractHandler()', function () {
+    let queryVerifiersSpy: SinonSpy;
+    let callVerifierMehodStub: SinonStub;
+    let trustedVerifiers: Set<string>;
+    const verifier = '0x145845fd06c85B7EA1AA2d030E1a747B3d8d15D7';
+    const addressArray = ['0x145845fd06c85B7EA1AA2d030E1a747B3d8d15D7'];
+
+    beforeEach(function () {
+      queryVerifiersSpy = sinon.spy(relayServerUtils, 'queryVerifiers');
+      callVerifierMehodStub = sinon.stub(
+        relayServerUtils,
+        'callVerifierMethod'
+      );
+      callVerifierMehodStub.returns(addressArray);
+      trustedVerifiers = new Set<string>();
+      trustedVerifiers.add(verifier.toLowerCase());
+      trustedVerifiers.add(
+        '0x155845fd06c85B7EA1AA2d030E1a747B3d8d15D7'.toLowerCase()
+      );
+      sinon.replace(relayServer, 'trustedVerifiers', trustedVerifiers);
+    });
+
+    it('should throw error if verifier is not trusted', async function () {
+      const untrustedVerifier = '0x165845fd06c85B7EA1AA2d030E1a747B3d8d15D7';
+
+      await expect(
+        relayServer.destinationContractHandler(untrustedVerifier)
+      ).to.be.rejectedWith('Supplied verifier is not trusted');
+    });
+
+    it('should return contracts from all trusted verifiers', async function () {
+      const expectedResult = Array.from(trustedVerifiers).reduce(
+        (a, v) => ({ ...a, [utils.getAddress(v)]: addressArray }),
+        {}
+      );
+      const result = await relayServer.destinationContractHandler();
+
+      expect(result).to.be.deep.equal(expectedResult);
+      expect(queryVerifiersSpy).to.be.calledOnce;
+      for (const v of trustedVerifiers) {
+        expect(callVerifierMehodStub).to.be.calledWithExactly(v, 'Contract');
+      }
+    });
+
+    it('should return contract from provided verifier', async function () {
+      const expectedResult = {
+        [utils.getAddress(verifier)]: addressArray,
+      };
+      const result = await relayServer.destinationContractHandler(verifier);
+
+      expect(result).to.be.deep.equal(expectedResult);
+      expect(queryVerifiersSpy).to.be.calledOnce;
+      expect(callVerifierMehodStub).to.be.calledWithExactly(
+        verifier,
+        'Contract'
       );
     });
   });

@@ -431,7 +431,7 @@ function queryVerifiers(verifier: string | undefined, verifiers: Set<string>) {
 
   // if a verifier was supplied, check that it is trusted
   if (!verifiers.has(verifier.toLowerCase())) {
-    throw new Error('supplied verifier is not trusted');
+    throw new Error('Supplied verifier is not trusted');
   }
 
   return [verifier];
