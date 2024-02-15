@@ -396,28 +396,38 @@ async function validateExpirationTime(
   }
 }
 
-type VerifierQueries = 'Token' | 'Contract';
-
-async function callVerifierMethod(
-  verifier: string,
-  type: VerifierQueries
+async function getAcceptedContractsFromVerifier(
+  verifier: string
 ): Promise<string[]> {
   try {
     const provider = getProvider();
-    if (type === 'Token') {
-      const handler = TokenHandler__factory.connect(verifier, provider);
 
-      return await handler.getAcceptedTokens();
-    } else {
-      const handler = DestinationContractHandler__factory.connect(
-        verifier,
-        provider
-      );
+    const handler = DestinationContractHandler__factory.connect(
+      verifier,
+      provider
+    );
 
-      return await handler.getAcceptedContracts();
-    }
+    return await handler.getAcceptedContracts();
   } catch (error) {
-    log.warn(`Verifier ${verifier} failed while query ${type} `, error);
+    log.warn(
+      `Couldn't get accepted contracts from verifier ${verifier}`,
+      error
+    );
+  }
+
+  return [];
+}
+
+async function getAcceptedTokensFromVerifier(
+  verifier: string
+): Promise<string[]> {
+  try {
+    const provider = getProvider();
+    const handler = TokenHandler__factory.connect(verifier, provider);
+
+    return await handler.getAcceptedTokens();
+  } catch (error) {
+    log.warn(`Couldn't get accepted tokens from verifier ${verifier}`, error);
   }
 
   return [];
@@ -446,6 +456,7 @@ export {
   TRANSFER_HASH,
   TRANSFER_FROM_HASH,
   validateExpirationTime,
-  callVerifierMethod,
   queryVerifiers,
+  getAcceptedContractsFromVerifier,
+  getAcceptedTokensFromVerifier,
 };

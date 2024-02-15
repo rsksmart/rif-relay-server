@@ -350,7 +350,7 @@ describe('RelayServer tests', function () {
       queryVerifiersSpy = sinon.spy(relayServerUtils, 'queryVerifiers');
       callVerifierMehodStub = sinon.stub(
         relayServerUtils,
-        'callVerifierMethod'
+        'getAcceptedTokensFromVerifier'
       );
       callVerifierMehodStub.returns(addressArray);
       trustedVerifiers = new Set<string>();
@@ -379,7 +379,7 @@ describe('RelayServer tests', function () {
       expect(result).to.be.deep.equal(expectedResult);
       expect(queryVerifiersSpy).to.be.calledOnce;
       for (const v of trustedVerifiers) {
-        expect(callVerifierMehodStub).to.be.calledWithExactly(v, 'Token');
+        expect(callVerifierMehodStub).to.be.calledWithExactly(v);
       }
     });
 
@@ -391,7 +391,7 @@ describe('RelayServer tests', function () {
 
       expect(result).to.be.deep.equal(expectedResult);
       expect(queryVerifiersSpy).to.be.calledOnce;
-      expect(callVerifierMehodStub).to.be.calledWithExactly(verifier, 'Token');
+      expect(callVerifierMehodStub).to.be.calledWithExactly(verifier);
     });
   });
 
@@ -406,7 +406,7 @@ describe('RelayServer tests', function () {
       queryVerifiersSpy = sinon.spy(relayServerUtils, 'queryVerifiers');
       callVerifierMehodStub = sinon.stub(
         relayServerUtils,
-        'callVerifierMethod'
+        'getAcceptedContractsFromVerifier'
       );
       callVerifierMehodStub.returns(addressArray);
       trustedVerifiers = new Set<string>();
@@ -435,7 +435,7 @@ describe('RelayServer tests', function () {
       expect(result).to.be.deep.equal(expectedResult);
       expect(queryVerifiersSpy).to.be.calledOnce;
       for (const v of trustedVerifiers) {
-        expect(callVerifierMehodStub).to.be.calledWithExactly(v, 'Contract');
+        expect(callVerifierMehodStub).to.be.calledWithExactly(v);
       }
     });
 
@@ -447,10 +447,7 @@ describe('RelayServer tests', function () {
 
       expect(result).to.be.deep.equal(expectedResult);
       expect(queryVerifiersSpy).to.be.calledOnce;
-      expect(callVerifierMehodStub).to.be.calledWithExactly(
-        verifier,
-        'Contract'
-      );
+      expect(callVerifierMehodStub).to.be.calledWithExactly(verifier);
     });
   });
 });

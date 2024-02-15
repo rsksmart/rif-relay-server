@@ -60,8 +60,9 @@ import {
   convertGasToTokenAndNative,
   calculateFee,
   validateExpirationTime,
-  callVerifierMethod,
   queryVerifiers,
+  getAcceptedTokensFromVerifier,
+  getAcceptedContractsFromVerifier,
 } from './relayServerUtils';
 import { getPastEventsForHub } from './getPastEventsForHub';
 import type { PastEventOptions } from './definitions';
@@ -215,9 +216,8 @@ export class RelayServer extends EventEmitter {
 
     const res: HandlerResponse = {};
     for (const verifier of verifiers) {
-      res[utils.getAddress(verifier)] = await callVerifierMethod(
-        verifier,
-        'Token'
+      res[utils.getAddress(verifier)] = await getAcceptedTokensFromVerifier(
+        verifier
       );
     }
 
@@ -231,9 +231,8 @@ export class RelayServer extends EventEmitter {
 
     const res: HandlerResponse = {};
     for (const verifier of verifiers) {
-      res[utils.getAddress(verifier)] = await callVerifierMethod(
-        verifier,
-        'Contract'
+      res[utils.getAddress(verifier)] = await getAcceptedContractsFromVerifier(
+        verifier
       );
     }
 

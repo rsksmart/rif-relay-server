@@ -620,7 +620,7 @@ describe('relayServerUtils tests', function () {
     });
   });
 
-  describe('Function callVerifierMethod()', function () {
+  describe('', function () {
     const addressArray = ['0x145845fd06c85B7EA1AA2d030E1a747B3d8d15D7'];
     const verifier = '0x155845fd06c85B7EA1AA2d030E1a747B3d8d15D7';
     let getAcceptedTokens: SinonStub;
@@ -642,46 +642,44 @@ describe('relayServerUtils tests', function () {
         .returns(contractHandler);
     });
 
-    it('should return accepted tokens', async function () {
-      const tokens = await relayServerUtils.callVerifierMethod(
-        verifier,
-        'Token'
-      );
+    describe('getAcceptedTokensFromVerifier', function () {
+      it('should return accepted tokens', async function () {
+        const tokens = await relayServerUtils.getAcceptedTokensFromVerifier(
+          verifier
+        );
 
-      expect(getAcceptedTokens).to.be.calledOnce;
-      expect(tokens).to.be.equal(addressArray);
+        expect(getAcceptedTokens).to.be.calledOnce;
+        expect(tokens).to.be.equal(addressArray);
+      });
+
+      it('should return empty if it fails while retrieving accepted tokens', async function () {
+        getAcceptedTokens.throws();
+        const tokens = await relayServerUtils.getAcceptedTokensFromVerifier(
+          verifier
+        );
+
+        expect(getAcceptedTokens).to.be.calledOnce;
+        expect(tokens).to.be.empty;
+      });
     });
 
-    it('should return accepted contracts', async function () {
-      const contracts = await relayServerUtils.callVerifierMethod(
-        verifier,
-        'Contract'
-      );
+    describe('getAcceptedContractsFromVerifier', function () {
+      it('should return accepted contracts', async function () {
+        const contracts =
+          await relayServerUtils.getAcceptedContractsFromVerifier(verifier);
 
-      expect(getAcceptedContracts).to.be.calledOnce;
-      expect(contracts).to.be.equal(addressArray);
-    });
+        expect(getAcceptedContracts).to.be.calledOnce;
+        expect(contracts).to.be.equal(addressArray);
+      });
 
-    it('should return empty if it fails while retrieving accepted tokens', async function () {
-      getAcceptedTokens.throws();
-      const tokens = await relayServerUtils.callVerifierMethod(
-        verifier,
-        'Token'
-      );
+      it('should return empty if it fails while retrieving accepted contracts', async function () {
+        getAcceptedContracts.throws();
+        const contracts =
+          await relayServerUtils.getAcceptedContractsFromVerifier(verifier);
 
-      expect(getAcceptedTokens).to.be.calledOnce;
-      expect(tokens).to.be.empty;
-    });
-
-    it('should return empty if it fails while retrieving accepted contracts', async function () {
-      getAcceptedContracts.throws();
-      const contracts = await relayServerUtils.callVerifierMethod(
-        verifier,
-        'Contract'
-      );
-
-      expect(getAcceptedContracts).to.be.calledOnce;
-      expect(contracts).to.be.empty;
+        expect(getAcceptedContracts).to.be.calledOnce;
+        expect(contracts).to.be.empty;
+      });
     });
   });
 
