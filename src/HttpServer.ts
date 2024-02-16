@@ -166,7 +166,7 @@ export class HttpServer {
 
   /**
    * @openapi
-   * /getaddr:
+   * /chain-info:
    *   get:
    *     summary: It retrieves server configuration addresses and some general data.
    *     description: It displays addresses used by the server, as well as chain information, status and version.
