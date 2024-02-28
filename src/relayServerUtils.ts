@@ -3,16 +3,23 @@ import {
   estimateInternalCallGas,
   getExchangeRate,
   EnvelopingTxRequest,
-  isDeployTransaction,
+  isDeployRequest,
   RelayRequestBody,
 } from '@rsksmart/rif-relay-client';
 import { BigNumber as BigNumberJs } from 'bignumber.js';
-import type { BigNumber, BigNumberish } from 'ethers';
+import { constants, BigNumber, type BigNumberish } from 'ethers';
 import { MAX_ESTIMATED_GAS_DEVIATION } from './definitions/server.const';
 import { getProvider } from './Utils';
-import { ERC20__factory, PromiseOrValue } from '@rsksmart/rif-relay-contracts';
+import {
+  DestinationContractHandler__factory,
+  ERC20,
+  ERC20__factory,
+  PromiseOrValue,
+  TokenHandler__factory,
+} from '@rsksmart/rif-relay-contracts';
 import type ExchangeToken from './definitions/token.type';
 import {
+  BigNumberishJs,
   convertGasToNative,
   convertGasToToken,
   getXRateFor,
@@ -41,7 +48,7 @@ async function calculateFee(
   maxPossibleGas: BigNumber,
   appConfig: AppConfig
 ): Promise<BigNumberJs> {
-  if (isSponsorshipAllowed(relayRequest, appConfig)) {
+  if (await isSponsorshipAllowed(relayRequest, appConfig)) {
     return BigNumberJs(0);
   }
 
@@ -93,25 +100,29 @@ async function calculateFee(
 async function calculateFixedUsdFee(
   envelopingRequest: EnvelopingRequest,
   fixedUsdFee: number
-) {
-  const tokenContractAddress = await envelopingRequest.request.tokenContract;
+): Promise<BigNumberJs> {
+  const tokenContract = await envelopingRequest.request.tokenContract;
   const gasPrice = await envelopingRequest.relayData.gasPrice;
 
   const provider = getProvider();
 
-  const tokenInstance = ERC20__factory.connect(tokenContractAddress, provider);
-  const tokenSymbol = await tokenInstance.symbol();
+  let symbol;
+  let precision;
+  if (tokenContract === constants.AddressZero) {
+    symbol = 'RBTC';
+    precision = 18;
+  } else {
+    const tokenInstance = ERC20__factory.connect(tokenContract, provider);
+    symbol = await callERC20Symbol(tokenInstance);
+    precision = await callERC20Decimals(tokenInstance);
+  }
 
-  const exchangeRate = await getExchangeRate(US_DOLLAR_SYMBOL, tokenSymbol);
+  const exchangeRate = await getExchangeRate(US_DOLLAR_SYMBOL, symbol);
 
   let fixedFeeInToken = exchangeRate.multipliedBy(fixedUsdFee);
-  fixedFeeInToken = toPrecision({ value: fixedFeeInToken, precision: 18 });
+  fixedFeeInToken = toPrecision({ value: fixedFeeInToken, precision });
 
-  return await convertTokenToGas(
-    fixedFeeInToken.toString(),
-    tokenContractAddress,
-    gasPrice.toString()
-  );
+  return await convertTokenToGas(fixedFeeInToken, tokenContract, gasPrice);
 }
 
 /*
@@ -137,19 +148,15 @@ async function calculateFeeFromTransfer(
   const valueInDecimal = BigNumberJs('0x' + valueHex);
 
   const feeInToken = valueInDecimal.multipliedBy(transferFeePercentage);
-  const tokenContractAddress = await envelopingRequest.request.tokenContract;
+  const tokenContract = await envelopingRequest.request.tokenContract;
   const gasPrice = await envelopingRequest.relayData.gasPrice;
 
-  return await convertTokenToGas(
-    feeInToken.toString(),
-    tokenContractAddress,
-    gasPrice.toString()
-  );
+  return await convertTokenToGas(feeInToken, tokenContract, gasPrice);
 }
 
 function calculateFeeFromGas(
-  maxPossibleGas: BigNumberish,
-  feePercentage: BigNumberish
+  maxPossibleGas: BigNumberishJs,
+  feePercentage: BigNumberishJs
 ): BigNumberJs {
   const bigMaxPossibleGas = BigNumberJs(maxPossibleGas.toString());
   const bigFeePercentage = BigNumberJs(feePercentage.toString());
@@ -159,15 +166,15 @@ function calculateFeeFromGas(
   );
 }
 
-function isSponsorshipAllowed(
+async function isSponsorshipAllowed(
   envelopingRequest: EnvelopingRequest,
   config: AppConfig
-): boolean {
+): Promise<boolean> {
   const { disableSponsoredTx, sponsoredDestinations } = config;
 
   return (
     !disableSponsoredTx ||
-    sponsoredDestinations.includes(envelopingRequest.request.to as string)
+    sponsoredDestinations.includes(await envelopingRequest.request.to)
   );
 }
 
@@ -175,37 +182,37 @@ function getMethodHashFromData(data: string) {
   return data.substring(2, 10);
 }
 
-async function validateIfGasAmountIsAcceptable(
-  envelopingTransaction: EnvelopingTxRequest
-) {
+async function validateIfGasAmountIsAcceptable({
+  relayRequest,
+}: EnvelopingTxRequest) {
   // TODO: For RIF Team
   // The maxPossibleGas must be compared against the commitment signed with the user.
   // The relayServer must not allow a call that requires more gas than it was agreed with the user
   // For now, we can call estimateDestinationContractCallGas to get the "ACTUAL" gas required for the
   // field req.relayRequest.request.gas and not relay requests that deviated too much from what the user signed
 
-  // But take into acconunt that the aggreement with the user (the one from the Arbiter) has the final decision.
+  // But take into account that the agreement with the user (the one from the Arbiter) has the final decision.
   // If the Relayer agreed with the Client a certain percentage of deviation from the original maxGas, then it must honor that agreement
   // and not the current hardcoded deviation
 
-  if (isDeployTransaction(envelopingTransaction)) {
+  if (isDeployRequest(relayRequest)) {
     return;
   }
 
-  const relayRequest = envelopingTransaction.relayRequest;
+  const { request, relayData } = relayRequest;
 
   const estimatedDestinationGasCost = await estimateInternalCallGas({
-    from: relayRequest.relayData.callForwarder,
-    to: relayRequest.request.to,
-    gasPrice: relayRequest.relayData.gasPrice,
-    data: relayRequest.request.data,
+    from: relayData.callForwarder,
+    to: request.to,
+    gasPrice: relayData.gasPrice,
+    data: request.data,
   });
 
   const bigMaxEstimatedGasDeviation = BigNumberJs(
     1 + MAX_ESTIMATED_GAS_DEVIATION
   );
 
-  const { gas } = relayRequest.request as RelayRequestBody;
+  const { gas } = request as RelayRequestBody;
   const gasValue = await gas;
   const bigGasFromRequestMaxAgreed = bigMaxEstimatedGasDeviation.multipliedBy(
     gasValue.toString()
@@ -223,23 +230,22 @@ async function validateIfTokenAmountIsAcceptable(
   envelopingTransaction: EnvelopingTxRequest,
   appConfig: AppConfig
 ) {
-  if (isSponsorshipAllowed(envelopingTransaction.relayRequest, appConfig)) {
+  if (
+    await isSponsorshipAllowed(envelopingTransaction.relayRequest, appConfig)
+  ) {
     return;
   }
 
-  const {
-    request: { tokenAmount, tokenContract },
-    relayData: { gasPrice },
-  } = envelopingTransaction.relayRequest;
+  const { request, relayData } = envelopingTransaction.relayRequest;
 
-  const tokenContractAddress = await tokenContract;
-  const tokenAmountValue = await tokenAmount;
-  const gasPriceValue = await gasPrice;
+  const tokenContract = await request.tokenContract;
+  const tokenAmount = await request.tokenAmount;
+  const gasPrice = await relayData.gasPrice;
 
   const tokenAmountInGas = await convertTokenToGas(
-    tokenAmountValue.toString(),
-    tokenContractAddress,
-    gasPriceValue.toString()
+    tokenAmount,
+    tokenContract,
+    gasPrice
   );
 
   const isTokenAmountAcceptable = tokenAmountInGas.isGreaterThanOrEqualTo(
@@ -261,32 +267,58 @@ async function validateIfTokenAmountIsAcceptable(
   }
 }
 
+type ERC20OptionalMethod = 'symbol' | 'decimals' | 'name';
+
+async function callERC20OptionalMethod<T>(
+  tokenInstance: ERC20,
+  methodName: ERC20OptionalMethod,
+  defaultValue: T
+): Promise<T> {
+  try {
+    return (await tokenInstance[methodName]()) as T;
+  } catch (error) {
+    log.warn(`ERC20 method ${methodName} failed`, error);
+
+    return defaultValue;
+  }
+}
+
+async function callERC20Symbol(tokenInstance: ERC20, defaultValue = 'ERC20') {
+  return callERC20OptionalMethod(tokenInstance, 'symbol', defaultValue);
+}
+
+async function callERC20Decimals(tokenInstance: ERC20, defaultValue = 18) {
+  return callERC20OptionalMethod(tokenInstance, 'decimals', defaultValue);
+}
+
 async function convertTokenToGas(
-  tokenAmount: string,
-  tokenAddress: string,
-  gasPrice: string
+  tokenAmount: BigNumberishJs,
+  tokenContract: string,
+  gasPrice: BigNumberishJs
 ) {
-  const provider = getProvider();
+  let tokenAmountInNative = BigNumberJs(tokenAmount.toString());
+  if (tokenContract !== constants.AddressZero) {
+    const provider = getProvider();
+    const tokenInstance = ERC20__factory.connect(tokenContract, provider);
+    const symbol = await callERC20Symbol(tokenInstance, 'ERC20');
+    const decimals = await callERC20Decimals(tokenInstance, 18);
+    const token: ExchangeToken = {
+      instance: tokenInstance,
+      name: await tokenInstance.name(),
+      symbol,
+      decimals,
+    };
 
-  const tokenInstance = ERC20__factory.connect(tokenAddress, provider);
+    const xRate = await getXRateFor(token);
 
-  const token: ExchangeToken = {
-    instance: tokenInstance,
-    name: await tokenInstance.name(),
-    symbol: await tokenInstance.symbol(),
-    decimals: await tokenInstance.decimals(),
-  };
+    tokenAmountInNative = toNativeWeiFrom({
+      ...token,
+      amount: tokenAmount.toString(),
+      xRate,
+    });
+  }
 
-  const xRate = await getXRateFor(token);
-
-  const tokenAmountInNative = toNativeWeiFrom({
-    ...token,
-    amount: tokenAmount,
-    xRate,
-  });
-  const bigTokenAmountInNative = BigNumberJs(tokenAmountInNative.toString());
-
-  return bigTokenAmountInNative.dividedBy(gasPrice);
+  return tokenAmountInNative.dividedBy(gasPrice.toString());
 }
 
 function isTransferOrTransferFrom(data: string) {
@@ -302,29 +334,34 @@ async function convertGasToTokenAndNative(
   const gasPrice = await relayRequest.relayData.gasPrice;
   const tokenContractAddress = await relayRequest.request.tokenContract;
 
-  const provider = getProvider();
+  let xRate = '1';
+  let initialEstimationInNative: BigNumber = initialEstimation.mul(gasPrice);
+  let initialEstimationInToken: BigNumber = initialEstimationInNative;
+  if (tokenContractAddress !== constants.AddressZero) {
+    const provider = getProvider();
 
-  const tokenInstance = ERC20__factory.connect(tokenContractAddress, provider);
+    const tokenInstance = ERC20__factory.connect(
+      tokenContractAddress,
+      provider
+    );
 
-  const token: ExchangeToken = {
-    instance: tokenInstance,
-    name: await tokenInstance.name(),
-    symbol: await tokenInstance.symbol(),
-    decimals: await tokenInstance.decimals(),
-  };
+    const token: ExchangeToken = {
+      instance: tokenInstance,
+      name: await tokenInstance.name(),
+      symbol: await callERC20Symbol(tokenInstance),
+      decimals: await callERC20Decimals(tokenInstance),
+    };
 
-  const xRate = await getXRateFor(token);
+    xRate = await getXRateFor(token);
 
-  const initialEstimationInToken = convertGasToToken(
-    initialEstimation,
-    { ...token, xRate },
-    gasPrice
-  );
+    initialEstimationInToken = convertGasToToken(
+      initialEstimation,
+      { ...token, xRate },
+      gasPrice
+    );
 
-  const initialEstimationInNative = convertGasToNative(
-    initialEstimation,
-    gasPrice
-  );
+    initialEstimationInNative = convertGasToNative(initialEstimation, gasPrice);
+  }
 
   return {
     value: initialEstimation.toString(),
@@ -359,6 +396,57 @@ async function validateExpirationTime(
   }
 }
 
+async function getAcceptedContractsFromVerifier(
+  verifier: string
+): Promise<string[]> {
+  try {
+    const provider = getProvider();
+
+    const handler = DestinationContractHandler__factory.connect(
+      verifier,
+      provider
+    );
+
+    return await handler.getAcceptedContracts();
+  } catch (error) {
+    log.warn(
+      `Couldn't get accepted contracts from verifier ${verifier}`,
+      error
+    );
+  }
+
+  return [];
+}
+
+async function getAcceptedTokensFromVerifier(
+  verifier: string
+): Promise<string[]> {
+  try {
+    const provider = getProvider();
+    const handler = TokenHandler__factory.connect(verifier, provider);
+
+    return await handler.getAcceptedTokens();
+  } catch (error) {
+    log.warn(`Couldn't get accepted tokens from verifier ${verifier}`, error);
+  }
+
+  return [];
+}
+
+function queryVerifiers(verifier: string | undefined, verifiers: Set<string>) {
+  // if no verifier was supplied, query all trusted verifiers
+  if (!verifier) {
+    return Array.from(verifiers);
+  }
+
+  // if a verifier was supplied, check that it is trusted
+  if (!verifiers.has(verifier.toLowerCase())) {
+    throw new Error('Supplied verifier is not trusted');
+  }
+
+  return [verifier];
+}
+
 export {
   validateIfGasAmountIsAcceptable,
   validateIfTokenAmountIsAcceptable,
@@ -368,4 +456,7 @@ export {
   TRANSFER_HASH,
   TRANSFER_FROM_HASH,
   validateExpirationTime,
+  queryVerifiers,
+  getAcceptedContractsFromVerifier,
+  getAcceptedTokensFromVerifier,
 };

@@ -1,12 +1,18 @@
-import sinon from 'sinon';
+import sinon, { SinonStub } from 'sinon';
 import type {
   RelayRequestBody,
   EnvelopingRequestData,
   RelayRequest,
 } from '@rsksmart/rif-relay-client';
-import { BigNumber, constants, providers } from 'ethers';
-import * as utils from '../../src/Utils';
-import { ERC20__factory, ERC20 } from '@rsksmart/rif-relay-contracts';
+import { BigNumber, constants } from 'ethers';
+import {
+  ERC20__factory,
+  ERC20,
+  TokenHandler__factory,
+  DestinationContractHandler__factory,
+  DestinationContractHandler,
+  TokenHandler,
+} from '@rsksmart/rif-relay-contracts';
 import { expect, use } from 'chai';
 import * as Conversions from '../../src/Conversions';
 import { BigNumber as BigNumberJs } from 'bignumber.js';
@@ -30,11 +36,6 @@ const FAKE_TRANSFER_FEE_PERCENTAGE = 0.01;
 const FAKE_FIXED_USD_FEE = 2;
 const TOKEN_AMOUNT_TO_TRANSFER = '1000000000000000000'; //18 zeros
 const TOKEN_VALUE_IN_USD = 0.5;
-let tokenAmountToTransferAsHex: string;
-let dataWhenTransfer: string;
-let dataWhenTransferFrom: string;
-let expectedFeeFromTransferInGas: BigNumberJs;
-let expectedFixedFeeValueInGas: BigNumberJs;
 
 function createRequest(request: Partial<RelayRequestBody>): RelayRequest {
   const baseRequest: RelayRequest = {
@@ -73,74 +74,84 @@ function createRequest(request: Partial<RelayRequestBody>): RelayRequest {
 use(chaiAsPromised);
 
 describe('relayServerUtils tests', function () {
-  before(function () {
-    //Build the data for the transfer() and transferFrom()
-    const fakeFromAddress =
-      '000000000000000000000000e87286ba960fa7aaa5b376083a31d440c8cb4bc8';
-    const fakeToAddress =
-      '0000000000000000000000008470af7f41ee2788eaa4cfc251927877b659cdc5';
-    tokenAmountToTransferAsHex = BigNumber.from(TOKEN_AMOUNT_TO_TRANSFER)
-      .toHexString()
-      .substring(2) //removes 0x
-      .padStart(64, '0'); //fills with 0 to the left
-
-    dataWhenTransfer =
-      '0x' + TRANSFER_HASH + fakeToAddress + tokenAmountToTransferAsHex;
-
-    dataWhenTransferFrom =
-      '0x' +
-      TRANSFER_FROM_HASH +
-      fakeFromAddress +
-      fakeToAddress +
-      tokenAmountToTransferAsHex;
-
-    //Calculate the expected fee value when a transfer/transferFrom is executed
-    const tokenFee = BigNumberJs(TOKEN_AMOUNT_TO_TRANSFER).multipliedBy(
-      FAKE_TRANSFER_FEE_PERCENTAGE
-    );
-    const tokenFeeAsFraction = toPrecision({
-      value: tokenFee,
-      precision: -18,
-    });
-    const feeAsFractionInNative = tokenFeeAsFraction.multipliedBy(TOKEN_X_RATE);
-    const feeInNative = toPrecision({
-      value: feeAsFractionInNative,
-      precision: 18,
-    });
-    expectedFeeFromTransferInGas = feeInNative.dividedBy(GAS_PRICE);
-
-    //Calculate the expected fixed fee value
-    const exchangeRate = 1 / TOKEN_VALUE_IN_USD;
-    const fixedFeeInToken = BigNumberJs(exchangeRate * FAKE_FIXED_USD_FEE);
-    const fixedFeeInTokenWithPrecision = toPrecision({
-      value: fixedFeeInToken,
-      precision: 18,
-    });
-    const fixedFeeAsFractionInNative =
-      fixedFeeInTokenWithPrecision.multipliedBy(TOKEN_X_RATE);
-    expectedFixedFeeValueInGas =
-      fixedFeeAsFractionInNative.dividedBy(GAS_PRICE);
-  });
-
-  beforeEach(function () {
-    //Set stubs
-    sinon.stub(utils, 'getProvider').returns(providers.getDefaultProvider());
-
-    const token = {
-      name: () => Promise.resolve('TestToken'),
-      symbol: () => Promise.resolve('TT'),
-      decimals: () => Promise.resolve(18),
-    } as unknown as ERC20;
-    sinon.stub(ERC20__factory, 'connect').returns(token);
-
-    sinon.stub(Conversions, 'getXRateFor').resolves(TOKEN_X_RATE);
-  });
-
   afterEach(function () {
     sinon.restore();
   });
 
   describe('Function calculateFee()', function () {
+    let fakeToAddress: string;
+    let tokenAmountToTransferAsHex: string;
+    let dataWhenTransfer: string;
+    let dataWhenTransferFrom: string;
+    let expectedFeeFromTransferInTokenGas: BigNumberJs;
+    let expectedFeeFromTransferInNativeGas: BigNumberJs;
+    let expectedFixedFeeValueInTokenGas: BigNumberJs;
+    let expectedFixedFeeValueInNativeGas: BigNumberJs;
+
+    before(function () {
+      //Build the data for the transfer() and transferFrom()
+      const fakeFromAddress =
+        '000000000000000000000000e87286ba960fa7aaa5b376083a31d440c8cb4bc8';
+      fakeToAddress =
+        '0000000000000000000000008470af7f41ee2788eaa4cfc251927877b659cdc5';
+      tokenAmountToTransferAsHex = BigNumber.from(TOKEN_AMOUNT_TO_TRANSFER)
+        .toHexString()
+        .substring(2) //removes 0x
+        .padStart(64, '0'); //fills with 0 to the left
+
+      dataWhenTransfer =
+        '0x' + TRANSFER_HASH + fakeToAddress + tokenAmountToTransferAsHex;
+
+      dataWhenTransferFrom =
+        '0x' +
+        TRANSFER_FROM_HASH +
+        fakeFromAddress +
+        fakeToAddress +
+        tokenAmountToTransferAsHex;
+
+      //Calculate the expected fee value when a transfer/transferFrom is executed
+      const tokenFee = BigNumberJs(TOKEN_AMOUNT_TO_TRANSFER).multipliedBy(
+        FAKE_TRANSFER_FEE_PERCENTAGE
+      );
+      const tokenFeeAsFraction = toPrecision({
+        value: tokenFee,
+        precision: -18,
+      });
+      const feeAsFractionInNative =
+        tokenFeeAsFraction.multipliedBy(TOKEN_X_RATE);
+      const feeInNative = toPrecision({
+        value: feeAsFractionInNative,
+        precision: 18,
+      });
+      expectedFeeFromTransferInTokenGas = feeInNative.dividedBy(GAS_PRICE);
+      expectedFeeFromTransferInNativeGas = tokenFee.dividedBy(GAS_PRICE);
+
+      //Calculate the expected fixed fee value
+      const exchangeRate = 1 / TOKEN_VALUE_IN_USD;
+      const fixedFeeInToken = BigNumberJs(exchangeRate * FAKE_FIXED_USD_FEE);
+      const fixedFeeInTokenWithPrecision = toPrecision({
+        value: fixedFeeInToken,
+        precision: 18,
+      });
+      const fixedFeeAsFractionInNative =
+        fixedFeeInTokenWithPrecision.multipliedBy(TOKEN_X_RATE);
+      expectedFixedFeeValueInTokenGas =
+        fixedFeeAsFractionInNative.dividedBy(GAS_PRICE);
+      expectedFixedFeeValueInNativeGas =
+        fixedFeeInTokenWithPrecision.dividedBy(GAS_PRICE);
+    });
+
+    beforeEach(function () {
+      const token = {
+        name: () => Promise.resolve('TestToken'),
+        symbol: () => Promise.resolve('TT'),
+        decimals: () => Promise.resolve(18),
+      } as unknown as ERC20;
+      sinon.stub(ERC20__factory, 'connect').returns(token);
+
+      sinon.stub(Conversions, 'getXRateFor').resolves(TOKEN_X_RATE);
+    });
+
     it('Should return 0 when it is sponsored even if fees are configured', async function () {
       const request = createRequest({});
       const config = {
@@ -161,46 +172,102 @@ describe('relayServerUtils tests', function () {
 
     describe('When is not sponsored', function () {
       describe('Transfer fee scenarios', function () {
-        it('Should charge transferFee when a transfer is being relayed', async function () {
-          const request = createRequest({
-            data: dataWhenTransfer,
+        describe('Using ERC20 token', function () {
+          it('Should charge transferFee when a transfer is being relayed', async function () {
+            const request = createRequest({
+              data: dataWhenTransfer,
+              tokenContract: fakeToAddress,
+            });
+
+            const config = {
+              disableSponsoredTx: true,
+              sponsoredDestinations: [],
+              gasFeePercentage: FAKE_GAS_FEE_PERCENTAGE,
+              transferFeePercentage: FAKE_TRANSFER_FEE_PERCENTAGE,
+            } as unknown as AppConfig;
+
+            const fee = await relayServerUtils.calculateFee(
+              request,
+              BigNumber.from(FAKE_ESTIMATION_BEFORE_FEES),
+              config
+            );
+
+            expect(fee.toString()).to.eq(
+              expectedFeeFromTransferInTokenGas.toString()
+            );
           });
 
-          const config = {
-            disableSponsoredTx: true,
-            sponsoredDestinations: [],
-            gasFeePercentage: FAKE_GAS_FEE_PERCENTAGE,
-            transferFeePercentage: FAKE_TRANSFER_FEE_PERCENTAGE,
-          } as unknown as AppConfig;
+          it('Should charge transferFee when a transferFrom is being relayed', async function () {
+            const request = createRequest({
+              data: dataWhenTransferFrom,
+              tokenContract: fakeToAddress,
+            });
 
-          const fee = await relayServerUtils.calculateFee(
-            request,
-            BigNumber.from(FAKE_ESTIMATION_BEFORE_FEES),
-            config
-          );
+            const config = {
+              disableSponsoredTx: true,
+              sponsoredDestinations: [],
+              gasFeePercentage: FAKE_GAS_FEE_PERCENTAGE,
+              transferFeePercentage: FAKE_TRANSFER_FEE_PERCENTAGE,
+            } as unknown as AppConfig;
 
-          expect(fee.toString()).to.eq(expectedFeeFromTransferInGas.toString());
+            const fee = await relayServerUtils.calculateFee(
+              request,
+              BigNumber.from(FAKE_ESTIMATION_BEFORE_FEES),
+              config
+            );
+
+            expect(fee.toString()).to.eq(
+              expectedFeeFromTransferInTokenGas.toString()
+            );
+          });
         });
 
-        it('Should charge transferFee when a transferFrom is being relayed', async function () {
-          const request = createRequest({
-            data: dataWhenTransferFrom,
+        describe('Using native token', function () {
+          it('Should charge transferFee when a transfer is being relayed', async function () {
+            const request = createRequest({
+              data: dataWhenTransfer,
+            });
+
+            const config = {
+              disableSponsoredTx: true,
+              sponsoredDestinations: [],
+              gasFeePercentage: FAKE_GAS_FEE_PERCENTAGE,
+              transferFeePercentage: FAKE_TRANSFER_FEE_PERCENTAGE,
+            } as unknown as AppConfig;
+
+            const fee = await relayServerUtils.calculateFee(
+              request,
+              BigNumber.from(FAKE_ESTIMATION_BEFORE_FEES),
+              config
+            );
+
+            expect(fee.toString()).to.eq(
+              expectedFeeFromTransferInNativeGas.toString()
+            );
           });
 
-          const config = {
-            disableSponsoredTx: true,
-            sponsoredDestinations: [],
-            gasFeePercentage: FAKE_GAS_FEE_PERCENTAGE,
-            transferFeePercentage: FAKE_TRANSFER_FEE_PERCENTAGE,
-          } as unknown as AppConfig;
+          it('Should charge transferFee when a transferFrom is being relayed', async function () {
+            const request = createRequest({
+              data: dataWhenTransferFrom,
+            });
 
-          const fee = await relayServerUtils.calculateFee(
-            request,
-            BigNumber.from(FAKE_ESTIMATION_BEFORE_FEES),
-            config
-          );
+            const config = {
+              disableSponsoredTx: true,
+              sponsoredDestinations: [],
+              gasFeePercentage: FAKE_GAS_FEE_PERCENTAGE,
+              transferFeePercentage: FAKE_TRANSFER_FEE_PERCENTAGE,
+            } as unknown as AppConfig;
 
-          expect(fee.toString()).to.eq(expectedFeeFromTransferInGas.toString());
+            const fee = await relayServerUtils.calculateFee(
+              request,
+              BigNumber.from(FAKE_ESTIMATION_BEFORE_FEES),
+              config
+            );
+
+            expect(fee.toString()).to.eq(
+              expectedFeeFromTransferInNativeGas.toString()
+            );
+          });
         });
 
         it('Should not charge extra fees when a transfer() with value = 0 is being relayed', async function () {
@@ -372,73 +439,151 @@ describe('relayServerUtils tests', function () {
           );
         });
 
-        it('Should charge fixedFee when properly configured', async function () {
-          const request = createRequest({});
+        describe('Using ERC20 token', function () {
+          it('Should charge fixedFee when properly configured', async function () {
+            const request = createRequest({ tokenContract: fakeToAddress });
 
-          const config = {
-            disableSponsoredTx: true,
-            sponsoredDestinations: [],
-            gasFeePercentage: 0,
-            transferFeePercentage: 0,
-            fixedUsdFee: FAKE_FIXED_USD_FEE,
-          } as unknown as AppConfig;
+            const config = {
+              disableSponsoredTx: true,
+              sponsoredDestinations: [],
+              gasFeePercentage: 0,
+              transferFeePercentage: 0,
+              fixedUsdFee: FAKE_FIXED_USD_FEE,
+            } as unknown as AppConfig;
 
-          const fee = await relayServerUtils.calculateFee(
-            request,
-            BigNumber.from(FAKE_ESTIMATION_BEFORE_FEES),
-            config
-          );
+            const fee = await relayServerUtils.calculateFee(
+              request,
+              BigNumber.from(FAKE_ESTIMATION_BEFORE_FEES),
+              config
+            );
 
-          expect(fee.toString()).to.eq(expectedFixedFeeValueInGas.toString());
-        });
-
-        it('Should charge fixedFee + gasFee when both are configured', async function () {
-          const request = createRequest({});
-
-          const config = {
-            disableSponsoredTx: true,
-            sponsoredDestinations: [],
-            gasFeePercentage: FAKE_GAS_FEE_PERCENTAGE,
-            fixedUsdFee: FAKE_FIXED_USD_FEE,
-          } as unknown as AppConfig;
-
-          const fee = await relayServerUtils.calculateFee(
-            request,
-            BigNumber.from(FAKE_ESTIMATION_BEFORE_FEES),
-            config
-          );
-
-          expect(fee.toString()).to.eq(
-            BigNumberJs(FAKE_ESTIMATION_BEFORE_FEES)
-              .multipliedBy(FAKE_GAS_FEE_PERCENTAGE)
-              .plus(expectedFixedFeeValueInGas)
-              .toString()
-          );
-        });
-
-        it('Should charge fixedFee + transferFee when both are configured and a transfer is being relayed', async function () {
-          const request = createRequest({
-            data: dataWhenTransfer,
+            expect(fee.toString()).to.eq(
+              expectedFixedFeeValueInTokenGas.toString()
+            );
           });
 
-          const config = {
-            disableSponsoredTx: true,
-            sponsoredDestinations: [],
-            transferFeePercentage: FAKE_TRANSFER_FEE_PERCENTAGE,
-            fixedUsdFee: FAKE_FIXED_USD_FEE,
-          } as unknown as AppConfig;
+          it('Should charge fixedFee + gasFee when both are configured', async function () {
+            const request = createRequest({ tokenContract: fakeToAddress });
 
-          const fee = await relayServerUtils.calculateFee(
-            request,
-            BigNumber.from(FAKE_ESTIMATION_BEFORE_FEES),
-            config
-          );
+            const config = {
+              disableSponsoredTx: true,
+              sponsoredDestinations: [],
+              gasFeePercentage: FAKE_GAS_FEE_PERCENTAGE,
+              fixedUsdFee: FAKE_FIXED_USD_FEE,
+            } as unknown as AppConfig;
 
-          expect(fee.toString()).to.eq(
-            BigNumberJs(expectedFeeFromTransferInGas)
-              .plus(expectedFixedFeeValueInGas)
-              .toString()
-          );
+            const fee = await relayServerUtils.calculateFee(
+              request,
+              BigNumber.from(FAKE_ESTIMATION_BEFORE_FEES),
+              config
+            );
+
+            expect(fee.toString()).to.eq(
+              BigNumberJs(FAKE_ESTIMATION_BEFORE_FEES)
+                .multipliedBy(FAKE_GAS_FEE_PERCENTAGE)
+                .plus(expectedFixedFeeValueInTokenGas)
+                .toString()
+            );
+          });
+
+          it('Should charge fixedFee + transferFee when both are configured and a transfer is being relayed', async function () {
+            const request = createRequest({
+              data: dataWhenTransfer,
+              tokenContract: fakeToAddress,
+            });
+
+            const config = {
+              disableSponsoredTx: true,
+              sponsoredDestinations: [],
+              transferFeePercentage: FAKE_TRANSFER_FEE_PERCENTAGE,
+              fixedUsdFee: FAKE_FIXED_USD_FEE,
+            } as unknown as AppConfig;
+
+            const fee = await relayServerUtils.calculateFee(
+              request,
+              BigNumber.from(FAKE_ESTIMATION_BEFORE_FEES),
+              config
+            );
+
+            expect(fee.toString()).to.eq(
+              BigNumberJs(expectedFeeFromTransferInTokenGas)
+                .plus(expectedFixedFeeValueInTokenGas)
+                .toString()
+            );
+          });
+        });
+
+        describe('Using native token', function () {
+          it('Should charge fixedFee when properly configured', async function () {
+            const request = createRequest({});
+
+            const config = {
+              disableSponsoredTx: true,
+              sponsoredDestinations: [],
+              gasFeePercentage: 0,
+              transferFeePercentage: 0,
+              fixedUsdFee: FAKE_FIXED_USD_FEE,
+            } as unknown as AppConfig;
+
+            const fee = await relayServerUtils.calculateFee(
+              request,
+              BigNumber.from(FAKE_ESTIMATION_BEFORE_FEES),
+              config
+            );
+
+            expect(fee.toString()).to.eq(
+              expectedFixedFeeValueInNativeGas.toString()
+            );
+          });
+
+          it('Should charge fixedFee + gasFee when both are configured', async function () {
+            const request = createRequest({});
+
+            const config = {
+              disableSponsoredTx: true,
+              sponsoredDestinations: [],
+              gasFeePercentage: FAKE_GAS_FEE_PERCENTAGE,
+              fixedUsdFee: FAKE_FIXED_USD_FEE,
+            } as unknown as AppConfig;
+
+            const fee = await relayServerUtils.calculateFee(
+              request,
+              BigNumber.from(FAKE_ESTIMATION_BEFORE_FEES),
+              config
+            );
+
+            expect(fee.toString()).to.eq(
+              BigNumberJs(FAKE_ESTIMATION_BEFORE_FEES)
+                .multipliedBy(FAKE_GAS_FEE_PERCENTAGE)
+                .plus(expectedFixedFeeValueInNativeGas)
+                .toString()
+            );
+          });
+
+          it('Should charge fixedFee + transferFee when both are configured and a transfer is being relayed', async function () {
+            const request = createRequest({
+              data: dataWhenTransfer,
+            });
+
+            const config = {
+              disableSponsoredTx: true,
+              sponsoredDestinations: [],
+              transferFeePercentage: FAKE_TRANSFER_FEE_PERCENTAGE,
+              fixedUsdFee: FAKE_FIXED_USD_FEE,
+            } as unknown as AppConfig;
+
+            const fee = await relayServerUtils.calculateFee(
+              request,
+              BigNumber.from(FAKE_ESTIMATION_BEFORE_FEES),
+              config
+            );
+
+            expect(fee.toString()).to.eq(
+              BigNumberJs(expectedFeeFromTransferInNativeGas)
+                .plus(expectedFixedFeeValueInNativeGas)
+                .toString()
+            );
+          });
         });
       });
     });
@@ -472,6 +617,109 @@ describe('relayServerUtils tests', function () {
       await expect(
         validateExpirationTime(threeSecondsBefore, MINIMUM_ACCEPTABLE_TIME)
       ).not.to.be.rejected;
+    });
+  });
+
+  describe('', function () {
+    const addressArray = ['0x145845fd06c85B7EA1AA2d030E1a747B3d8d15D7'];
+    const verifier = '0x155845fd06c85B7EA1AA2d030E1a747B3d8d15D7';
+    let getAcceptedTokens: SinonStub;
+    let getAcceptedContracts: SinonStub;
+
+    beforeEach(function () {
+      getAcceptedTokens = sinon.stub().resolves(addressArray);
+      const tokenHandler = {
+        getAcceptedTokens,
+      } as unknown as TokenHandler;
+      sinon.stub(TokenHandler__factory, 'connect').returns(tokenHandler);
+
+      getAcceptedContracts = sinon.stub().resolves(addressArray);
+      const contractHandler = {
+        getAcceptedContracts,
+      } as unknown as DestinationContractHandler;
+      sinon
+        .stub(DestinationContractHandler__factory, 'connect')
+        .returns(contractHandler);
+    });
+
+    describe('getAcceptedTokensFromVerifier', function () {
+      it('should return accepted tokens', async function () {
+        const tokens = await relayServerUtils.getAcceptedTokensFromVerifier(
+          verifier
+        );
+
+        expect(getAcceptedTokens).to.be.calledOnce;
+        expect(tokens).to.be.equal(addressArray);
+      });
+
+      it('should return empty if it fails while retrieving accepted tokens', async function () {
+        getAcceptedTokens.throws();
+        const tokens = await relayServerUtils.getAcceptedTokensFromVerifier(
+          verifier
+        );
+
+        expect(getAcceptedTokens).to.be.calledOnce;
+        expect(tokens).to.be.empty;
+      });
+    });
+
+    describe('getAcceptedContractsFromVerifier', function () {
+      it('should return accepted contracts', async function () {
+        const contracts =
+          await relayServerUtils.getAcceptedContractsFromVerifier(verifier);
+
+        expect(getAcceptedContracts).to.be.calledOnce;
+        expect(contracts).to.be.equal(addressArray);
+      });
+
+      it('should return empty if it fails while retrieving accepted contracts', async function () {
+        getAcceptedContracts.throws();
+        const contracts =
+          await relayServerUtils.getAcceptedContractsFromVerifier(verifier);
+
+        expect(getAcceptedContracts).to.be.calledOnce;
+        expect(contracts).to.be.empty;
+      });
+    });
+  });
+
+  describe('Function queryVerifiers()', function () {
+    let trustedVerifiers: Set<string>;
+    const verifier = '0x145845fd06c85B7EA1AA2d030E1a747B3d8d15D7';
+
+    before(function () {
+      trustedVerifiers = new Set<string>();
+      trustedVerifiers.add(verifier.toLowerCase());
+      trustedVerifiers.add(
+        '0x155845fd06c85B7EA1AA2d030E1a747B3d8d15D7'.toLowerCase()
+      );
+    });
+
+    it('should return verifiers if verifier not provided', function () {
+      const verifiers = relayServerUtils.queryVerifiers(
+        undefined,
+        trustedVerifiers
+      );
+
+      expect(verifiers).to.be.deep.equal(Array.from(trustedVerifiers));
+    });
+
+    it('should return trusted verifier', function () {
+      const verifiers = relayServerUtils.queryVerifiers(
+        verifier,
+        trustedVerifiers
+      );
+
+      expect(verifiers).to.be.deep.equal([verifier]);
+    });
+
+    it('should throw error if verifier is not trusted', function () {
+      expect(() =>
+        relayServerUtils.queryVerifiers(
+          '0x165845fd06c85B7EA1AA2d030E1a747B3d8d15D7',
+          trustedVerifiers
+        )
+      ).throw('Supplied verifier is not trusted');
     });
   });
 });

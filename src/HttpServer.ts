@@ -72,6 +72,7 @@ export class HttpServer {
     this._app.get('/chain-info', this.getChainInfo.bind(this));
     this._app.get('/status', this.statusHandler.bind(this));
     this._app.get('/tokens', this.tokenHandler.bind(this));
+    this._app.get('/contracts', this.destinationContractHandler.bind(this));
     this._app.get('/verifiers', this.verifierHandler.bind(this));
     this._app.post('/relay', this.relayHandler.bind(this));
     this._app.post('/estimate', this.estimateHandler.bind(this));
@@ -165,7 +166,7 @@ export class HttpServer {
 
   /**
    * @openapi
-   * /getaddr:
+   * /chain-info:
    *   get:
    *     summary: It retrieves server configuration addresses and some general data.
    *     description: It displays addresses used by the server, as well as chain information, status and version.
@@ -366,14 +367,65 @@ export class HttpServer {
    */
   async tokenHandler(req: Request, res: Response): Promise<void> {
     try {
-      const verifier = req.query['verifier'] as string;
-      const tokenResponse = await this._relayServer.tokenHandler(verifier);
+      const verifier = req.query['verifier'];
+      const tokenResponse = await this._relayServer.tokenHandler(
+        verifier?.toString()
+      );
       res.send(tokenResponse);
     } catch (e) {
       if (e instanceof Error) {
-        const message: string = e.message;
+        const message: string = e.name;
         res.send({ message });
         log.error(`token handler rejected: ${message}`);
+      } else {
+        log.error(e);
+      }
+    }
+  }
+
+  /**
+   * @openapi
+   * /contracts:
+   *   get:
+   *     summary: It retrieves the accepted destination contracts.
+   *     description: "It retrieves the accepted destination contracts of the specified verifier if any, otherwise, it retrieves the accepted destination contracts of all the verifiers."
+   *     parameters:
+   *       - in: query
+   *         name: verifier
+   *         required: false
+   *         description: The address of the verifier to use to retrieve the accepted destination contracts.
+   *         schema:
+   *           type: address
+   *     responses:
+   *       '200':
+   *         description: "Accepted destination contracts by the verifier(s)"
+   *         content:
+   *           application/json:
+   *             schema:
+   *               description: "Object that has the verifier address as key and the list of the accepted destination contracts by each verifier as value"
+   *               type: object
+   *               additionalProperties:
+   *                 title: Verifier address
+   *                 type: array
+   *                 description: List of destination contracts accepted by the verifier.
+   *                 items:
+   *                   type: address
+   *                   description: Contract address
+   *               example:
+   *                 { "0x5159345aaB821172e795d56274D0f5FDFdC6aBD9": ["0x726ECC75d5D51356AA4d0a5B648790cC345985ED"], "0x1eD614cd3443EFd9c70F04b6d777aed947A4b0c4": ["0x726ECC75d5D51356AA4d0a5B648790cC345985ED"] }
+   */
+  async destinationContractHandler(req: Request, res: Response): Promise<void> {
+    try {
+      const verifier = req.query['verifier'];
+      const tokenResponse = await this._relayServer.destinationContractHandler(
+        verifier?.toString()
+      );
+      res.send(tokenResponse);
+    } catch (e) {
+      if (e instanceof Error) {
+        const message: string = e.name;
+        res.send({ message });
+        log.error(`destination contract handler rejected: ${message}`);
       } else {
         log.error(e);
       }

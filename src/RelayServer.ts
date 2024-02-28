@@ -1,7 +1,6 @@
 import chalk from 'chalk';
 import log from 'loglevel';
 import {
-  TokenHandler__factory,
   IDeployVerifier__factory,
   IRelayVerifier__factory,
   IDeployVerifier,
@@ -47,11 +46,11 @@ import {
 import { AmountRequired } from './AmountRequired';
 import {
   EnvelopingTxRequest,
+  RelayRequest,
   estimateRelayMaxPossibleGas,
   isDeployRequest,
   isDeployTransaction,
   maxPossibleGasVerification,
-  RelayRequest,
   setProvider,
   standardMaxPossibleGasEstimation,
 } from '@rsksmart/rif-relay-client';
@@ -61,6 +60,9 @@ import {
   convertGasToTokenAndNative,
   calculateFee,
   validateExpirationTime,
+  queryVerifiers,
+  getAcceptedTokensFromVerifier,
+  getAcceptedContractsFromVerifier,
 } from './relayServerUtils';
 import { getPastEventsForHub } from './getPastEventsForHub';
 import type { PastEventOptions } from './definitions';
@@ -82,7 +84,7 @@ type HubInfo = {
   version: string;
 };
 
-type TokenResponse = {
+type HandlerResponse = {
   [verifier: string]: string[];
 };
 
@@ -144,7 +146,7 @@ export class RelayServer extends EventEmitter {
 
   networkId: number | undefined;
 
-  trustedVerifiers: Set<string | undefined> = new Set<string | undefined>();
+  trustedVerifiers: Set<string> = new Set<string>();
 
   workerBalanceRequired: AmountRequired;
 
@@ -209,30 +211,29 @@ export class RelayServer extends EventEmitter {
     };
   }
 
-  async tokenHandler(verifier?: string): Promise<TokenResponse> {
-    let verifiersToQuery: string[];
+  async tokenHandler(verifier?: string): Promise<HandlerResponse> {
+    const verifiers = queryVerifiers(verifier, this.trustedVerifiers);
 
-    // if a verifier was supplied, check that it is trusted
-    if (verifier !== undefined) {
-      if (!this.trustedVerifiers.has(verifier.toLowerCase())) {
-        throw new Error('supplied verifier is not trusted');
-      }
-      verifiersToQuery = [verifier];
-    } else {
-      // if no verifier was supplied, query all tursted verifiers
-      verifiersToQuery = Array.from(this.trustedVerifiers) as string[];
+    const res: HandlerResponse = {};
+    for (const verifier of verifiers) {
+      res[utils.getAddress(verifier)] = await getAcceptedTokensFromVerifier(
+        verifier
+      );
     }
 
-    const res: TokenResponse = {};
-    const provider = getProvider();
+    return res;
+  }
 
-    for (const verifier of verifiersToQuery) {
-      const tokenHandlerInstance = TokenHandler__factory.connect(
-        verifier,
-        provider
+  async destinationContractHandler(
+    verifier?: string
+  ): Promise<HandlerResponse> {
+    const verifiers = queryVerifiers(verifier, this.trustedVerifiers);
+
+    const res: HandlerResponse = {};
+    for (const verifier of verifiers) {
+      res[utils.getAddress(verifier)] = await getAcceptedContractsFromVerifier(
+        verifier
       );
-      const acceptedTokens = await tokenHandlerInstance.getAcceptedTokens();
-      res[utils.getAddress(verifier)] = acceptedTokens;
     }
 
     return res;
@@ -240,7 +241,7 @@ export class RelayServer extends EventEmitter {
 
   verifierHandler(): VerifierResponse {
     return {
-      trustedVerifiers: Array.from(this.trustedVerifiers) as string[],
+      trustedVerifiers: Array.from(this.trustedVerifiers),
     };
   }
 
@@ -366,9 +367,11 @@ export class RelayServer extends EventEmitter {
           verifierContract as IRelayVerifier
         ).populateTransaction.verifyRelayedCall(
           envelopingTransaction.relayRequest as RelayRequest,
-          envelopingTransaction.metadata.signature
+          envelopingTransaction.metadata.signature,
+          { from: this.workerAddress }
         );
       }
+
       await provider.call(verifyMethod, 'pending');
     } catch (e) {
       const error = e as Error;

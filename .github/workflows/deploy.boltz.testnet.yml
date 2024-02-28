@@ -32,4 +32,4 @@ jobs:
                       --document-name "AWS-RunRemoteScript" \
                       --instance-ids ""${{ secrets.BOLTZ_TESTNET_EC2_ID }}"" \
                       --region=${{ secrets.BOLTZ_TESTNET_AWS_REGION }} \
-                      --parameters '{"sourceType":["GitHub"],"sourceInfo":["{\"owner\":\"rootstock\", \"repository\":\"ask-devops\", \"path\": \"rif-relay/\", \"tokenInfo\":\"{{ssm-secure:github-token}}\"}"],"commandLine":["deploy-testnet.sh"]}'
+                      --parameters '{"sourceType":["GitHub"],"sourceInfo":["{\"owner\":\"rootstock\", \"repository\":\"ask-devops\", \"path\": \"rif-relay/\", \"tokenInfo\":\"{{ssm-secure:github-token}}\"}"],"commandLine":["deploy-boltz-testnet.sh"]}'
