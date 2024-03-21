@@ -1,10 +1,7 @@
 import {
-  EnvelopingRequest,
   estimateInternalCallGas,
   getExchangeRate,
-  EnvelopingTxRequest,
   isDeployRequest,
-  RelayRequestBody,
 } from '@rsksmart/rif-relay-client';
 import { BigNumber as BigNumberJs } from 'bignumber.js';
 import { constants, BigNumber, type BigNumberish } from 'ethers';
@@ -29,6 +26,11 @@ import {
 import log from 'loglevel';
 import { INSUFFICIENT_TOKEN_AMOUNT } from './definitions/errorMessages.const';
 import type { AppConfig } from './ServerConfigParams';
+import type {
+  EnvelopingRequest,
+  HttpEnvelopingRequest,
+  RelayRequestBody,
+} from './HttpEnvelopingRequest';
 
 const TRANSFER_HASH = 'a9059cbb';
 const TRANSFER_FROM_HASH = '23b872dd';
@@ -48,7 +50,7 @@ async function calculateFee(
   maxPossibleGas: BigNumber,
   appConfig: AppConfig
 ): Promise<BigNumberJs> {
-  if (await isSponsorshipAllowed(relayRequest, appConfig)) {
+  if (isSponsorshipAllowed(relayRequest, appConfig)) {
     return BigNumberJs(0);
   }
 
@@ -64,7 +66,7 @@ async function calculateFee(
   }
 
   const { transferFeePercentage } = appConfig;
-  const data = await relayRequest.request.data;
+  const data = relayRequest.request.data;
   //Even if transferFeePercentage = 0, it has priority over gas fee
   if (transferFeePercentage >= 0 && isTransferOrTransferFrom(data.toString())) {
     const transferFee = await calculateFeeFromTransfer(
@@ -101,8 +103,8 @@ async function calculateFixedUsdFee(
   envelopingRequest: EnvelopingRequest,
   fixedUsdFee: number
 ): Promise<BigNumberJs> {
-  const tokenContract = await envelopingRequest.request.tokenContract;
-  const gasPrice = await envelopingRequest.relayData.gasPrice;
+  const tokenContract = envelopingRequest.request.tokenContract;
+  const gasPrice = envelopingRequest.relayData.gasPrice;
 
   const provider = getProvider();
 
@@ -148,8 +150,8 @@ async function calculateFeeFromTransfer(
   const valueInDecimal = BigNumberJs('0x' + valueHex);
 
   const feeInToken = valueInDecimal.multipliedBy(transferFeePercentage);
-  const tokenContract = await envelopingRequest.request.tokenContract;
-  const gasPrice = await envelopingRequest.relayData.gasPrice;
+  const tokenContract = envelopingRequest.request.tokenContract;
+  const gasPrice = envelopingRequest.relayData.gasPrice;
 
   return await convertTokenToGas(feeInToken, tokenContract, gasPrice);
 }
@@ -166,15 +168,15 @@ function calculateFeeFromGas(
   );
 }
 
-async function isSponsorshipAllowed(
+function isSponsorshipAllowed(
   envelopingRequest: EnvelopingRequest,
   config: AppConfig
-): Promise<boolean> {
+): boolean {
   const { disableSponsoredTx, sponsoredDestinations } = config;
 
   return (
     !disableSponsoredTx ||
-    sponsoredDestinations.includes(await envelopingRequest.request.to)
+    sponsoredDestinations.includes(envelopingRequest.request.to)
   );
 }
 
@@ -184,8 +186,7 @@ function getMethodHashFromData(data: string) {
 
 async function validateIfGasAmountIsAcceptable({
   relayRequest,
-}: EnvelopingTxRequest) {
-  // TODO: For RIF Team
+}: HttpEnvelopingRequest) {
   // The maxPossibleGas must be compared against the commitment signed with the user.
   // The relayServer must not allow a call that requires more gas than it was agreed with the user
   // For now, we can call estimateDestinationContractCallGas to get the "ACTUAL" gas required for the
@@ -213,7 +214,7 @@ async function validateIfGasAmountIsAcceptable({
   );
 
   const { gas } = request as RelayRequestBody;
-  const gasValue = await gas;
+  const gasValue = gas;
   const bigGasFromRequestMaxAgreed = bigMaxEstimatedGasDeviation.multipliedBy(
     gasValue.toString()
   );
@@ -227,20 +228,18 @@ async function validateIfGasAmountIsAcceptable({
 
 async function validateIfTokenAmountIsAcceptable(
   maxPossibleGas: BigNumber,
-  envelopingTransaction: EnvelopingTxRequest,
+  envelopingTransaction: HttpEnvelopingRequest,
   appConfig: AppConfig
 ) {
-  if (
-    await isSponsorshipAllowed(envelopingTransaction.relayRequest, appConfig)
-  ) {
+  if (isSponsorshipAllowed(envelopingTransaction.relayRequest, appConfig)) {
     return;
   }
 
   const { request, relayData } = envelopingTransaction.relayRequest;
 
-  const tokenContract = await request.tokenContract;
-  const tokenAmount = await request.tokenAmount;
-  const gasPrice = await relayData.gasPrice;
+  const tokenContract = request.tokenContract;
+  const tokenAmount = request.tokenAmount;
+  const gasPrice = relayData.gasPrice;
 
   const tokenAmountInGas = await convertTokenToGas(
     tokenAmount,
@@ -331,8 +330,8 @@ async function convertGasToTokenAndNative(
   relayRequest: EnvelopingRequest,
   initialEstimation: BigNumber
 ) {
-  const gasPrice = await relayRequest.relayData.gasPrice;
-  const tokenContractAddress = await relayRequest.request.tokenContract;
+  const gasPrice = relayRequest.relayData.gasPrice;
+  const tokenContractAddress = relayRequest.request.tokenContract;
 
   let xRate = '1';
   let initialEstimationInNative: BigNumber = initialEstimation.mul(gasPrice);
