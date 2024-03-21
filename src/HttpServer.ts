@@ -1,4 +1,3 @@
-import type { EnvelopingTxRequest } from '@rsksmart/rif-relay-client';
 import bodyParser from 'body-parser';
 import cors from 'cors';
 import express, { Express, Request, Response } from 'express';
@@ -8,6 +7,7 @@ import jsonrpc, { Defined } from 'jsonrpc-lite';
 import log from 'loglevel';
 import configureDocumentation from './DocConfiguration';
 import type { RelayServer } from './RelayServer';
+import type { HttpEnvelopingRequest } from './HttpEnvelopingRequest';
 
 export type RootHandlerRequestBody = {
   id?: number;
@@ -256,7 +256,7 @@ export class HttpServer {
     try {
       const { signedTx, txHash } =
         await this._relayServer.createRelayTransaction(
-          body as EnvelopingTxRequest
+          body as HttpEnvelopingRequest
         );
       res.send({ signedTx, txHash });
     } catch (e) {
@@ -321,7 +321,7 @@ export class HttpServer {
   async estimateHandler(req: Request, res: Response): Promise<void> {
     try {
       const estimation = await this._relayServer.estimateMaxPossibleGas(
-        req.body as EnvelopingTxRequest
+        req.body as HttpEnvelopingRequest
       );
       res.send(estimation);
     } catch (e) {

@@ -30,7 +30,6 @@ import {
   PopulatedTransaction,
   BigNumber,
   providers,
-  BigNumberish,
 } from 'ethers';
 import ow from 'ow';
 import {
@@ -45,7 +44,6 @@ import {
 } from './Utils';
 import { AmountRequired } from './AmountRequired';
 import {
-  EnvelopingTxRequest,
   RelayRequest,
   estimateRelayMaxPossibleGas,
   isDeployRequest,
@@ -71,6 +69,7 @@ import {
   registerEventHandlers,
 } from './events';
 import { SERVER_VERSION as version } from './version';
+import type { HttpEnvelopingRequest } from './HttpEnvelopingRequest';
 
 type HubInfo = {
   relayWorkerAddress: string;
@@ -245,7 +244,7 @@ export class RelayServer extends EventEmitter {
     };
   }
 
-  validateInputTypes(envelopingTransaction: EnvelopingTxRequest): void {
+  validateInputTypes(envelopingTransaction: HttpEnvelopingRequest): void {
     if (isDeployTransaction(envelopingTransaction)) {
       ow(
         envelopingTransaction,
@@ -259,7 +258,7 @@ export class RelayServer extends EventEmitter {
     }
   }
 
-  async validateInput(envelopingRequest: EnvelopingTxRequest): Promise<void> {
+  async validateInput(envelopingRequest: HttpEnvelopingRequest): Promise<void> {
     const { metadata, relayRequest } = envelopingRequest;
 
     const {
@@ -267,7 +266,7 @@ export class RelayServer extends EventEmitter {
       contracts: { relayHubAddress },
     } = this.config;
 
-    const relayHubAddressValue = await metadata.relayHubAddress;
+    const relayHubAddressValue = metadata.relayHubAddress;
 
     // Check that the relayHub is the correct one
     if (relayHubAddressValue.toLowerCase() !== relayHubAddress.toLowerCase()) {
@@ -276,13 +275,13 @@ export class RelayServer extends EventEmitter {
       );
     }
 
-    const feesReceiver = await relayRequest.relayData.feesReceiver;
+    const feesReceiver = relayRequest.relayData.feesReceiver;
     // Check the relayWorker (todo: once migrated to multiple relays, check if exists)
     if (feesReceiver.toLowerCase() !== this.feesReceiver.toLowerCase()) {
       throw new Error(`Wrong fees receiver address: ${feesReceiver}\n`);
     }
 
-    const gasPrice = await relayRequest.relayData.gasPrice;
+    const gasPrice = relayRequest.relayData.gasPrice;
     // Check that the gasPrice is initialized & acceptable
     if (this.gasPrice.gt(gasPrice)) {
       throw new Error(
@@ -297,11 +296,8 @@ export class RelayServer extends EventEmitter {
     );
   }
 
-  async validateVerifier(
-    envelopingRequest: EnvelopingTxRequest
-  ): Promise<void> {
-    const callVerifier = await envelopingRequest.relayRequest.relayData
-      .callVerifier;
+  validateVerifier(envelopingRequest: HttpEnvelopingRequest): void {
+    const callVerifier = envelopingRequest.relayRequest.relayData.callVerifier;
     if (!this.isTrustedVerifier(callVerifier)) {
       throw new Error(`Invalid verifier: ${callVerifier}`);
     }
@@ -318,10 +314,9 @@ export class RelayServer extends EventEmitter {
   }
 
   async validateRequestWithVerifier(
-    envelopingTransaction: EnvelopingTxRequest
+    envelopingTransaction: HttpEnvelopingRequest
   ): Promise<void> {
-    const verifier = await envelopingTransaction.relayRequest.relayData
-      .callVerifier;
+    const verifier = envelopingTransaction.relayRequest.relayData.callVerifier;
 
     if (!this.isTrustedVerifier(verifier)) {
       throw new Error('Invalid verifier');
@@ -380,7 +375,7 @@ export class RelayServer extends EventEmitter {
   }
 
   async getMaxPossibleGas(
-    envelopingTransaction: EnvelopingTxRequest
+    envelopingTransaction: HttpEnvelopingRequest
   ): Promise<MaxPossibleGas> {
     log.debug(
       `Enveloping transaction: ${JSON.stringify(
@@ -418,7 +413,7 @@ export class RelayServer extends EventEmitter {
 
   async maxPossibleGasWithViewCall(
     transaction: PopulatedTransaction,
-    envelopingRequest: EnvelopingTxRequest,
+    envelopingRequest: HttpEnvelopingRequest,
     gasLimit: BigNumber
   ): Promise<BigNumber> {
     log.debug('Relay Server - Request sent to the worker');
@@ -434,7 +429,7 @@ export class RelayServer extends EventEmitter {
 
     const { maxPossibleGas } = await maxPossibleGasVerification(
       transaction,
-      gasPrice as BigNumberish,
+      gasPrice,
       gasLimit,
       this.workerAddress
     );
@@ -443,7 +438,7 @@ export class RelayServer extends EventEmitter {
   }
 
   async estimateMaxPossibleGas(
-    envelopingRequest: EnvelopingTxRequest
+    envelopingRequest: HttpEnvelopingRequest
   ): Promise<RelayEstimation> {
     log.debug(
       `EnvelopingRequest:${JSON.stringify(envelopingRequest, undefined, 4)}`
@@ -492,7 +487,7 @@ export class RelayServer extends EventEmitter {
   }
 
   async createRelayTransaction(
-    envelopingTransaction: EnvelopingTxRequest
+    envelopingTransaction: HttpEnvelopingRequest
   ): Promise<SignedTransactionDetails> {
     log.debug(`dump request params: ${JSON.stringify(envelopingTransaction)}`);
     if (!this.isReady()) {
@@ -557,10 +552,8 @@ export class RelayServer extends EventEmitter {
 
     const provider = getProvider();
 
-    const relayHubAddress = await envelopingTransaction.metadata
-      .relayHubAddress;
-    const gasPrice = await envelopingTransaction.relayRequest.relayData
-      .gasPrice;
+    const relayHubAddress = envelopingTransaction.metadata.relayHubAddress;
+    const gasPrice = envelopingTransaction.relayRequest.relayData.gasPrice;
 
     const currentBlock = await provider.getBlockNumber();
     const details: SendTransactionDetails = {
