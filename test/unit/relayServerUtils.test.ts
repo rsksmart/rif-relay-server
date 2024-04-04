@@ -1,9 +1,4 @@
 import sinon, { SinonStub } from 'sinon';
-import type {
-  RelayRequestBody,
-  EnvelopingRequestData,
-  RelayRequest,
-} from '@rsksmart/rif-relay-client';
 import { BigNumber, constants } from 'ethers';
 import {
   ERC20__factory,
@@ -26,6 +21,11 @@ import chaiAsPromised from 'chai-as-promised';
 import * as relayServerUtils from '../../src/relayServerUtils';
 import * as relayClient from '@rsksmart/rif-relay-client';
 import type { AppConfig } from 'src';
+import type {
+  EnvelopingRequest,
+  EnvelopingRequestData,
+  RelayRequestBody,
+} from 'src/definitions/HttpEnvelopingRequest';
 
 const ZERO_ADDRESS = constants.AddressZero;
 const FAKE_ESTIMATION_BEFORE_FEES = 100000;
@@ -37,8 +37,8 @@ const FAKE_FIXED_USD_FEE = 2;
 const TOKEN_AMOUNT_TO_TRANSFER = '1000000000000000000'; //18 zeros
 const TOKEN_VALUE_IN_USD = 0.5;
 
-function createRequest(request: Partial<RelayRequestBody>): RelayRequest {
-  const baseRequest: RelayRequest = {
+function createRequest(request: Partial<RelayRequestBody>): EnvelopingRequest {
+  const baseRequest: EnvelopingRequest = {
     request: {
       relayHub: ZERO_ADDRESS,
       from: ZERO_ADDRESS,
@@ -58,7 +58,7 @@ function createRequest(request: Partial<RelayRequestBody>): RelayRequest {
       callForwarder: ZERO_ADDRESS,
       callVerifier: ZERO_ADDRESS,
     } as EnvelopingRequestData,
-  } as RelayRequest;
+  } as EnvelopingRequest;
 
   return {
     request: {
@@ -68,7 +68,7 @@ function createRequest(request: Partial<RelayRequestBody>): RelayRequest {
     relayData: {
       ...baseRequest.relayData,
     },
-  };
+  } as EnvelopingRequest;
 }
 
 use(chaiAsPromised);

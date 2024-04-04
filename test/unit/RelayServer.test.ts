@@ -5,7 +5,6 @@ import {
   TxStoreManager,
 } from '../../src';
 import sinon, { SinonSpy, SinonStub, createStubInstance } from 'sinon';
-import type { EnvelopingTxRequest } from '@rsksmart/rif-relay-client';
 import * as rifClient from '@rsksmart/rif-relay-client';
 import { BigNumber, constants, providers, utils } from 'ethers';
 import * as serverUtils from '../../src/Utils';
@@ -21,6 +20,7 @@ import {
 } from 'src/events/checkReplenish';
 import * as replenish from 'src/ReplenishFunction';
 import sinonChai from 'sinon-chai';
+import type { HttpEnvelopingRequest } from 'src/definitions/HttpEnvelopingRequest';
 
 use(sinonChai);
 use(chaiAsPromised);
@@ -155,7 +155,7 @@ describe('RelayServer tests', function () {
             gasPrice: GAS_PRICE,
           },
         },
-      } as unknown as EnvelopingTxRequest);
+      } as unknown as HttpEnvelopingRequest);
       expect(onSpy).to.have.been.calledWith(
         EVENT_REPLENISH_CHECK_REQUIRED,
         relayServer,
@@ -200,7 +200,7 @@ describe('RelayServer tests', function () {
             gasPrice: GAS_PRICE,
           },
         },
-      } as unknown as EnvelopingTxRequest);
+      } as unknown as HttpEnvelopingRequest);
       expect(signedTx).to.be.eql(expectedTransactionDetails);
       expect(replenishStub).to.have.been.calledOnce;
     });
@@ -220,7 +220,7 @@ describe('RelayServer tests', function () {
               gasPrice: GAS_PRICE,
             },
           },
-        } as EnvelopingTxRequest
+        } as HttpEnvelopingRequest
       );
 
       expect(maxPossibleGasEstimation.estimation).to.be.equal(
@@ -243,7 +243,7 @@ describe('RelayServer tests', function () {
               gasPrice: GAS_PRICE,
             },
           },
-        } as EnvelopingTxRequest
+        } as HttpEnvelopingRequest
       );
 
       expect(maxPossibleGasEstimation.estimation).to.eq(
@@ -273,7 +273,7 @@ describe('RelayServer tests', function () {
             gasPrice: GAS_PRICE,
           },
         },
-      } as EnvelopingTxRequest);
+      } as HttpEnvelopingRequest);
 
       expect(maxPossibleGasWithFee.toString()).to.be.equal(
         FAKE_ESTIMATION_BEFORE_FEES.toString()
@@ -294,7 +294,7 @@ describe('RelayServer tests', function () {
             gasPrice: GAS_PRICE,
           },
         },
-      } as EnvelopingTxRequest);
+      } as HttpEnvelopingRequest);
 
       expect(maxPossibleGasWithFee.toString()).to.eq(
         BigNumberJs(FAKE_ESTIMATION_BEFORE_FEES)
@@ -320,7 +320,7 @@ describe('RelayServer tests', function () {
             gasPrice: GAS_PRICE,
           },
         },
-      } as EnvelopingTxRequest);
+      } as HttpEnvelopingRequest);
 
       const { maxPossibleGasWithFee } = await relayServer.getMaxPossibleGas({
         relayRequest: {
@@ -331,7 +331,7 @@ describe('RelayServer tests', function () {
             gasPrice: GAS_PRICE,
           },
         },
-      } as EnvelopingTxRequest);
+      } as HttpEnvelopingRequest);
 
       expect(estimatedGas.estimation.toString()).to.be.eq(
         maxPossibleGasWithFee.toString()
