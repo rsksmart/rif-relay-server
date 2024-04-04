@@ -69,7 +69,7 @@ import {
   registerEventHandlers,
 } from './events';
 import { SERVER_VERSION as version } from './version';
-import type { HttpEnvelopingRequest } from './HttpEnvelopingRequest';
+import type { HttpEnvelopingRequest } from './definitions/HttpEnvelopingRequest';
 
 type HubInfo = {
   relayWorkerAddress: string;
@@ -259,19 +259,22 @@ export class RelayServer extends EventEmitter {
   }
 
   async validateInput(envelopingRequest: HttpEnvelopingRequest): Promise<void> {
-    const { metadata, relayRequest } = envelopingRequest;
+    const {
+      metadata: { relayHubAddress: relayHubAddressFromRequest },
+      relayRequest,
+    } = envelopingRequest;
 
     const {
       app: { requestMinValidSeconds },
       contracts: { relayHubAddress },
     } = this.config;
 
-    const relayHubAddressValue = metadata.relayHubAddress;
-
     // Check that the relayHub is the correct one
-    if (relayHubAddressValue.toLowerCase() !== relayHubAddress.toLowerCase()) {
+    if (
+      relayHubAddressFromRequest.toLowerCase() !== relayHubAddress.toLowerCase()
+    ) {
       throw new Error(
-        `Wrong hub address.\nRelay server's hub address: ${this.config.contracts.relayHubAddress}, request's hub address: ${relayHubAddressValue}\n`
+        `Wrong hub address.\nRelay server's hub address: ${this.config.contracts.relayHubAddress}, request's hub address: ${relayHubAddressFromRequest}\n`
       );
     }
 

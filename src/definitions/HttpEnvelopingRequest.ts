@@ -8,11 +8,11 @@ import type {
 // IMPORTANT: The types defined here mirror the types defined in the client.
 //            see EnvelopingTxRequest in the rif-relay-client library
 
-type Await<T> = { [P in keyof T]: Awaited<T[P]> };
+type AwaitedWrapper<T> = { [P in keyof T]: Awaited<T[P]> };
 
-export declare type RelayRequestBody = Await<ClientRelayRequestBody>;
+export declare type RelayRequestBody = AwaitedWrapper<ClientRelayRequestBody>;
 
-export declare type DeployRequestBody = Await<ClientDeployRequestBody>;
+export declare type DeployRequestBody = AwaitedWrapper<ClientDeployRequestBody>;
 
 export declare type EnvelopingMetadata = {
   relayHubAddress: RelayRequestBody['relayHub'];

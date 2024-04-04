@@ -7,7 +7,7 @@ import jsonrpc, { Defined } from 'jsonrpc-lite';
 import log from 'loglevel';
 import configureDocumentation from './DocConfiguration';
 import type { RelayServer } from './RelayServer';
-import type { HttpEnvelopingRequest } from './HttpEnvelopingRequest';
+import type { HttpEnvelopingRequest } from './definitions/HttpEnvelopingRequest';
 
 export type RootHandlerRequestBody = {
   id?: number;

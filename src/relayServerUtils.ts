@@ -30,7 +30,7 @@ import type {
   EnvelopingRequest,
   HttpEnvelopingRequest,
   RelayRequestBody,
-} from './HttpEnvelopingRequest';
+} from './definitions/HttpEnvelopingRequest';
 
 const TRANSFER_HASH = 'a9059cbb';
 const TRANSFER_FROM_HASH = '23b872dd';

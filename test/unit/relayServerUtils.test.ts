@@ -25,7 +25,7 @@ import type {
   EnvelopingRequest,
   EnvelopingRequestData,
   RelayRequestBody,
-} from 'src/HttpEnvelopingRequest';
+} from 'src/definitions/HttpEnvelopingRequest';
 
 const ZERO_ADDRESS = constants.AddressZero;
 const FAKE_ESTIMATION_BEFORE_FEES = 100000;
