@@ -7,7 +7,7 @@ import {
   convertGasToToken,
   getXRateFor,
 } from '../Conversions';
-import type { EnvelopingRequest } from '../definitions/HttpEnvelopingRequest';
+import type { EnvelopingRequest } from '../definitions';
 import { callERC20Symbol } from './callERC20Symbol';
 import { callERC20Decimals } from './callERC20Decimals';
 

@@ -3,10 +3,7 @@ import {
   isDeployRequest,
 } from '@rsksmart/rif-relay-client';
 import { BigNumber as BigNumberJs } from 'bignumber.js';
-import type {
-  HttpEnvelopingRequest,
-  RelayRequestBody,
-} from '../definitions/HttpEnvelopingRequest';
+import type { HttpEnvelopingRequest, RelayRequestBody } from '../definitions';
 import { MAX_ESTIMATED_GAS_DEVIATION } from '../definitions/server.const';
 
 export async function validateIfGasAmountIsAcceptable({

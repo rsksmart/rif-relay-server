@@ -20,7 +20,7 @@ import {
 } from 'src/events/checkReplenish';
 import * as replenish from 'src/ReplenishFunction';
 import sinonChai from 'sinon-chai';
-import type { HttpEnvelopingRequest } from 'src/definitions/HttpEnvelopingRequest';
+import type { HttpEnvelopingRequest } from 'src/definitions';
 
 use(sinonChai);
 use(chaiAsPromised);

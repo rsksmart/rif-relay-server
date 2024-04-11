@@ -69,7 +69,7 @@ import {
   registerEventHandlers,
 } from './events';
 import { SERVER_VERSION as version } from './version';
-import type { HttpEnvelopingRequest } from './definitions/HttpEnvelopingRequest';
+import type { HttpEnvelopingRequest } from './definitions';
 
 type HubInfo = {
   relayWorkerAddress: string;

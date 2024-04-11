@@ -1,5 +1,5 @@
 import type { AppConfig } from '../ServerConfigParams';
-import type { EnvelopingRequest } from '../definitions/HttpEnvelopingRequest';
+import type { EnvelopingRequest } from '../definitions';
 
 export function isSponsorshipAllowed(
   envelopingRequest: EnvelopingRequest,
