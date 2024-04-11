@@ -6,7 +6,7 @@ import { constants } from 'ethers';
 import log from 'loglevel';
 import type { BigNumberishJs } from '../Conversions';
 import { toPrecision } from '../Conversions';
-import type { EnvelopingRequest } from '../definitions/HttpEnvelopingRequest';
+import type { EnvelopingRequest } from '../definitions';
 import type { AppConfig } from '../ServerConfigParams';
 import { getProvider } from '../Utils';
 import callERC20Decimals from './callERC20Decimals';

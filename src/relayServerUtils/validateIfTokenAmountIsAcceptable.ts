@@ -2,7 +2,7 @@ import type { BigNumber } from 'ethers';
 import log from 'loglevel';
 import { INSUFFICIENT_TOKEN_AMOUNT } from '../definitions/errorMessages.const';
 import type { AppConfig } from '../ServerConfigParams';
-import type { HttpEnvelopingRequest } from '../definitions/HttpEnvelopingRequest';
+import type { HttpEnvelopingRequest } from '../definitions';
 import { isSponsorshipAllowed } from './isSponsorshipAllowed';
 import convertTokenToGas from './convertTokenToGas';
 
