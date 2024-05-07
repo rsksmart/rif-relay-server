@@ -12,6 +12,9 @@ jobs:
         runs-on: ubuntu-latest
         environment:
             name: Boltz-Testnet
+        permissions:
+            id-token: write
+            contents: read
 
         steps:
             - name: Checkout
