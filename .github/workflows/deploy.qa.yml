@@ -10,6 +10,9 @@ jobs:
         runs-on: ubuntu-latest
         environment:
             name: QA
+        permissions:
+            id-token: write
+            contents: read
 
         steps:
             - name: Checkout

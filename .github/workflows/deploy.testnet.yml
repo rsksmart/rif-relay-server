@@ -11,6 +11,9 @@ jobs:
         runs-on: ubuntu-latest
         environment:
             name: Testnet
+        permissions:
+            id-token: write
+            contents: read
 
         steps:
             - name: Checkout
