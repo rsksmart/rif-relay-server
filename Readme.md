@@ -110,7 +110,7 @@ File [./config/default.json5](config/default.json5) contains all configuration p
    - This fee is not exclusive. If gasFeePercentage or transferFeePercentage is configured, fixedUsdFee will be
    an additional fee, so the total amount will be initialGasEstimation + gasFee (or transferFee) + fixedFee.
    */
-   fixedUsdFee: 0 ,
+   fixedUsdFee: 0,
 
    sponsoredDestinations: [],
    requestMinValidSeconds: 43200,

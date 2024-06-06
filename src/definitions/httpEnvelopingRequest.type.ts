@@ -18,6 +18,7 @@ export declare type EnvelopingMetadata = {
   relayHubAddress: RelayRequestBody['relayHub'];
   relayMaxNonce: number;
   signature: string;
+  isCustom?: boolean;
 };
 
 export declare type EnvelopingRequestData = {

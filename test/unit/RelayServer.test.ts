@@ -209,6 +209,7 @@ describe('RelayServer tests', function () {
   describe('Function estimateMaxPossibleGas()', function () {
     it('should return only the initial estimation when there are no additional fees', async function () {
       sinon.stub(relayServerUtils, 'calculateFee').resolves(BigNumberJs(0));
+      sinon.stub(relayServer, 'validateInputTypes').returns();
 
       const maxPossibleGasEstimation = await relayServer.estimateMaxPossibleGas(
         {
@@ -220,6 +221,7 @@ describe('RelayServer tests', function () {
               gasPrice: GAS_PRICE,
             },
           },
+          metadata: {},
         } as HttpEnvelopingRequest
       );
 
@@ -232,6 +234,7 @@ describe('RelayServer tests', function () {
       sinon
         .stub(relayServerUtils, 'calculateFee')
         .resolves(BigNumberJs(FAKE_FEE_AMOUNT));
+      sinon.stub(relayServer, 'validateInputTypes').returns();
 
       const maxPossibleGasEstimation = await relayServer.estimateMaxPossibleGas(
         {
@@ -243,6 +246,7 @@ describe('RelayServer tests', function () {
               gasPrice: GAS_PRICE,
             },
           },
+          metadata: {},
         } as HttpEnvelopingRequest
       );
 
@@ -311,6 +315,8 @@ describe('RelayServer tests', function () {
         .stub(relayServerUtils, 'calculateFee')
         .resolves(BigNumberJs(FAKE_FEE_AMOUNT));
 
+      sinon.stub(relayServer, 'validateInputTypes').returns();
+
       const estimatedGas = await relayServer.estimateMaxPossibleGas({
         relayRequest: {
           request: {
@@ -320,6 +326,7 @@ describe('RelayServer tests', function () {
             gasPrice: GAS_PRICE,
           },
         },
+        metadata: {},
       } as HttpEnvelopingRequest);
 
       const { maxPossibleGasWithFee } = await relayServer.getMaxPossibleGas({
@@ -331,6 +338,7 @@ describe('RelayServer tests', function () {
             gasPrice: GAS_PRICE,
           },
         },
+        metadata: {},
       } as HttpEnvelopingRequest);
 
       expect(estimatedGas.estimation.toString()).to.be.eq(

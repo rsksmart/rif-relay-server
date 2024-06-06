@@ -118,6 +118,7 @@ describe('getPastEventsFromHub', function () {
     afterEach(function () {
       config.util.extendDeep(config, originalConfig);
     });
+
     it('should create multiple log filters with one event', async function () {
       config.util.extendDeep(config, { blockchain: { maxBlockRange: 5 } });
       const relayHubAddress = '0x456efc';
