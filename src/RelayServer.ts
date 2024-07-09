@@ -449,24 +449,16 @@ export class RelayServer extends EventEmitter {
 
     this.validateInputTypes(envelopingRequest);
 
-    const {
-      relayRequest,
-      metadata: { isCustom },
-    } = envelopingRequest;
-
     const initialGasEstimation = await estimateRelayMaxPossibleGas(
       envelopingRequest,
-      this.workerAddress,
-      {
-        isCustom,
-      }
+      this.workerAddress
     );
     log.debug(
       `Gas estimation before fees:  ${initialGasEstimation.toString()}`
     );
 
     const fee = await calculateFee(
-      relayRequest,
+      envelopingRequest.relayRequest,
       initialGasEstimation,
       this.config.app
     );
@@ -482,7 +474,7 @@ export class RelayServer extends EventEmitter {
     );
 
     const conversionResult = await convertGasToTokenAndNative(
-      relayRequest,
+      envelopingRequest.relayRequest,
       maxPossibleGas
     );
     log.debug(

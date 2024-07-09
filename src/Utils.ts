@@ -148,7 +148,6 @@ export const deployTransactionRequestShape = {
     relayHubAddress: ow.string,
     relayMaxNonce: ow.number,
     signature: ow.string,
-    isCustom: ow.optional.boolean,
   },
 };
 
@@ -179,6 +178,5 @@ export const relayTransactionRequestShape = {
     relayHubAddress: ow.string,
     relayMaxNonce: ow.number,
     signature: ow.string,
-    isCustom: ow.optional.boolean,
   },
 };
