@@ -221,6 +221,7 @@ describe('RelayServer tests', function () {
               gasPrice: GAS_PRICE,
             },
           },
+          metadata: {},
         } as HttpEnvelopingRequest
       );
 
@@ -245,6 +246,7 @@ describe('RelayServer tests', function () {
               gasPrice: GAS_PRICE,
             },
           },
+          metadata: {},
         } as HttpEnvelopingRequest
       );
 
@@ -324,6 +326,7 @@ describe('RelayServer tests', function () {
             gasPrice: GAS_PRICE,
           },
         },
+        metadata: {},
       } as HttpEnvelopingRequest);
 
       const { maxPossibleGasWithFee } = await relayServer.getMaxPossibleGas({
@@ -335,6 +338,7 @@ describe('RelayServer tests', function () {
             gasPrice: GAS_PRICE,
           },
         },
+        metadata: {},
       } as HttpEnvelopingRequest);
 
       expect(estimatedGas.estimation.toString()).to.be.eq(
