@@ -75,7 +75,7 @@
     "package.json": "npx sort-package-json"
   },
   "dependencies": {
-    "@rsksmart/rif-relay-client": "github:rsksmart/rif-relay-client#fix/estimation-payment-gas",
+    "@rsksmart/rif-relay-client": "^2.2.2",
     "@rsksmart/rif-relay-contracts": "^2.1.0-beta.0",
     "async-mutex": "^0.4.0",
     "async-retry": "^1.3.3",
