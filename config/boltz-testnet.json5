@@ -23,6 +23,10 @@
       "0x60F644ea6f766ed88D67a11A3F1b0B7B5F6cD3F7", // MinimalBoltzRelayVerifier 5-21-2024
       "0xD088e73aaD7D3262b6C4D0Dc6100eA3FF2E9C72e", // BoltzDeployVerifier 5-21-2024
       "0x9bC96cE26a42098DBD9F490D1c700c25d4c895df", // BoltzRelayVerifier 5-21-2024
+      "0xcEeD7B045B768f0B9722Ac13b300d925D84b6671",  // MinimalBoltzDeployVerifier 8-6-2024
+      "0xC2A78946d40B45D4Dc0ee1BC2512Aa81a8d9DcdD", // MinimalBoltzRelayVerifier 8-6-2024
+      "0x60161027f5bab7EAad605Bf22176C3786Fe20790", // BoltzDeployVerifier 8-6-2024
+      "0x759c215FDd86C527D5A8624F274d9dd67C34584b", // BoltzRelayVerifier 8-6-2024
     ],
   }
 }
