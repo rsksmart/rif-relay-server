@@ -2,6 +2,7 @@ import fs from 'fs';
 import log from 'loglevel';
 import { Wallet, utils, PopulatedTransaction } from 'ethers';
 import type { SignedTransactionDetails } from './TransactionManager';
+import ow from 'ow';
 
 export const KEYSTORE_FILENAME = 'keystore';
 
@@ -101,7 +102,7 @@ export class KeyManager {
     address: string,
     utx: PopulatedTransaction
   ): Promise<SignedTransactionDetails> {
-    /* ow(signer, ow.string); */
+    ow(address, ow.string);
     const privateKey = this._privateKeys[address];
     if (privateKey === undefined) {
       throw new Error(`Can't sign: signer=${address} is not managed`);
@@ -113,5 +114,15 @@ export class KeyManager {
     const txHash = utils.keccak256(signedTx);
 
     return { signedTx, txHash };
+  }
+
+  getWallet(address: string): Wallet {
+    ow(address, ow.string);
+    const privateKey = this._privateKeys[address];
+    if (privateKey === undefined) {
+      throw new Error(`Can't sign: signer=${address} is not managed`);
+    }
+
+    return new Wallet(privateKey);
   }
 }

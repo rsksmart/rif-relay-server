@@ -51,6 +51,8 @@ import {
   maxPossibleGasVerification,
   setProvider,
   standardMaxPossibleGasEstimation,
+  estimateRelayMaxPossibleGasNoSignature,
+  SERVER_SIGNATURE_REQUIRED,
 } from '@rsksmart/rif-relay-client';
 import {
   validateIfGasAmountIsAcceptable,
@@ -451,16 +453,28 @@ export class RelayServer extends EventEmitter {
 
     const {
       relayRequest,
-      metadata: { isCustom },
+      metadata: { isCustom, signature },
     } = envelopingRequest;
 
-    const initialGasEstimation = await estimateRelayMaxPossibleGas(
-      envelopingRequest,
-      this.workerAddress,
-      {
-        isCustom,
-      }
-    );
+    let initialGasEstimation: BigNumber;
+    if (signature === SERVER_SIGNATURE_REQUIRED) {
+      const { workersKeyManager } = this.transactionManager;
+      const signer = workersKeyManager.getWallet(this.workerAddress);
+      initialGasEstimation = await estimateRelayMaxPossibleGasNoSignature(
+        relayRequest,
+        signer,
+        { isCustom }
+      );
+    } else {
+      initialGasEstimation = await estimateRelayMaxPossibleGas(
+        envelopingRequest,
+        this.workerAddress,
+        {
+          isCustom,
+        }
+      );
+    }
+
     log.debug(
       `Gas estimation before fees:  ${initialGasEstimation.toString()}`
     );
