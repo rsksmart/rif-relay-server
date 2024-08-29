@@ -262,7 +262,7 @@ export class RelayServer extends EventEmitter {
 
   async validateInput(envelopingRequest: HttpEnvelopingRequest): Promise<void> {
     const {
-      metadata: { relayHubAddress: relayHubAddressFromRequest },
+      metadata: { relayHubAddress: relayHubAddressFromRequest, signature },
       relayRequest,
     } = envelopingRequest;
 
@@ -299,6 +299,13 @@ export class RelayServer extends EventEmitter {
       relayRequest.request.validUntilTime,
       requestMinValidSeconds
     );
+
+    // TODO: one of the 2 checks may be unnecessary
+    if (signature === SERVER_SIGNATURE_REQUIRED || [undefined, ''].includes(signature)) {
+      throw new Error(
+        'Unacceptable signature: it must be required and provided by the client'
+      );
+    }
   }
 
   validateVerifier(envelopingRequest: HttpEnvelopingRequest): void {
