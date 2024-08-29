@@ -301,7 +301,10 @@ export class RelayServer extends EventEmitter {
     );
 
     // TODO: one of the 2 checks may be unnecessary
-    if (signature === SERVER_SIGNATURE_REQUIRED || [undefined, ''].includes(signature)) {
+    if (
+      signature === SERVER_SIGNATURE_REQUIRED ||
+      [undefined, ''].includes(signature)
+    ) {
       throw new Error(
         'Unacceptable signature: it must be required and provided by the client'
       );
