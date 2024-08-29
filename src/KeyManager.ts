@@ -102,13 +102,7 @@ export class KeyManager {
     address: string,
     utx: PopulatedTransaction
   ): Promise<SignedTransactionDetails> {
-    ow(address, ow.string);
-    const privateKey = this._privateKeys[address];
-    if (privateKey === undefined) {
-      throw new Error(`Can't sign: signer=${address} is not managed`);
-    }
-
-    const signer = new Wallet(privateKey);
+    const signer = this.getWallet(address);
     const signedTx = await signer.signTransaction(utx);
 
     const txHash = utils.keccak256(signedTx);
