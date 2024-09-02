@@ -21,6 +21,7 @@ import {
 import * as replenish from 'src/ReplenishFunction';
 import sinonChai from 'sinon-chai';
 import type { HttpEnvelopingRequest } from 'src/definitions';
+import { SERVER_SIGNATURE_REQUIRED } from '@rsksmart/rif-relay-client';
 
 use(sinonChai);
 use(chaiAsPromised);
@@ -33,6 +34,8 @@ describe('RelayServer tests', function () {
 
   let relayServer: RelayServer;
   let provider: providers.Provider;
+  let estimateRelayMaxPossibleGas: SinonStub;
+  let estimateRelayMaxPossibleGasNoSignature: SinonStub;
 
   beforeEach(function () {
     //Build a test server
@@ -46,12 +49,26 @@ describe('RelayServer tests', function () {
       workersKeyManager,
     });
 
+    estimateRelayMaxPossibleGas = sinon
+      .stub()
+      .resolves(BigNumber.from(FAKE_ESTIMATION_BEFORE_FEES));
+    estimateRelayMaxPossibleGasNoSignature = sinon
+      .stub()
+      .resolves(BigNumber.from(FAKE_ESTIMATION_BEFORE_FEES));
+
     //Set stubs
-    sinon.replaceGetter(rifClient, 'estimateRelayMaxPossibleGas', () =>
-      sinon.stub().resolves(BigNumber.from(FAKE_ESTIMATION_BEFORE_FEES))
+    sinon.replaceGetter(
+      rifClient,
+      'estimateRelayMaxPossibleGas',
+      () => estimateRelayMaxPossibleGas
     );
     sinon.replaceGetter(rifClient, 'standardMaxPossibleGasEstimation', () =>
       sinon.stub().resolves(BigNumber.from(FAKE_ESTIMATION_BEFORE_FEES))
+    );
+    sinon.replaceGetter(
+      rifClient,
+      'estimateRelayMaxPossibleGasNoSignature',
+      () => estimateRelayMaxPossibleGasNoSignature
     );
 
     provider = providers.getDefaultProvider();
@@ -207,6 +224,32 @@ describe('RelayServer tests', function () {
   });
 
   describe('Function estimateMaxPossibleGas()', function () {
+    it('should return only the initial estimation when there are no additional fees(no signature)', async function () {
+      sinon.stub(relayServerUtils, 'calculateFee').resolves(BigNumberJs(0));
+      sinon.stub(relayServer, 'validateInputTypes').returns();
+
+      const maxPossibleGasEstimation = await relayServer.estimateMaxPossibleGas(
+        {
+          relayRequest: {
+            request: {
+              tokenContract: constants.AddressZero,
+            },
+            relayData: {
+              gasPrice: GAS_PRICE,
+            },
+          },
+          metadata: {
+            signature: SERVER_SIGNATURE_REQUIRED,
+          },
+        } as HttpEnvelopingRequest
+      );
+
+      expect(maxPossibleGasEstimation.estimation).to.be.equal(
+        FAKE_ESTIMATION_BEFORE_FEES.toString()
+      );
+      expect(estimateRelayMaxPossibleGasNoSignature).to.be.called;
+    });
+
     it('should return only the initial estimation when there are no additional fees', async function () {
       sinon.stub(relayServerUtils, 'calculateFee').resolves(BigNumberJs(0));
       sinon.stub(relayServer, 'validateInputTypes').returns();
@@ -228,6 +271,7 @@ describe('RelayServer tests', function () {
       expect(maxPossibleGasEstimation.estimation).to.be.equal(
         FAKE_ESTIMATION_BEFORE_FEES.toString()
       );
+      expect(estimateRelayMaxPossibleGas).to.be.called;
     });
 
     it('should return the initial estimation + fees when there are fees', async function () {
