@@ -275,6 +275,8 @@ export class HttpServer {
    *   post:
    *     summary: It estimate the mas possible gas in relay transaction.
    *     description: It receives transactions to be estimated (deploy or forward requests) and after performing all the checks, it estimates the gas consumption.
+   *                  It's possible to have a more precise estimation by including the user's signature, or a less precise estimation by specifying `'SERVER_SIGNATURE_REQUIRED'`
+   *                  in the `metadata.signature` field.
    *     requestBody:
    *       description: Deploy transaction or forward transaction.
    *       required: true
