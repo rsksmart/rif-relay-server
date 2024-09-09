@@ -53,6 +53,7 @@ import {
   standardMaxPossibleGasEstimation,
   estimateRelayMaxPossibleGasNoSignature,
   SERVER_SIGNATURE_REQUIRED,
+  isDataEmpty,
 } from '@rsksmart/rif-relay-client';
 import {
   validateIfGasAmountIsAcceptable,
@@ -300,7 +301,7 @@ export class RelayServer extends EventEmitter {
       requestMinValidSeconds
     );
 
-    if (signature === SERVER_SIGNATURE_REQUIRED) {
+    if (signature === SERVER_SIGNATURE_REQUIRED || isDataEmpty(signature)) {
       throw new Error(
         'Unacceptable signature: it must be required and provided by the client'
       );
@@ -463,7 +464,7 @@ export class RelayServer extends EventEmitter {
     } = envelopingRequest;
 
     let initialGasEstimation: BigNumber;
-    if (signature === SERVER_SIGNATURE_REQUIRED) {
+    if (signature === SERVER_SIGNATURE_REQUIRED || isDataEmpty(signature)) {
       const { workersKeyManager } = this.transactionManager;
       const signer = workersKeyManager.getWallet(this.workerAddress);
       initialGasEstimation = await estimateRelayMaxPossibleGasNoSignature(

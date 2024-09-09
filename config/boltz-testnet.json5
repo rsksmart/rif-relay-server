@@ -19,14 +19,18 @@
       "0xa6Bf71122b2C2Ad66c9444031b533C2e4A39F8FE",
       "0xca8576621DC38F92A6Ece289398Fdb2ed494DF0D",
       "0x4dB4d5DFad0E10995D6B4caC8CAAFE9343DB81CB",
-      "0xD10DA3D7F68114138743F9763F7efD743593b7d6",  // MinimalBoltzDeployVerifier 5-21-2024
+      "0xD10DA3D7F68114138743F9763F7efD743593b7d6", // MinimalBoltzDeployVerifier 5-21-2024
       "0x60F644ea6f766ed88D67a11A3F1b0B7B5F6cD3F7", // MinimalBoltzRelayVerifier 5-21-2024
       "0xD088e73aaD7D3262b6C4D0Dc6100eA3FF2E9C72e", // BoltzDeployVerifier 5-21-2024
       "0x9bC96cE26a42098DBD9F490D1c700c25d4c895df", // BoltzRelayVerifier 5-21-2024
-      "0x5e8F98ddAd4Da6eE8A8eA3D64E09385dF6b609D0",  // MinimalBoltzDeployVerifier 8-9-2024
+      "0x5e8F98ddAd4Da6eE8A8eA3D64E09385dF6b609D0", // MinimalBoltzDeployVerifier 8-9-2024
       "0xc090BCa8cD4116154f3E774CD69C7Cb8B8646169", // MinimalBoltzRelayVerifier 8-9-2024
       "0xfc30cD21fb97122156283b9eaaf00DeE60844015", // BoltzDeployVerifier 8-9-2024
       "0x6a3e8ed04E8aB0cFd3fEc00dD180bbd4582CBdF7", // BoltzRelayVerifier 8-9-2024
+      "0x04851412D12A5EAA1441C6e57a4A5396FE23bc42", // MinimalBoltzDeployVerifier 9-9-2024
+      "0x83789a901CA7C1b4006B554a31B7c861c6717815", // MinimalBoltzRelayVerifier 9-9-2024
+      "0xC653950fD21af492861c155Bd51bE9f43BEb8ca4", // BoltzDeployVerifier 9-9-2024
+      "0xa03772edE5BFCe387eaeCD3935BbA36e2D555e7d", // BoltzRelayVerifier 9-9-2024
     ],
   }
 }
