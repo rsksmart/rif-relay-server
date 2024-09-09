@@ -224,6 +224,32 @@ describe('RelayServer tests', function () {
   });
 
   describe('Function estimateMaxPossibleGas()', function () {
+    it('should return only the initial estimation when there are no additional fees(empty signature)', async function () {
+      sinon.stub(relayServerUtils, 'calculateFee').resolves(BigNumberJs(0));
+      sinon.stub(relayServer, 'validateInputTypes').returns();
+
+      const maxPossibleGasEstimation = await relayServer.estimateMaxPossibleGas(
+        {
+          relayRequest: {
+            request: {
+              tokenContract: constants.AddressZero,
+            },
+            relayData: {
+              gasPrice: GAS_PRICE,
+            },
+          },
+          metadata: {
+            signature: '',
+          },
+        } as HttpEnvelopingRequest
+      );
+
+      expect(maxPossibleGasEstimation.estimation).to.be.equal(
+        FAKE_ESTIMATION_BEFORE_FEES.toString()
+      );
+      expect(estimateRelayMaxPossibleGasNoSignature).to.be.called;
+    });
+
     it('should return only the initial estimation when there are no additional fees(no signature)', async function () {
       sinon.stub(relayServerUtils, 'calculateFee').resolves(BigNumberJs(0));
       sinon.stub(relayServer, 'validateInputTypes').returns();
