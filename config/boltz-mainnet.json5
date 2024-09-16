@@ -1,6 +1,6 @@
 {
   app: {
-    url: "https://boltz.testnet.relay.rifcomputing.net",
+    url: "https://boltz.mainnet.relay.rifcomputing.net",
     port: 8090,
     devMode: false,
     logLevel: 0,
