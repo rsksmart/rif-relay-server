@@ -32,5 +32,5 @@ jobs:
 								--instance-ids "$INSTANCE_ID" \
 								--document-version '$LATEST'
 						echo "Deploy sent to EC2 instance"
-				env:
-						INSTANCE_ID: ${{ secrets.BOLTZ_MAINNET_INSTANCE_ID }}
+					env:
+							INSTANCE_ID: ${{ secrets.BOLTZ_MAINNET_INSTANCE_ID }}
