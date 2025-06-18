@@ -1,0 +1,36 @@
+---
+name: CD for Boltz Mainnet
+
+on:
+  push:
+    tags:
+      - '**stable-boltz**'
+
+jobs:
+  deploy-boltz-mainnet:
+    runs-on: ubuntu-latest
+    environment:
+      name: Boltz-Mainnet
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4.0.2
+        with:
+          role-to-assume: ${{ secrets.BOLTZ_MAINNET_ROLE_ARN }}
+          aws-region: ${{ secrets.BOLTZ_MAINNET_AWS_REGION }}
+
+      - name: Deploy rif-relay-server on Boltz Mainnet
+        run: |
+          aws ssm send-command \
+            --document-name "boltz-mainnet-deploy" \
+            --instance-ids "$INSTANCE_ID" \
+            --document-version '$LATEST'
+          echo "Deploy sent to EC2 instance"
+        env:
+          INSTANCE_ID: ${{ secrets.BOLTZ_MAINNET_INSTANCE_ID }}
