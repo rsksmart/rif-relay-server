@@ -1,0 +1,24 @@
+{
+  app: {
+    url: "https://boltz.mainnet.relay.rifcomputing.net",
+    port: 8090,
+    devMode: false,
+    logLevel: 0,
+    disableSponsoredTx: true,
+    gasFeePercentage: "0.02",
+    workdir: "/srv/app/environment",
+  },
+  blockchain: {
+    rskNodeUrl: "http://172.17.0.1:4444",
+    initialBlockToScan: 6500000
+  },
+  contracts: {
+    relayHubAddress: "0xb277EF52c98E72E1F9afD4B36201d0b56368FEc8",
+    trustedVerifiers: [
+      "0xa6D3F5a4F56F66881430afDdC6470Bd39b9fC3b2", // BoltzDeployVerifier 9-16-2024
+      "0xe221608F3FaBbeDfFb7537F8a9001e80654f55C8", // BoltzRelayVerifier 9-16-2024
+      "0xc0F5bEF6b20Be41174F826684c663a8635c6A081", // MinimalBoltzDeployVerifier 9-16-2024
+      "0xE31cC4B05c730428331077D592c57848Ff421C14", // MinimalBoltzRelayVerifier 9-16-2024
+    ],
+  }
+}
