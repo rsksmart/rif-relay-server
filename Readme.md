@@ -121,6 +121,7 @@ File [./config/default.json5](config/default.json5) contains all configuration p
   */
   blockchain: {
     rskNodeUrl: "http://127.0.0.1:4444", //  RSK node endpoint URL, where the RSK node is located.
+    // rskNodeWriteUrl: "https://public-node.rsk.co", // Optional. RSK node endpoint URL used to broadcast transactions and read the pending nonce. Defaults to rskNodeUrl.
     gasPriceFactor: 1,
     alertedBlockDelay: 0,
     minAlertedDelayMS: 0,

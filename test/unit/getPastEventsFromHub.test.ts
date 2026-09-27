@@ -1,5 +1,6 @@
 import type { RelayHub } from '@rsksmart/rif-relay-contracts';
-import { expect } from 'chai';
+import { expect, use } from 'chai';
+import chaiAsPromised from 'chai-as-promised';
 import config from 'config';
 import type { providers } from 'ethers';
 import type { ServerConfigParams } from 'src';
@@ -9,6 +10,8 @@ import {
   performLogRequests,
   splitRange,
 } from 'src/getPastEventsForHub';
+
+use(chaiAsPromised);
 
 describe('getPastEventsFromHub', function () {
   describe('splitRange', function () {
@@ -310,7 +313,7 @@ describe('getPastEventsFromHub', function () {
       expect(logs).to.be.eql(expectedLogs);
     });
 
-    it('should return the logs of the successful requests even if one request fails multiple times', async function () {
+    it('should fail if one request fails multiple times', async function () {
       const stubProvider = {
         getLogs: async (logFilter: providers.Filter) =>
           // the second request will fail all the times
@@ -318,7 +321,7 @@ describe('getPastEventsFromHub', function () {
             ? Promise.reject('Just fail')
             : Promise.resolve(getLogsResponse),
       } as unknown as providers.Provider;
-      const logs = await performLogRequests(
+      const logsPromise = performLogRequests(
         [
           {
             fromBlock: 1,
@@ -345,8 +348,7 @@ describe('getPastEventsFromHub', function () {
           maxTimeout: 200,
         }
       );
-      const expectedLogs = [...getLogsResponse, ...getLogsResponse];
-      expect(logs).to.be.eql(expectedLogs);
+      await expect(logsPromise).to.be.rejectedWith('Just fail');
     });
 
     it('should return all the logs even if one request fails just once', async function () {

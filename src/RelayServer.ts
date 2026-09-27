@@ -623,21 +623,26 @@ export class RelayServer extends EventEmitter {
 
     const provider = getProvider();
 
-    return new Promise<void>((resolve, reject) => {
+    // Errors are handled here instead of rejecting, since nobody awaits this handler and
+    // an unhandled rejection would crash the process. The next interval retries the same blocks.
+    const handleError = (e: unknown) => {
+      this.emit('error', e);
+      const error = e as Error;
+      log.error(`error in worker: ${error.message} ${error.stack ?? ''}`);
+      this._lastSuccessfulRounds = 0;
+    };
+
+    return new Promise<void>((resolve) => {
       provider
         .getBlock('latest')
         .then((block) => {
           if (block.number > this._lastScannedBlock) {
-            resolve(this._workerSemaphore.bind(this)(block.number));
+            resolve(
+              this._workerSemaphore.bind(this)(block.number).catch(handleError)
+            );
           }
         })
-        .catch((e) => {
-          this.emit('error', e);
-          const error = e as Error;
-          log.error(`error in worker: ${error.message} ${error.stack ?? ''}`);
-          this._lastSuccessfulRounds = 0;
-          reject(error);
-        })
+        .catch(handleError)
         .finally(() => {
           clearTimeout(workerTimeout);
         });

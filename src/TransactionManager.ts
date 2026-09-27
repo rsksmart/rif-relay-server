@@ -17,7 +17,7 @@ import {
   StoredTransaction,
   StoredTransactionMetadata,
 } from './StoredTransaction';
-import { getProvider } from './Utils';
+import { getProvider, getWriteProvider } from './Utils';
 
 export interface SignedTransactionDetails {
   txHash: string;
@@ -186,7 +186,7 @@ data         | 0x${transaction.data ?? ''}
       releaseMutex();
     }
 
-    const transaction = await provider.sendTransaction(
+    const transaction = await getWriteProvider().sendTransaction(
       signedTransaction.signedTx
     );
 
@@ -266,7 +266,7 @@ data         | 0x${transaction.data ?? ''}
       isMaxGasPriceReached
     );
 
-    const provider = getProvider();
+    const provider = getWriteProvider();
 
     this.printSendTransactionLog(txToSign, tx.from, signedTransaction.txHash);
     const currentNonce = await provider.getTransactionCount(tx.from);
@@ -310,7 +310,7 @@ data         | 0x${transaction.data ?? ''}
   }
 
   async pollNonce(signer: string): Promise<number> {
-    const provider = getProvider();
+    const provider = getWriteProvider();
 
     const nonce: number = await provider.getTransactionCount(signer, 'pending');
     const nonceSigner = this.nonces[signer] ?? 0;
