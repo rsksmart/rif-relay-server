@@ -58,6 +58,7 @@ type BlockchainConfig = {
   estimateGasFactor: number;
   versionRegistryDelayPeriod?: number;
   initialBlockToScan: number;
+  startupStateSource: 'chain' | 'events';
   maxBlockRange: number;
   maxConcurrentLogRequests: number;
 };

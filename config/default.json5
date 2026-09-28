@@ -79,7 +79,8 @@
     defaultGasLimit: 500000,
     maxGasPrice: 100000000000,
     estimateGasFactor: 1.2,
-    initialBlockToScan: 1, // the first block to scan to look for events
+    initialBlockToScan: 1, // the first block to scan for events: at startup with startupStateSource "events", and for server activity when registrationBlockRate is set
+    startupStateSource: "events", // how the server learns its registration state at startup: "events" replays the hub events since initialBlockToScan, "chain" reads it from the RelayHub
     maxBlockRange: 1000,   // the maximum amount of blocks to include while requesting events
     maxConcurrentLogRequests: 10, // the maximum amount of event (getLogs) requests sent to the node at the same time
   },
