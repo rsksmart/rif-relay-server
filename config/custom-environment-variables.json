@@ -1,4 +1,7 @@
 {
+  "blockchain": {
+    "rskNodeUrl": "RSK_NODE_URL"
+  },
   "register": {
     "stake": "REGISTER_STAKE",
     "funds": "REGISTER_FUNDS",
