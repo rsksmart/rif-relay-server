@@ -74,7 +74,8 @@ export async function getPastEventsForHub(
 export async function performLogRequests(
   logFilters: providers.Filter[],
   provider: providers.Provider = getProvider(),
-  opts?: AsyncRetry.Options
+  opts?: AsyncRetry.Options,
+  concurrency = getServerConfig().blockchain.maxConcurrentLogRequests
 ) {
   const getProviderLogsRequests = (logFilter: providers.Filter) =>
     retry(
@@ -92,12 +93,27 @@ export async function performLogRequests(
         ...opts,
       }
     );
-  const requests = logFilters.map((logFilter) =>
-    getProviderLogsRequests(logFilter)
-  );
+  const logs = new Array<providers.Log[]>(logFilters.length);
+  let nextIndex = 0;
+  let failed = false;
+  const worker = async () => {
+    while (!failed && nextIndex < logFilters.length) {
+      const index = nextIndex++;
+      try {
+        logs[index] = await getProviderLogsRequests(
+          logFilters[index] as providers.Filter
+        );
+      } catch (error) {
+        failed = true;
+        throw error;
+      }
+    }
+  };
   // Fail if any range could not be fetched: returning partial logs would make the server
   // miss events (e.g. RelayWorkersAdded) and never look for them again.
-  const logs = await Promise.all(requests);
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, logFilters.length) }, worker)
+  );
 
   return logs.flat();
 }

@@ -59,6 +59,7 @@ type BlockchainConfig = {
   versionRegistryDelayPeriod?: number;
   initialBlockToScan: number;
   maxBlockRange: number;
+  maxConcurrentLogRequests: number;
 };
 
 type RegisterConfig = {
