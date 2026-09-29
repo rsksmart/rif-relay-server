@@ -37,6 +37,7 @@ import {
   getLatestEventData,
   getProvider,
   getRelayHub,
+  getWriteProvider,
   isContractDeployed,
   randomInRange,
   relayTransactionRequestShape,
@@ -764,6 +765,12 @@ export class RelayServer extends EventEmitter {
     log.debug('Relay Server - Registration manager initialized');
 
     const { chainId } = await provider.getNetwork();
+    const { chainId: writeChainId } = await getWriteProvider().getNetwork();
+    if (writeChainId !== chainId) {
+      throw new Error(
+        `rskNodeWriteUrl is on chain ${writeChainId}, but rskNodeUrl is on chain ${chainId}`
+      );
+    }
     const networkId = Number(await provider.send('net_version', []));
 
     this.chainId = chainId;

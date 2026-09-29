@@ -150,6 +150,7 @@ data         | 0x${transaction.data ?? ''}
     const provider = getProvider();
 
     const providerGasPrice = await provider.getGasPrice();
+    const { chainId } = await provider.getNetwork();
 
     const releaseMutex = await this.nonceMutex.acquire();
     let signedTransaction: SignedTransactionDetails;
@@ -165,6 +166,7 @@ data         | 0x${transaction.data ?? ''}
         gasLimit,
         gasPrice: gasPrice ?? providerGasPrice,
         nonce,
+        chainId,
       };
       // TODO omg! do not do this!
       const keyManager = this.managerKeyManager.isSigner(signer)
@@ -236,6 +238,7 @@ data         | 0x${transaction.data ?? ''}
     newGasPrice: BigNumber,
     isMaxGasPriceReached: boolean
   ): Promise<SignedTransactionDetails> {
+    const { chainId } = await getProvider().getNetwork();
     // Resend transaction with exactly the same values except for gas price
     const txToSign: PopulatedTransaction = {
       to: tx.to,
@@ -243,6 +246,7 @@ data         | 0x${transaction.data ?? ''}
       gasPrice: newGasPrice,
       data: tx.data,
       nonce: tx.nonce,
+      chainId,
     };
 
     const keyManager = this.managerKeyManager.isSigner(tx.from)
