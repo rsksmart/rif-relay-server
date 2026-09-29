@@ -386,6 +386,44 @@ describe('getPastEventsFromHub', function () {
       ]);
     });
 
+    it('should wait for the requests in flight before failing', async function () {
+      let inFlight = 0;
+      const stubProvider = {
+        getLogs: async (logFilter: providers.Filter) => {
+          if (logFilter.fromBlock === 1) {
+            return Promise.reject('Just fail');
+          }
+          inFlight++;
+          await new Promise((resolve) => setTimeout(resolve, 50));
+          inFlight--;
+
+          return getLogsResponse;
+        },
+      } as unknown as providers.Provider;
+      const logsPromise = performLogRequests(
+        [
+          {
+            fromBlock: 1,
+            toBlock: 11,
+            address: '0x123abc',
+            topics: [['eventA'], ['managerAddress']],
+          },
+          {
+            fromBlock: 11,
+            toBlock: 21,
+            address: '0x123abc',
+            topics: [['eventA'], ['managerAddress']],
+          },
+        ],
+        stubProvider,
+        { retries: 0 },
+        2
+      );
+
+      await expect(logsPromise).to.be.rejectedWith('Just fail');
+      expect(inFlight).to.be.equal(0);
+    });
+
     it('should return all the logs even if one request fails just once', async function () {
       let counter = 0;
       const stubProvider = {

@@ -111,9 +111,16 @@ export async function performLogRequests(
   };
   // Fail if any range could not be fetched: returning partial logs would make the server
   // miss events (e.g. RelayWorkersAdded) and never look for them again.
-  await Promise.all(
+  // Requests still in flight are awaited first, so the next scan can't exceed the concurrency limit.
+  const results = await Promise.allSettled(
     Array.from({ length: Math.min(concurrency, logFilters.length) }, worker)
   );
+  const rejected = results.find(
+    (result): result is PromiseRejectedResult => result.status === 'rejected'
+  );
+  if (rejected) {
+    throw rejected.reason;
+  }
 
   return logs.flat();
 }
