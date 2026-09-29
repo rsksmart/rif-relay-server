@@ -24,6 +24,7 @@ import {
   getProvider,
   getRelayHub,
   getRelayInfo,
+  isContractDeployed,
   isRegistrationValid,
 } from './Utils';
 import type { ManagerEvent, PastEventOptions } from './definitions/event.type';
@@ -144,8 +145,7 @@ export class RegistrationManager {
    */
   async initFromChain(stateBlock: number): Promise<void> {
     // a hub deployed after stateBlock has nothing registered yet; its events are scanned from the next block
-    const hubCode = await getProvider().getCode(this._hubAddress, stateBlock);
-    if (hubCode === '0x') {
+    if (!(await isContractDeployed(this._hubAddress, stateBlock))) {
       this._isInitialized = true;
 
       return;
@@ -155,11 +155,15 @@ export class RegistrationManager {
     this._isWorkerAdded = await this._isWorkerAssigned(stateBlock);
 
     if (withdrawBlock.gt(constants.Zero)) {
-      // the unstake delay can only grow, so the unlock happened within this range
+      // the unstake delay can only grow, also after the unlock, so the unlock happened within this range;
+      // a delay raised after the unlock can make it start below block 0
+      const unlockScanStart = withdrawBlock.sub(unstakeDelay);
       const unlockEvents = await getPastEventsForHub(
         this._managerAddress,
         {
-          fromBlock: withdrawBlock.sub(unstakeDelay).toNumber(),
+          fromBlock: unlockScanStart.gt(constants.Zero)
+            ? unlockScanStart.toNumber()
+            : 0,
           toBlock: stateBlock,
         },
         ['StakeUnlocked']

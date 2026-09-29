@@ -106,10 +106,13 @@ export function isRegistrationValid(
   return false;
 }
 
-export async function isContractDeployed(address: string): Promise<boolean> {
+export async function isContractDeployed(
+  address: string,
+  blockTag?: providers.BlockTag
+): Promise<boolean> {
   const provider = getProvider();
 
-  const code = await provider.getCode(address);
+  const code = await provider.getCode(address, blockTag);
 
   // Check added for RSKJ: when the contract does not exist in RSKJ it replies to the getCode call with 0x00
   return code !== '0x' && code !== '0x00';
