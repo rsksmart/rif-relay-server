@@ -1,0 +1,37 @@
+---
+name: CD for Satora Testnet
+
+on:
+    push:
+        tags:
+            - '**beta-swaps**'
+
+
+jobs:
+    deploy-satora-testnet:
+        runs-on: ubuntu-latest
+        environment:
+            name: Satora-Testnet
+        permissions:
+            id-token: write
+            contents: read
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v2
+              with:
+                  fetch-depth: 0
+
+            - name: Configure AWS credentials
+              uses: aws-actions/configure-aws-credentials@v4
+              with:
+                  role-to-assume: ${{ secrets.SATORA_TESTNET_ROLE_ARN }}
+                  aws-region: "${{ secrets.SATORA_TESTNET_AWS_REGION }}"
+
+            - name: Deploy rif-relay-server on Satora Testnet
+              run: |
+                  aws ssm send-command \
+                      --document-name "AWS-RunRemoteScript" \
+                      --instance-ids ""${{ secrets.SATORA_TESTNET_EC2_ID }}"" \
+                      --region=${{ secrets.SATORA_TESTNET_AWS_REGION }} \
+                      --parameters '{"sourceType":["GitHub"],"sourceInfo":["{\"owner\":\"rootstock\", \"repository\":\"ask-devops\", \"path\": \"rif-relay/\", \"tokenInfo\":\"{{ssm-secure:github-token}}\"}"],"commandLine":["deploy-satora-testnet.sh"]}'
