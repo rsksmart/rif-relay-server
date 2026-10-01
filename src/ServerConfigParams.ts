@@ -36,6 +36,7 @@ type ContractsConfig = {
 
 type BlockchainConfig = {
   rskNodeUrl: string;
+  rskNodeWriteUrl?: string;
   gasPriceFactor: number;
   registrationBlockRate: number;
   alertedBlockDelay: number;
@@ -57,7 +58,9 @@ type BlockchainConfig = {
   estimateGasFactor: number;
   versionRegistryDelayPeriod?: number;
   initialBlockToScan: number;
+  startupStateSource: 'chain' | 'events';
   maxBlockRange: number;
+  maxConcurrentLogRequests: number;
 };
 
 type RegisterConfig = {

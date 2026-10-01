@@ -1,6 +1,6 @@
 import log from 'loglevel';
 import type { EventEmitter } from 'events';
-import { constants, BigNumber } from 'ethers';
+import { constants, BigNumber, providers } from 'ethers';
 import chalk from 'chalk';
 
 import type {
@@ -24,8 +24,8 @@ import {
   getProvider,
   getRelayHub,
   getRelayInfo,
+  isContractDeployed,
   isRegistrationValid,
-  isSecondEventLater,
 } from './Utils';
 import type { ManagerEvent, PastEventOptions } from './definitions/event.type';
 import { getServerConfig } from './ServerConfigParams';
@@ -71,7 +71,7 @@ export class RegistrationManager {
 
   private _relayData: RelayManagerData | undefined;
 
-  private _lastWorkerAddedTransaction: TypedEvent | undefined;
+  private _isWorkerAdded = false;
 
   private _delayedEvents: Array<{ block: number; eventData: TypedEvent }> = [];
 
@@ -122,10 +122,59 @@ export class RegistrationManager {
     this._txStoreManager = txStoreManager;
   }
 
+  /**
+   * Rebuilds the worker state from hub events since `initialBlockToScan`; the stake
+   * is rebuilt when the first handlePastEvents call replays the stake events.
+   */
   async init(initialBlockToScan = 1): Promise<void> {
-    if (this._lastWorkerAddedTransaction == null) {
-      this._lastWorkerAddedTransaction =
-        await this._queryLatestWorkerAddedEvent(initialBlockToScan);
+    const workersAddedEvents = await getPastEventsForHub(
+      this._managerAddress,
+      {
+        fromBlock: initialBlockToScan,
+      },
+      ['RelayWorkersAdded']
+    );
+    this._isWorkerAdded = workersAddedEvents.length > 0;
+
+    this._isInitialized = true;
+  }
+
+  /**
+   * Reads the registration state from the hub as of `stateBlock`; changes after it
+   * are picked up from the events scanned by handlePastEvents.
+   */
+  async initFromChain(stateBlock: number): Promise<void> {
+    // a hub deployed after stateBlock has nothing registered yet; its events are scanned from the next block
+    if (!(await isContractDeployed(this._hubAddress, stateBlock))) {
+      this._isInitialized = true;
+
+      return;
+    }
+
+    const { withdrawBlock, unstakeDelay } = await this.refreshStake(stateBlock);
+    this._isWorkerAdded = await this._isWorkerAssigned(stateBlock);
+
+    if (withdrawBlock.gt(constants.Zero)) {
+      // the unstake delay can only grow, also after the unlock, so the unlock happened within this range;
+      // a delay raised after the unlock can make it start below block 0
+      const unlockScanStart = withdrawBlock.sub(unstakeDelay);
+      const unlockEvents = await getPastEventsForHub(
+        this._managerAddress,
+        {
+          fromBlock: unlockScanStart.gt(constants.Zero)
+            ? unlockScanStart.toNumber()
+            : 0,
+          toBlock: stateBlock,
+        },
+        ['StakeUnlocked']
+      );
+      const unlockEvent = getLatestEventData(unlockEvents);
+      if (unlockEvent) {
+        this._delayedEvents.push({
+          block: withdrawBlock.toNumber(),
+          eventData: unlockEvent,
+        });
+      }
     }
 
     this._isInitialized = true;
@@ -199,12 +248,7 @@ export class RegistrationManager {
     for (const eventData of hubEventsSinceLastScan) {
       switch (eventData.event) {
         case 'RelayWorkersAdded':
-          if (
-            this._lastWorkerAddedTransaction == null ||
-            isSecondEventLater(this._lastWorkerAddedTransaction, eventData)
-          ) {
-            this._lastWorkerAddedTransaction = eventData;
-          }
+          this._isWorkerAdded = true;
           break;
       }
     }
@@ -315,14 +359,16 @@ export class RegistrationManager {
     this._balanceRequired.currentValue = currentBalance;
   }
 
-  async refreshStake(): Promise<void> {
+  async refreshStake(blockTag: providers.BlockTag = 'latest') {
     const relayHub = getRelayHub(this._hubAddress);
 
-    const stakeInfo = await relayHub.getStakeInfo(this._managerAddress);
+    const stakeInfo = await relayHub.getStakeInfo(this._managerAddress, {
+      blockTag,
+    });
 
     const stake = stakeInfo.stake;
     if (stake.eq(constants.Zero)) {
-      return;
+      return stakeInfo;
     }
 
     // a locked stake does not have the 'withdrawBlock' field set
@@ -335,6 +381,8 @@ export class RegistrationManager {
       log.info('Got staked for the first time');
       this.printNotRegisteredMessage();
     }
+
+    return stakeInfo;
   }
 
   async addRelayWorker(currentBlock: number): Promise<string> {
@@ -377,7 +425,7 @@ export class RegistrationManager {
 
     let transactions: string[] = [];
     // add worker only if not already added
-    const workersAdded = this._isWorkerValid();
+    const workersAdded = this._isWorkerAdded;
     const addWorkersPending = await this._txStoreManager.isActionPending(
       ServerAction.ADD_WORKER
     );
@@ -511,24 +559,23 @@ export class RegistrationManager {
     return transactionHashes;
   }
 
-  private async _queryLatestWorkerAddedEvent(
-    initialBlockToScan: number
-  ): Promise<TypedEvent | undefined> {
-    const workersAddedEvents = await getPastEventsForHub(
-      this._managerAddress,
-      {
-        fromBlock: initialBlockToScan,
-      },
-      ['RelayWorkersAdded']
+  // the hub rejects adding a worker that already has any manager entry, enabled or not
+  private async _isWorkerAssigned(blockTag: number): Promise<boolean> {
+    const relayHub = getRelayHub(this._hubAddress);
+    const managerEntry = BigNumber.from(
+      await relayHub.workerToManager(this._workerAddress, { blockTag })
     );
+    if (managerEntry.isZero()) {
+      return false;
+    }
+    const enabledEntry = BigNumber.from(this._managerAddress).shl(4).or(1);
+    if (!managerEntry.eq(enabledEntry)) {
+      log.warn(
+        `Worker ${this._workerAddress} is disabled or assigned to another manager`
+      );
+    }
 
-    return getLatestEventData(workersAddedEvents);
-  }
-
-  private _isWorkerValid(): boolean {
-    return this._lastWorkerAddedTransaction
-      ? this._lastWorkerAddedTransaction.event === 'RelayWorkersAdded'
-      : false;
+    return true;
   }
 
   isRegistered(): boolean {

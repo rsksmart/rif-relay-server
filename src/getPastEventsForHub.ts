@@ -74,7 +74,8 @@ export async function getPastEventsForHub(
 export async function performLogRequests(
   logFilters: providers.Filter[],
   provider: providers.Provider = getProvider(),
-  opts?: AsyncRetry.Options
+  opts?: AsyncRetry.Options,
+  concurrency = getServerConfig().blockchain.maxConcurrentLogRequests
 ) {
   const getProviderLogsRequests = (logFilter: providers.Filter) =>
     retry(
@@ -92,18 +93,36 @@ export async function performLogRequests(
         ...opts,
       }
     );
-  const requests = logFilters.map((logFilter) =>
-    getProviderLogsRequests(logFilter)
+  const logs = new Array<providers.Log[]>(logFilters.length);
+  let nextIndex = 0;
+  let failed = false;
+  const worker = async () => {
+    while (!failed && nextIndex < logFilters.length) {
+      const index = nextIndex++;
+      try {
+        logs[index] = await getProviderLogsRequests(
+          logFilters[index] as providers.Filter
+        );
+      } catch (error) {
+        failed = true;
+        throw error;
+      }
+    }
+  };
+  // Fail if any range could not be fetched: returning partial logs would make the server
+  // miss events (e.g. RelayWorkersAdded) and never look for them again.
+  // Requests still in flight are awaited first, so the next scan can't exceed the concurrency limit.
+  const results = await Promise.allSettled(
+    Array.from({ length: Math.min(concurrency, logFilters.length) }, worker)
   );
-  const logs = await Promise.allSettled(requests);
+  const rejected = results.find(
+    (result): result is PromiseRejectedResult => result.status === 'rejected'
+  );
+  if (rejected) {
+    throw rejected.reason;
+  }
 
-  return logs
-    .filter((promiseResult) => promiseResult.status === 'fulfilled')
-    .map(
-      (promiseResult) =>
-        (promiseResult as PromiseFulfilledResult<providers.Log[]>).value
-    )
-    .flat();
+  return logs.flat();
 }
 
 export function getTopicsFromEvents(

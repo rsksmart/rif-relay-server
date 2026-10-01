@@ -84,7 +84,7 @@ File [./config/default.json5](config/default.json5) contains all configuration p
     */,
     workdir: ".", // path to the folder where the server will store the database and all its data.
     readyTimeout: 30000,
-    checkInterval: 10000,
+    checkInterval: 30000, // milliseconds between checks for a new block
     disableSponsoredTx: false,
     
     /* It's the fee that the fee collector will take from the execution of 
@@ -121,6 +121,7 @@ File [./config/default.json5](config/default.json5) contains all configuration p
   */
   blockchain: {
     rskNodeUrl: "http://127.0.0.1:4444", //  RSK node endpoint URL, where the RSK node is located.
+    // rskNodeWriteUrl: "https://public-node.rsk.co", // Optional. RSK node endpoint URL used to broadcast transactions and read the pending nonce. Defaults to rskNodeUrl.
     gasPriceFactor: 1,
     alertedBlockDelay: 0,
     minAlertedDelayMS: 0,
@@ -140,8 +141,10 @@ File [./config/default.json5](config/default.json5) contains all configuration p
     defaultGasLimit: 500000,
     maxGasPrice: 100000000000,
     estimateGasFactor: 1.2,
-    initialBlockToScan: 1, // the first block to scan to look for events
-    maxBlockRange: 1000   // the maximum amount of blocks to include while requesting events
+    initialBlockToScan: 1, // the first block to scan for events: at startup with startupStateSource "events", and for server activity when registrationBlockRate is set
+    startupStateSource: "events", // how the server learns its registration state at startup: "events" replays the hub events since initialBlockToScan, "chain" reads it from the RelayHub
+    maxBlockRange: 1000,   // the maximum amount of blocks to include while requesting events
+    maxConcurrentLogRequests: 10, // the maximum amount of event (getLogs) requests sent to the node at the same time
   },
   /*
     Relay contracts addresses
@@ -195,6 +198,9 @@ Some of these options will be overrideable using environment variables defined i
 // config/custom-environment-variables.json
 
 {
+  "blockchain": {
+    "rskNodeUrl": "RSK_NODE_URL"
+  },
   "register": {
     "stake": "REGISTER_STAKE",
     "funds": "REGISTER_FUNDS",
@@ -218,6 +224,9 @@ To use these overrides, you'd prepend an environment variable, e.g.:
 
 ```shell
 REGISTER_UNSTAKE_DELAY=2000 REGISTER_GAS_PRICE=1000000 npm run register
+
+# point any environment to a different RSK node, e.g. a hosted JSON-RPC endpoint
+RSK_NODE_URL=https://rpc.testnet.rootstock.io/<API_KEY> NODE_ENV=boltz-testnet npm run start
 ```
 
 ### Start server
