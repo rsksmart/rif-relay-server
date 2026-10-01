@@ -76,7 +76,7 @@
   },
   "dependencies": {
     "@rsksmart/rif-relay-client": "2.2.6",
-    "@rsksmart/rif-relay-contracts": "2.1.1-beta.2",
+    "@rsksmart/rif-relay-contracts": "github:rsksmart/rif-relay-contracts#feat/flyover-lendaswap",
     "async-mutex": "^0.4.0",
     "async-retry": "^1.3.3",
     "bignumber.js": "^9.1.1",
