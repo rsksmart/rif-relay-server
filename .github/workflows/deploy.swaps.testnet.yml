@@ -3,8 +3,8 @@ name: CD for Satora Testnet
 
 on:
     push:
-        tags:
-            - '**beta-swaps**'
+        branches:
+            - 'DEVOPS-2663/satora-cd-workflow'
 
 
 jobs:
