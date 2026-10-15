@@ -26,6 +26,7 @@ import {
   getRelayInfo,
   isContractDeployed,
   isRegistrationValid,
+  isSameAddress,
 } from './Utils';
 import type { ManagerEvent, PastEventOptions } from './definitions/event.type';
 import { getServerConfig } from './ServerConfigParams';
@@ -72,6 +73,9 @@ export class RegistrationManager {
   private _relayData: RelayManagerData | undefined;
 
   private _isWorkerAdded = false;
+
+  // a disabled worker keeps its hub entry, so it can't be added again
+  private _isWorkerDisabled = false;
 
   private _delayedEvents: Array<{ block: number; eventData: TypedEvent }> = [];
 
@@ -249,6 +253,18 @@ export class RegistrationManager {
       switch (eventData.event) {
         case 'RelayWorkersAdded':
           this._isWorkerAdded = true;
+          break;
+        case 'RelayWorkersDisabled':
+          if (
+            (eventData.args as { relayWorkers: string[] }).relayWorkers.some(
+              (worker) => isSameAddress(worker, this._workerAddress)
+            )
+          ) {
+            log.error(
+              `Worker ${this._workerAddress} was disabled in the RelayHub ${this._hubAddress}; the hub rejects its relay calls and it can't be added again`
+            );
+            this._isWorkerDisabled = true;
+          }
           break;
       }
     }
@@ -570,8 +586,9 @@ export class RegistrationManager {
     }
     const enabledEntry = BigNumber.from(this._managerAddress).shl(4).or(1);
     if (!managerEntry.eq(enabledEntry)) {
-      log.warn(
-        `Worker ${this._workerAddress} is disabled or assigned to another manager`
+      // the hub rejects relay calls from this worker and can't reassign it with addRelayWorkers
+      throw new Error(
+        `Worker ${this._workerAddress} is disabled or assigned to another manager in the RelayHub ${this._hubAddress}`
       );
     }
 
@@ -584,7 +601,8 @@ export class RegistrationManager {
     return (
       this._stakeRequired.isSatisfied &&
       this.isStakeLocked &&
-      isRegistrationCorrect
+      isRegistrationCorrect &&
+      !this._isWorkerDisabled
     );
   }
 
