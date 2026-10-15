@@ -155,6 +155,20 @@ export function getWriteProvider(): providers.Provider {
   return writeUrl ? getProviderForUrl(writeUrl) : getProvider();
 }
 
+/**
+ * Hides what could be a credential in a node URL (user info, path and query),
+ * e.g. the API key of a hosted RPC endpoint, so the URL can be logged.
+ */
+export function redactUrl(url: string): string {
+  try {
+    const { protocol, host, pathname, search } = new URL(url);
+
+    return `${protocol}//${host}${pathname !== '/' || search ? '/***' : ''}`;
+  } catch {
+    return '***';
+  }
+}
+
 //TODO improve the validating and type handling
 export const deployTransactionRequestShape = {
   relayRequest: {
