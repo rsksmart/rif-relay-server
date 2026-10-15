@@ -21,7 +21,6 @@
       "0xC92BF8720A6126c7f000353e184B4fE2E0a51f4e", // LendaswapRelayVerifier 10-15-2026
       "0xBB894e893Be2B0c9CB32E76fA066e4B876E30690", // MinimalLendaswapDeployVerifier 10-15-2026
       "0x063D342a6f8Ce5c9B01774bCA6cE1c9Ee76A41be", // MinimalLendaswapRelayVerifier 10-15-2026
-      "0xC21444eAB71A08A90f7726f0Bcbb6d317AE5c7c2", // FlyoverDeployVerifier 9-29-2026
     ],
   }
 }
