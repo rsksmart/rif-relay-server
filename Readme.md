@@ -226,7 +226,7 @@ To use these overrides, you'd prepend an environment variable, e.g.:
 REGISTER_UNSTAKE_DELAY=2000 REGISTER_GAS_PRICE=1000000 npm run register
 
 # point any environment to a different RSK node, e.g. a hosted JSON-RPC endpoint
-RSK_NODE_URL=https://rpc.testnet.rootstock.io/<API_KEY> NODE_ENV=boltz-testnet npm run start
+RSK_NODE_URL="https://rpc.testnet.rootstock.io/<API_KEY>" NODE_ENV=boltz-testnet npm run start
 ```
 
 ### Start server
