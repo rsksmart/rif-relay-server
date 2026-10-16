@@ -1,5 +1,6 @@
 import type { RelayHub } from '@rsksmart/rif-relay-contracts';
-import { expect } from 'chai';
+import { expect, use } from 'chai';
+import chaiAsPromised from 'chai-as-promised';
 import config from 'config';
 import type { providers } from 'ethers';
 import type { ServerConfigParams } from 'src';
@@ -9,6 +10,8 @@ import {
   performLogRequests,
   splitRange,
 } from 'src/getPastEventsForHub';
+
+use(chaiAsPromised);
 
 describe('getPastEventsFromHub', function () {
   describe('splitRange', function () {
@@ -310,7 +313,7 @@ describe('getPastEventsFromHub', function () {
       expect(logs).to.be.eql(expectedLogs);
     });
 
-    it('should return the logs of the successful requests even if one request fails multiple times', async function () {
+    it('should fail if one request fails multiple times', async function () {
       const stubProvider = {
         getLogs: async (logFilter: providers.Filter) =>
           // the second request will fail all the times
@@ -318,7 +321,7 @@ describe('getPastEventsFromHub', function () {
             ? Promise.reject('Just fail')
             : Promise.resolve(getLogsResponse),
       } as unknown as providers.Provider;
-      const logs = await performLogRequests(
+      const logsPromise = performLogRequests(
         [
           {
             fromBlock: 1,
@@ -345,8 +348,80 @@ describe('getPastEventsFromHub', function () {
           maxTimeout: 200,
         }
       );
-      const expectedLogs = [...getLogsResponse, ...getLogsResponse];
-      expect(logs).to.be.eql(expectedLogs);
+      await expect(logsPromise).to.be.rejectedWith('Just fail');
+    });
+
+    it('should not exceed the concurrency limit and should keep the filters order', async function () {
+      let inFlight = 0;
+      let maxInFlight = 0;
+      const stubProvider = {
+        getLogs: async (logFilter: providers.Filter) => {
+          inFlight++;
+          maxInFlight = Math.max(maxInFlight, inFlight);
+          const fromBlock = logFilter.fromBlock as number;
+          // later ranges resolve first
+          await new Promise((resolve) => setTimeout(resolve, 20 - fromBlock));
+          inFlight--;
+
+          return [{ ...getLogsResponse[0], blockNumber: fromBlock }];
+        },
+      } as unknown as providers.Provider;
+      const logFilters = Array.from({ length: 10 }, (_, index) => ({
+        fromBlock: index,
+        toBlock: index + 1,
+        address: '0x123abc',
+        topics: [['eventA'], ['managerAddress']],
+      }));
+
+      const logs = await performLogRequests(
+        logFilters,
+        stubProvider,
+        undefined,
+        3
+      );
+
+      expect(maxInFlight).to.be.equal(3);
+      expect(logs.map(({ blockNumber }) => blockNumber)).to.be.eql([
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+      ]);
+    });
+
+    it('should wait for the requests in flight before failing', async function () {
+      let inFlight = 0;
+      const stubProvider = {
+        getLogs: async (logFilter: providers.Filter) => {
+          if (logFilter.fromBlock === 1) {
+            return Promise.reject('Just fail');
+          }
+          inFlight++;
+          await new Promise((resolve) => setTimeout(resolve, 50));
+          inFlight--;
+
+          return getLogsResponse;
+        },
+      } as unknown as providers.Provider;
+      const logsPromise = performLogRequests(
+        [
+          {
+            fromBlock: 1,
+            toBlock: 11,
+            address: '0x123abc',
+            topics: [['eventA'], ['managerAddress']],
+          },
+          {
+            fromBlock: 11,
+            toBlock: 21,
+            address: '0x123abc',
+            topics: [['eventA'], ['managerAddress']],
+          },
+        ],
+        stubProvider,
+        { retries: 0 },
+        2
+      );
+
+      await expect(logsPromise).to.be.rejectedWith('Just fail');
+      expect(inFlight).to.be.equal(0);
     });
 
     it('should return all the logs even if one request fails just once', async function () {

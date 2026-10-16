@@ -1,6 +1,6 @@
 import log from 'loglevel';
 import type { EventEmitter } from 'events';
-import { constants, BigNumber } from 'ethers';
+import { constants, BigNumber, providers } from 'ethers';
 import chalk from 'chalk';
 
 import type {
@@ -24,10 +24,15 @@ import {
   getProvider,
   getRelayHub,
   getRelayInfo,
+  isContractDeployed,
   isRegistrationValid,
-  isSecondEventLater,
+  isSameAddress,
 } from './Utils';
-import type { ManagerEvent, PastEventOptions } from './definitions/event.type';
+import type {
+  LatestTag,
+  ManagerEvent,
+  PastEventOptions,
+} from './definitions/event.type';
 import { getServerConfig } from './ServerConfigParams';
 import { getPastEventsForHub } from './getPastEventsForHub';
 import type { RelayManagerData } from '@rsksmart/rif-relay-client';
@@ -71,7 +76,10 @@ export class RegistrationManager {
 
   private _relayData: RelayManagerData | undefined;
 
-  private _lastWorkerAddedTransaction: TypedEvent | undefined;
+  private _isWorkerAdded = false;
+
+  // a disabled worker keeps its hub entry, so it can't be added again
+  private _isWorkerDisabled = false;
 
   private _delayedEvents: Array<{ block: number; eventData: TypedEvent }> = [];
 
@@ -122,10 +130,58 @@ export class RegistrationManager {
     this._txStoreManager = txStoreManager;
   }
 
-  async init(initialBlockToScan = 1): Promise<void> {
-    if (this._lastWorkerAddedTransaction == null) {
-      this._lastWorkerAddedTransaction =
-        await this._queryLatestWorkerAddedEvent(initialBlockToScan);
+  /**
+   * Reads the worker state from the hub; the stake is rebuilt when the first
+   * handlePastEvents call replays the stake events. The worker may have been
+   * added before `initialBlockToScan`, so its events can't tell.
+   */
+  async init(): Promise<void> {
+    this._isWorkerAdded = await this._isWorkerAssigned('latest');
+
+    this._isInitialized = true;
+  }
+
+  private _addsThisWorker(eventData: TypedEvent): boolean {
+    return (
+      eventData.args as { newRelayWorkers: string[] }
+    ).newRelayWorkers.some((worker) =>
+      isSameAddress(worker, this._workerAddress)
+    );
+  }
+
+  /**
+   * Reads the registration state from the hub as of `stateBlock`; changes after it
+   * are picked up from the events scanned by handlePastEvents.
+   */
+  async initFromChain(stateBlock: number): Promise<void> {
+    // a hub deployed after stateBlock has nothing registered yet; its events are scanned from the next block
+    if (!(await isContractDeployed(this._hubAddress, stateBlock))) {
+      this._isInitialized = true;
+
+      return;
+    }
+
+    const { withdrawBlock, unstakeDelay } = await this.refreshStake(stateBlock);
+    this._isWorkerAdded = await this._isWorkerAssigned(stateBlock);
+
+    if (withdrawBlock.gt(constants.Zero)) {
+      // the unstake delay can only grow, also after the unlock, so the unlock happened within this range;
+      // a delay raised after the unlock can make it start below block 0
+      const unlockScanStart = withdrawBlock.sub(unstakeDelay);
+      const unlockEvents = await getPastEventsForHub(
+        this._managerAddress,
+        {
+          fromBlock: unlockScanStart.gt(constants.Zero)
+            ? unlockScanStart.toNumber()
+            : 0,
+          toBlock: stateBlock,
+        },
+        ['StakeUnlocked']
+      );
+      const unlockEvent = getLatestEventData(unlockEvents);
+      if (unlockEvent) {
+        this._queueDelayedEvent(withdrawBlock.toNumber(), unlockEvent);
+      }
     }
 
     this._isInitialized = true;
@@ -171,12 +227,10 @@ export class RegistrationManager {
         case 'StakeUnlocked':
           await this.refreshStake();
 
-          this._delayedEvents.push({
-            block: (
-              eventData as StakeUnlockedEvent
-            ).args.withdrawBlock.toNumber(),
-            eventData,
-          });
+          this._queueDelayedEvent(
+            (eventData as StakeUnlockedEvent).args.withdrawBlock.toNumber(),
+            eventData
+          );
           break;
         case 'StakeWithdrawn':
           await this.refreshStake();
@@ -199,37 +253,72 @@ export class RegistrationManager {
     for (const eventData of hubEventsSinceLastScan) {
       switch (eventData.event) {
         case 'RelayWorkersAdded':
+          if (this._addsThisWorker(eventData)) {
+            this._isWorkerAdded = true;
+          }
+          break;
+        case 'RelayWorkersDisabled':
           if (
-            this._lastWorkerAddedTransaction == null ||
-            isSecondEventLater(this._lastWorkerAddedTransaction, eventData)
+            (eventData.args as { relayWorkers: string[] }).relayWorkers.some(
+              (worker) => isSameAddress(worker, this._workerAddress)
+            )
           ) {
-            this._lastWorkerAddedTransaction = eventData;
+            log.error(
+              `Worker ${this._workerAddress} was disabled in the RelayHub ${this._hubAddress}; the hub rejects its relay calls and it can't be added again`
+            );
+            this._isWorkerDisabled = true;
           }
           break;
       }
     }
 
-    // handle HubUnauthorized only after the due time
-    for (const eventData of this._extractDuePendingEvents(currentBlock)) {
+    // handle HubUnauthorized only after the due time; an event leaves the queue
+    // only once handled, so a failed withdrawal is retried on the next poll
+    for (const delayedEvent of this._getDuePendingEvents(currentBlock)) {
+      const { eventData } = delayedEvent;
       switch (eventData.event) {
         case 'StakeUnlocked':
+          // a withdrawal whose broadcast failed is already stored with its
+          // nonce and gets rebroadcast by the boost; another transfer would
+          // take the next nonce and strand it, so the unlock waits
+          if (
+            await this._txStoreManager.isActionPending(
+              ServerAction.VALUE_TRANSFER
+            )
+          ) {
+            log.info(
+              'A value transfer is pending: the stake unlock stays queued'
+            );
+            continue;
+          }
           transactionHashes = transactionHashes.concat(
             await this._handleStakeUnlockedEvent(eventData, currentBlock)
           );
           break;
       }
+      this._delayedEvents = this._delayedEvents.filter(
+        (event) => event !== delayedEvent
+      );
+    }
+
+    // the hub rejects every relay call from a disabled worker and it can't be
+    // added again, so registering (or re-registering to keep alive) would only
+    // pay for a server that can't relay
+    if (this._isWorkerDisabled) {
+      return transactionHashes;
     }
 
     const isRegistrationCorrect = this._isRegistrationCorrect();
     const isRegistrationPending = await this._txStoreManager.isActionPending(
       ServerAction.REGISTER_SERVER
     );
-    if (
-      !(isRegistrationPending || isRegistrationCorrect) ||
-      forceRegistration
-    ) {
+    const shouldRegister =
+      !(isRegistrationPending || isRegistrationCorrect) || forceRegistration;
+    // a registered manager whose worker the hub doesn't know (e.g. after a new
+    // keystore) still has to add it, or the hub rejects every relay call
+    if (shouldRegister || !this._isWorkerAdded) {
       transactionHashes = transactionHashes.concat(
-        await this.attemptRegistration(currentBlock)
+        await this.attemptRegistration(currentBlock, shouldRegister)
       );
     }
 
@@ -251,15 +340,23 @@ export class RegistrationManager {
     throw new Error('No relay manager found for ' + this._managerAddress);
   }
 
-  private _extractDuePendingEvents(currentBlock: number): TypedEvent[] {
-    const ret = this._delayedEvents
-      .filter((event) => event.block <= currentBlock)
-      .map((e) => e.eventData);
-    this._delayedEvents = [
-      ...this._delayedEvents.filter((event) => event.block > currentBlock),
-    ];
+  // A failed poll doesn't advance the scan cursor, so the next one fetches
+  // the same logs again: queue each log only once
+  private _queueDelayedEvent(block: number, eventData: TypedEvent) {
+    const isQueued = this._delayedEvents.some(
+      ({ eventData: queued }) =>
+        queued.transactionHash === eventData.transactionHash &&
+        queued.logIndex === eventData.logIndex
+    );
+    if (!isQueued) {
+      this._delayedEvents.push({ block, eventData });
+    }
+  }
 
-    return ret;
+  private _getDuePendingEvents(
+    currentBlock: number
+  ): Array<{ block: number; eventData: TypedEvent }> {
+    return this._delayedEvents.filter((event) => event.block <= currentBlock);
   }
 
   private _isRegistrationCorrect(): boolean {
@@ -315,14 +412,16 @@ export class RegistrationManager {
     this._balanceRequired.currentValue = currentBalance;
   }
 
-  async refreshStake(): Promise<void> {
+  async refreshStake(blockTag: providers.BlockTag = 'latest') {
     const relayHub = getRelayHub(this._hubAddress);
 
-    const stakeInfo = await relayHub.getStakeInfo(this._managerAddress);
+    const stakeInfo = await relayHub.getStakeInfo(this._managerAddress, {
+      blockTag,
+    });
 
     const stake = stakeInfo.stake;
     if (stake.eq(constants.Zero)) {
-      return;
+      return stakeInfo;
     }
 
     // a locked stake does not have the 'withdrawBlock' field set
@@ -335,6 +434,8 @@ export class RegistrationManager {
       log.info('Got staked for the first time');
       this.printNotRegisteredMessage();
     }
+
+    return stakeInfo;
   }
 
   async addRelayWorker(currentBlock: number): Promise<string> {
@@ -362,7 +463,14 @@ export class RegistrationManager {
   }
 
   // TODO: extract worker registration sub-flow
-  async attemptRegistration(currentBlock: number): Promise<string[]> {
+  /**
+   * Adds the worker if the hub doesn't have it, then registers the server.
+   * @param register - false to only add the worker, when the registration is already correct
+   */
+  async attemptRegistration(
+    currentBlock: number,
+    register = true
+  ): Promise<string[]> {
     const allPrerequisitesOk =
       this.isStakeLocked &&
       this._stakeRequired.isSatisfied &&
@@ -377,13 +485,17 @@ export class RegistrationManager {
 
     let transactions: string[] = [];
     // add worker only if not already added
-    const workersAdded = this._isWorkerValid();
+    const workersAdded = this._isWorkerAdded;
     const addWorkersPending = await this._txStoreManager.isActionPending(
       ServerAction.ADD_WORKER
     );
     if (!(workersAdded || addWorkersPending)) {
       const txHash = await this.addRelayWorker(currentBlock);
       transactions = transactions.concat(txHash);
+    }
+
+    if (!register) {
+      return transactions;
     }
 
     const {
@@ -511,24 +623,26 @@ export class RegistrationManager {
     return transactionHashes;
   }
 
-  private async _queryLatestWorkerAddedEvent(
-    initialBlockToScan: number
-  ): Promise<TypedEvent | undefined> {
-    const workersAddedEvents = await getPastEventsForHub(
-      this._managerAddress,
-      {
-        fromBlock: initialBlockToScan,
-      },
-      ['RelayWorkersAdded']
+  // the hub rejects adding a worker that already has any manager entry, enabled or not
+  private async _isWorkerAssigned(
+    blockTag: number | LatestTag
+  ): Promise<boolean> {
+    const relayHub = getRelayHub(this._hubAddress);
+    const managerEntry = BigNumber.from(
+      await relayHub.workerToManager(this._workerAddress, { blockTag })
     );
+    if (managerEntry.isZero()) {
+      return false;
+    }
+    const enabledEntry = BigNumber.from(this._managerAddress).shl(4).or(1);
+    if (!managerEntry.eq(enabledEntry)) {
+      // the hub rejects relay calls from this worker and can't reassign it with addRelayWorkers
+      throw new Error(
+        `Worker ${this._workerAddress} is disabled or assigned to another manager in the RelayHub ${this._hubAddress}`
+      );
+    }
 
-    return getLatestEventData(workersAddedEvents);
-  }
-
-  private _isWorkerValid(): boolean {
-    return this._lastWorkerAddedTransaction
-      ? this._lastWorkerAddedTransaction.event === 'RelayWorkersAdded'
-      : false;
+    return true;
   }
 
   isRegistered(): boolean {
@@ -537,7 +651,9 @@ export class RegistrationManager {
     return (
       this._stakeRequired.isSatisfied &&
       this.isStakeLocked &&
-      isRegistrationCorrect
+      isRegistrationCorrect &&
+      this._isWorkerAdded &&
+      !this._isWorkerDisabled
     );
   }
 

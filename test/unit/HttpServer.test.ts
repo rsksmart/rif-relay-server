@@ -17,7 +17,7 @@ import {
   SignedTransactionDetails,
   RelayEstimation,
 } from '../../src';
-import jsonrpc from 'jsonrpc-lite';
+import jsonrpc, { JsonRpcError } from 'jsonrpc-lite';
 import { BigNumber, utils } from 'ethers';
 
 use(chaiAsPromised);
@@ -103,6 +103,28 @@ describe('HttpServer', function () {
       ).to.be.true;
     });
 
+    it('should return the message of a failed method, not its stack', async function () {
+      jsonrpcSpy = spy(jsonrpc, 'error');
+      relayServer.validateMaxNonce.rejects(
+        new Error('Unacceptable relayMaxNonce: 1. current nonce: 2')
+      );
+      bodyRequest = {
+        id: 1,
+        method: 'validateMaxNonce',
+        params: ['1'],
+      };
+      requestStub = {
+        body: bodyRequest,
+      } as typeof requestStub;
+
+      await httpServer.rootHandler(requestStub, responseStub);
+
+      const [, error] = jsonrpcSpy.firstCall.args as [number, JsonRpcError];
+      expect(error.message).to.equal(
+        'Unacceptable relayMaxNonce: 1. current nonce: 2'
+      );
+    });
+
     it('should return a response with proper id and method result', async function () {
       jsonrpcSpy = spy(jsonrpc, 'success');
       bodyRequest = {
@@ -160,6 +182,41 @@ describe('HttpServer', function () {
 
       expect(
         responseStub.send.calledOnceWithExactly(fakeResponseRelayTransaction)
+      ).to.be.true;
+    });
+
+    it('should return the message of a failed relay', async function () {
+      relayServer.createRelayTransaction.rejects(new Error('Invalid verifier'));
+      requestStub = {
+        body: {},
+      } as typeof requestStub;
+
+      await httpServer.relayHandler(requestStub, responseStub);
+
+      expect(
+        responseStub.send.calledOnceWithExactly({ error: 'Invalid verifier' })
+      ).to.be.true;
+    });
+
+    it('should return only the reason and code of a node error', async function () {
+      relayServer.createRelayTransaction.rejects(
+        Object.assign(
+          new Error(
+            'missing response (requestBody="{...}", url="https://rpc.example.com/SECRET", code=SERVER_ERROR)'
+          ),
+          { code: 'SERVER_ERROR', reason: 'missing response' }
+        )
+      );
+      requestStub = {
+        body: {},
+      } as typeof requestStub;
+
+      await httpServer.relayHandler(requestStub, responseStub);
+
+      expect(
+        responseStub.send.calledOnceWithExactly({
+          error: 'missing response (SERVER_ERROR)',
+        })
       ).to.be.true;
     });
   });

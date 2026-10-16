@@ -8,6 +8,7 @@ import log from 'loglevel';
 import configureDocumentation from './DocConfiguration';
 import type { RelayServer } from './RelayServer';
 import type { HttpEnvelopingRequest } from './definitions';
+import { clientErrorMessage } from './Utils';
 
 export type RootHandlerRequestBody = {
   id?: number;
@@ -134,17 +135,22 @@ export class HttpServer {
       )) ?? { code: 200 };
       status = jsonrpc.success(id, result as Defined);
     } catch (e) {
-      if (e instanceof Error) {
-        let stack = e.stack as string;
-        // remove anything after 'rootHandler'
-        stack = stack.replace(/(rootHandler.*)[\s\S]*/, '$1');
-        stack = stack.replace(/(processRootHandler.*)[\s\S]*/, '$1');
-        status = jsonrpc.error(id, new jsonrpc.JsonRpcError(stack, -125));
-      } else {
-        log.error(e);
-      }
+      log.error('root handler failed:', e);
+      status = jsonrpc.error(
+        id,
+        new jsonrpc.JsonRpcError(clientErrorMessage(e), -125)
+      );
     }
     res.send(status);
+  }
+
+  /**
+   * Reports a failed request: the whole error to the log, and to the client
+   * only the message meant for it (see clientErrorMessage).
+   */
+  private sendError(res: Response, e: unknown, handler: string): void {
+    log.error(`${handler} failed:`, e);
+    res.send({ error: clientErrorMessage(e) });
   }
 
   async processRootHandler(
@@ -188,13 +194,7 @@ export class HttpServer {
         } sent. ready: ${hubInfo.ready.toString()}`
       );
     } catch (e) {
-      if (e instanceof Error) {
-        const message: string = e.message;
-        res.send({ message });
-        log.error(`ping handler rejected: ${message}`);
-      } else {
-        log.error(e);
-      }
+      this.sendError(res, e, 'ping handler');
     }
   }
 
@@ -260,12 +260,7 @@ export class HttpServer {
         );
       res.send({ signedTx, txHash });
     } catch (e) {
-      if (e instanceof Error) {
-        res.send({ error: e.message });
-        log.info('tx failed:', e);
-      } else {
-        log.error(e);
-      }
+      this.sendError(res, e, 'relay handler');
     }
   }
 
@@ -327,12 +322,7 @@ export class HttpServer {
       );
       res.send(estimation);
     } catch (e) {
-      if (e instanceof Error) {
-        res.send({ error: e.message });
-        log.info('tx failed:', e);
-      } else {
-        log.error(e);
-      }
+      this.sendError(res, e, 'estimate handler');
     }
   }
 
@@ -461,13 +451,7 @@ export class HttpServer {
       const verifierResponse = this._relayServer.verifierHandler();
       res.send(verifierResponse);
     } catch (e) {
-      if (e instanceof Error) {
-        const message: string = e.message;
-        res.send({ message });
-        log.error(`verified handler rejected: ${message}`);
-      } else {
-        log.error(e);
-      }
+      this.sendError(res, e, 'verifier handler');
     }
   }
 }

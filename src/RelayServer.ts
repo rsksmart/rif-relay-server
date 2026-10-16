@@ -37,8 +37,10 @@ import {
   getLatestEventData,
   getProvider,
   getRelayHub,
+  getWriteProvider,
   isContractDeployed,
   randomInRange,
+  redactUrl,
   relayTransactionRequestShape,
   sleep,
 } from './Utils';
@@ -66,7 +68,7 @@ import {
   getAcceptedContractsFromVerifier,
 } from './relayServerUtils';
 import { getPastEventsForHub } from './getPastEventsForHub';
-import type { PastEventOptions } from './definitions';
+import type { ManagerEvent, PastEventOptions } from './definitions';
 import {
   EVENT_REPLENISH_CHECK_REQUIRED,
   registerEventHandlers,
@@ -107,6 +109,14 @@ export type MaxPossibleGas = {
   maxPossibleGasWithFee: BigNumber;
 };
 
+// the events that count as server activity for the keepalive re-registration
+const ACTIVITY_EVENTS: ManagerEvent[] = [
+  'RelayServerRegistered',
+  'RelayWorkersAdded',
+  'TransactionRelayed',
+  'TransactionRelayedButRevertedByRecipient',
+];
+
 export class RelayServer extends EventEmitter {
   private _lastScannedBlock = 0;
 
@@ -125,6 +135,8 @@ export class RelayServer extends EventEmitter {
   gasPrice = BigNumber.from(0);
 
   private _workerSemaphoreOn = false;
+
+  private _activityQueried = false;
 
   private _alerted = false;
 
@@ -182,7 +194,16 @@ export class RelayServer extends EventEmitter {
     this.printServerAddresses();
 
     log.info('RelayServer version', version);
-    log.info('Using server configuration:\n', this.config);
+    log.info('Using server configuration:\n', {
+      ...this.config,
+      blockchain: {
+        ...this.config.blockchain,
+        rskNodeUrl: redactUrl(this.config.blockchain.rskNodeUrl),
+        ...(this.config.blockchain.rskNodeWriteUrl && {
+          rskNodeWriteUrl: redactUrl(this.config.blockchain.rskNodeWriteUrl),
+        }),
+      },
+    });
     registerEventHandlers(this);
   }
 
@@ -611,7 +632,7 @@ export class RelayServer extends EventEmitter {
       app: { devMode, readyTimeout },
     } = this.config;
     const now = Date.now();
-    let workerTimeout: Timeout;
+    let workerTimeout: Timeout | undefined;
     if (!devMode) {
       workerTimeout = setTimeout(() => {
         const timedOut = Date.now() - now;
@@ -623,25 +644,29 @@ export class RelayServer extends EventEmitter {
 
     const provider = getProvider();
 
-    return new Promise<void>((resolve, reject) => {
-      provider
-        .getBlock('latest')
-        .then((block) => {
-          if (block.number > this._lastScannedBlock) {
-            resolve(this._workerSemaphore.bind(this)(block.number));
-          }
-        })
-        .catch((e) => {
-          this.emit('error', e);
-          const error = e as Error;
-          log.error(`error in worker: ${error.message} ${error.stack ?? ''}`);
-          this._lastSuccessfulRounds = 0;
-          reject(error);
-        })
-        .finally(() => {
-          clearTimeout(workerTimeout);
-        });
-    });
+    // Errors are handled here instead of rejecting, since nobody awaits this handler and
+    // an unhandled rejection would crash the process. The next interval retries the same blocks.
+    const handleError = (e: unknown) => {
+      this.emit('error', e);
+      const error = e as Error;
+      log.error(`error in worker: ${error.message} ${error.stack ?? ''}`);
+      this._lastSuccessfulRounds = 0;
+    };
+
+    let blockNumber: number;
+    try {
+      ({ number: blockNumber } = await provider.getBlock('latest'));
+    } catch (e) {
+      handleError(e);
+
+      return;
+    } finally {
+      clearTimeout(workerTimeout);
+    }
+
+    if (blockNumber > this._lastScannedBlock) {
+      await this._workerSemaphore(blockNumber).catch(handleError);
+    }
   }
 
   start(): void {
@@ -730,7 +755,7 @@ export class RelayServer extends EventEmitter {
     log.debug('Relay Server - Transaction Manager initialized');
     const {
       contracts: { relayHubAddress, trustedVerifiers },
-      blockchain: { initialBlockToScan },
+      blockchain: { startupStateSource },
     } = this.config;
     this._initTrustedVerifiers(trustedVerifiers);
     log.debug(`Relay Server - Relay hub: ${relayHubAddress}`);
@@ -739,6 +764,9 @@ export class RelayServer extends EventEmitter {
       this.fatal(`No RelayHub deployed at address ${relayHubAddress}.`);
     }
 
+    const provider = getProvider() as providers.JsonRpcProvider;
+    const latestBlock = await provider.getBlock('latest');
+
     this.registrationManager = new RegistrationManager(
       this.transactionManager,
       this.txStoreManager,
@@ -746,12 +774,23 @@ export class RelayServer extends EventEmitter {
       this.managerAddress,
       this.workerAddress
     );
-    await this.registrationManager.init(initialBlockToScan);
+    if (startupStateSource === 'chain') {
+      // state is read at this block and events are scanned from the next one, so none is missed or handled twice
+      const stateBlock = Math.max(latestBlock.number - 1, 0);
+      await this.registrationManager.initFromChain(stateBlock);
+      this._lastScannedBlock = stateBlock;
+    } else {
+      await this.registrationManager.init();
+    }
     log.debug('Relay Server - Registration manager initialized');
 
-    const provider = getProvider() as providers.JsonRpcProvider;
-
     const { chainId } = await provider.getNetwork();
+    const { chainId: writeChainId } = await getWriteProvider().getNetwork();
+    if (writeChainId !== chainId) {
+      throw new Error(
+        `rskNodeWriteUrl is on chain ${writeChainId}, but rskNodeUrl is on chain ${chainId}`
+      );
+    }
     const networkId = Number(await provider.send('net_version', []));
 
     this.chainId = chainId;
@@ -766,7 +805,6 @@ export class RelayServer extends EventEmitter {
     }
     */
 
-    const latestBlock = await provider.getBlock('latest');
     log.info(`Current network info:
 chainId                 | ${this.chainId}
 networkId               | ${this.networkId}
@@ -819,7 +857,10 @@ latestBlock timestamp   | ${latestBlock.timestamp}
      * We could also retrieve (StakeAdded, StakeUnlocked, StakeWithdrawn)
      */
     const hubEventsSinceLastScan = await this.getAllHubEventsSinceLastScan();
-    await this._updateLatestTxBlockNumber(hubEventsSinceLastScan);
+    await this._updateLatestTxBlockNumber(
+      hubEventsSinceLastScan,
+      currentBlockNumber
+    );
     const shouldRegisterAgain = await this._shouldRegisterAgain(
       currentBlockNumber,
       hubEventsSinceLastScan
@@ -994,18 +1035,31 @@ latestBlock timestamp   | ${latestBlock.timestamp}
   }
 
   async _updateLatestTxBlockNumber(
-    eventsSinceLastScan: Array<TypedEvent>
+    eventsSinceLastScan: Array<TypedEvent>,
+    currentBlock: number
   ): Promise<void> {
-    const latestTransactionSinceLastScan =
-      getLatestEventData(eventsSinceLastScan);
+    const latestTransactionSinceLastScan = getLatestEventData(
+      eventsSinceLastScan.filter((event) =>
+        ACTIVITY_EVENTS.includes(event.event as ManagerEvent)
+      )
+    );
     if (latestTransactionSinceLastScan != null) {
       this.lastMinedActiveTransaction = latestTransactionSinceLastScan;
       log.debug(
         `found newer block ${this.lastMinedActiveTransaction?.blockNumber}`
       );
     }
-    if (this.lastMinedActiveTransaction == null) {
-      this.lastMinedActiveTransaction = await this._queryLatestActiveEvent();
+    // the latest activity only matters for the keepalive re-registration, and
+    // only the first poll has to look back: the next ones scan every new block
+    if (
+      this.lastMinedActiveTransaction == null &&
+      !this._activityQueried &&
+      this.config.blockchain.registrationBlockRate > 0
+    ) {
+      this.lastMinedActiveTransaction = await this._queryLatestActiveEvent(
+        currentBlock
+      );
+      this._activityQueried = true;
       log.debug(
         `queried node for last active server event, found in block ${
           this.lastMinedActiveTransaction?.blockNumber ?? 0
@@ -1014,15 +1068,22 @@ latestBlock timestamp   | ${latestBlock.timestamp}
     }
   }
 
-  async _queryLatestActiveEvent(): Promise<TypedEvent | undefined> {
+  async _queryLatestActiveEvent(
+    currentBlock: number
+  ): Promise<TypedEvent | undefined> {
     const {
-      blockchain: { initialBlockToScan },
+      blockchain: { initialBlockToScan, registrationBlockRate },
     } = this.config;
+    // activity older than registrationBlockRate blocks can't keep the registration alive
     const events: Array<TypedEvent> = await getPastEventsForHub(
       this.managerAddress,
       {
-        fromBlock: initialBlockToScan,
-      }
+        fromBlock: Math.max(
+          initialBlockToScan,
+          currentBlock - registrationBlockRate
+        ),
+      },
+      ACTIVITY_EVENTS
     );
 
     return getLatestEventData(events);

@@ -70,7 +70,14 @@ const appSchema = Joi.object({
 });
 
 const blockchainSchema = Joi.object({
-  rskNodeUrl: Joi.string().uri().required(),
+  // only http(s) nodes get the provider that keeps the URL (API key) out of errors
+  rskNodeUrl: Joi.string()
+    .uri({ scheme: ['http', 'https'] })
+    .required(),
+  rskNodeWriteUrl: Joi.string()
+    .uri({ scheme: ['http', 'https'] })
+    .allow('')
+    .optional(),
   gasPriceFactor: Joi.number().required(),
   registrationBlockRate: Joi.number().min(0).required(),
   alertedBlockDelay: Joi.number().min(0).required(),
@@ -115,7 +122,9 @@ const blockchainSchema = Joi.object({
     .required(),
   estimateGasFactor: Joi.number().min(0).required(),
   initialBlockToScan: Joi.number().min(1).required(),
+  startupStateSource: Joi.string().valid('chain', 'events').required(),
   maxBlockRange: Joi.number().min(1).required(),
+  maxConcurrentLogRequests: Joi.number().integer().min(1).required(),
 });
 
 const contractsSchema = Joi.object({
