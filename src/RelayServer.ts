@@ -68,7 +68,7 @@ import {
   getAcceptedContractsFromVerifier,
 } from './relayServerUtils';
 import { getPastEventsForHub } from './getPastEventsForHub';
-import type { PastEventOptions } from './definitions';
+import type { ManagerEvent, PastEventOptions } from './definitions';
 import {
   EVENT_REPLENISH_CHECK_REQUIRED,
   registerEventHandlers,
@@ -109,6 +109,14 @@ export type MaxPossibleGas = {
   maxPossibleGasWithFee: BigNumber;
 };
 
+// the events that count as server activity for the keepalive re-registration
+const ACTIVITY_EVENTS: ManagerEvent[] = [
+  'RelayServerRegistered',
+  'RelayWorkersAdded',
+  'TransactionRelayed',
+  'TransactionRelayedButRevertedByRecipient',
+];
+
 export class RelayServer extends EventEmitter {
   private _lastScannedBlock = 0;
 
@@ -127,6 +135,8 @@ export class RelayServer extends EventEmitter {
   gasPrice = BigNumber.from(0);
 
   private _workerSemaphoreOn = false;
+
+  private _activityQueried = false;
 
   private _alerted = false;
 
@@ -1028,22 +1038,28 @@ latestBlock timestamp   | ${latestBlock.timestamp}
     eventsSinceLastScan: Array<TypedEvent>,
     currentBlock: number
   ): Promise<void> {
-    const latestTransactionSinceLastScan =
-      getLatestEventData(eventsSinceLastScan);
+    const latestTransactionSinceLastScan = getLatestEventData(
+      eventsSinceLastScan.filter((event) =>
+        ACTIVITY_EVENTS.includes(event.event as ManagerEvent)
+      )
+    );
     if (latestTransactionSinceLastScan != null) {
       this.lastMinedActiveTransaction = latestTransactionSinceLastScan;
       log.debug(
         `found newer block ${this.lastMinedActiveTransaction?.blockNumber}`
       );
     }
-    // the latest activity only matters for the keepalive re-registration
+    // the latest activity only matters for the keepalive re-registration, and
+    // only the first poll has to look back: the next ones scan every new block
     if (
       this.lastMinedActiveTransaction == null &&
+      !this._activityQueried &&
       this.config.blockchain.registrationBlockRate > 0
     ) {
       this.lastMinedActiveTransaction = await this._queryLatestActiveEvent(
         currentBlock
       );
+      this._activityQueried = true;
       log.debug(
         `queried node for last active server event, found in block ${
           this.lastMinedActiveTransaction?.blockNumber ?? 0
@@ -1066,7 +1082,8 @@ latestBlock timestamp   | ${latestBlock.timestamp}
           initialBlockToScan,
           currentBlock - registrationBlockRate
         ),
-      }
+      },
+      ACTIVITY_EVENTS
     );
 
     return getLatestEventData(events);
