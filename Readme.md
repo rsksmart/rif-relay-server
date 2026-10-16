@@ -84,7 +84,7 @@ File [./config/default.json5](config/default.json5) contains all configuration p
     */,
     workdir: ".", // path to the folder where the server will store the database and all its data.
     readyTimeout: 30000,
-    checkInterval: 10000,
+    checkInterval: 30000, // milliseconds between checks for a new block
     disableSponsoredTx: false,
     
     /* It's the fee that the fee collector will take from the execution of 
