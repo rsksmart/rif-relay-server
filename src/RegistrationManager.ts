@@ -174,10 +174,7 @@ export class RegistrationManager {
       );
       const unlockEvent = getLatestEventData(unlockEvents);
       if (unlockEvent) {
-        this._delayedEvents.push({
-          block: withdrawBlock.toNumber(),
-          eventData: unlockEvent,
-        });
+        this._queueDelayedEvent(withdrawBlock.toNumber(), unlockEvent);
       }
     }
 
@@ -224,12 +221,10 @@ export class RegistrationManager {
         case 'StakeUnlocked':
           await this.refreshStake();
 
-          this._delayedEvents.push({
-            block: (
-              eventData as StakeUnlockedEvent
-            ).args.withdrawBlock.toNumber(),
-            eventData,
-          });
+          this._queueDelayedEvent(
+            (eventData as StakeUnlockedEvent).args.withdrawBlock.toNumber(),
+            eventData
+          );
           break;
         case 'StakeWithdrawn':
           await this.refreshStake();
@@ -269,15 +264,33 @@ export class RegistrationManager {
       }
     }
 
-    // handle HubUnauthorized only after the due time
-    for (const eventData of this._extractDuePendingEvents(currentBlock)) {
+    // handle HubUnauthorized only after the due time; an event leaves the queue
+    // only once handled, so a failed withdrawal is retried on the next poll
+    for (const delayedEvent of this._getDuePendingEvents(currentBlock)) {
+      const { eventData } = delayedEvent;
       switch (eventData.event) {
         case 'StakeUnlocked':
+          // a withdrawal whose broadcast failed is already stored with its
+          // nonce and gets rebroadcast by the boost; another transfer would
+          // take the next nonce and strand it, so the unlock waits
+          if (
+            await this._txStoreManager.isActionPending(
+              ServerAction.VALUE_TRANSFER
+            )
+          ) {
+            log.info(
+              'A value transfer is pending: the stake unlock stays queued'
+            );
+            continue;
+          }
           transactionHashes = transactionHashes.concat(
             await this._handleStakeUnlockedEvent(eventData, currentBlock)
           );
           break;
       }
+      this._delayedEvents = this._delayedEvents.filter(
+        (event) => event !== delayedEvent
+      );
     }
 
     const isRegistrationCorrect = this._isRegistrationCorrect();
@@ -311,15 +324,23 @@ export class RegistrationManager {
     throw new Error('No relay manager found for ' + this._managerAddress);
   }
 
-  private _extractDuePendingEvents(currentBlock: number): TypedEvent[] {
-    const ret = this._delayedEvents
-      .filter((event) => event.block <= currentBlock)
-      .map((e) => e.eventData);
-    this._delayedEvents = [
-      ...this._delayedEvents.filter((event) => event.block > currentBlock),
-    ];
+  // A failed poll doesn't advance the scan cursor, so the next one fetches
+  // the same logs again: queue each log only once
+  private _queueDelayedEvent(block: number, eventData: TypedEvent) {
+    const isQueued = this._delayedEvents.some(
+      ({ eventData: queued }) =>
+        queued.transactionHash === eventData.transactionHash &&
+        queued.logIndex === eventData.logIndex
+    );
+    if (!isQueued) {
+      this._delayedEvents.push({ block, eventData });
+    }
+  }
 
-    return ret;
+  private _getDuePendingEvents(
+    currentBlock: number
+  ): Array<{ block: number; eventData: TypedEvent }> {
+    return this._delayedEvents.filter((event) => event.block <= currentBlock);
   }
 
   private _isRegistrationCorrect(): boolean {

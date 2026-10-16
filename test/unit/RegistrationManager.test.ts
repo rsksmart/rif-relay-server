@@ -1,17 +1,20 @@
 import { expect, use } from 'chai';
 import chaiAsPromised from 'chai-as-promised';
 import sinon, { createStubInstance } from 'sinon';
+import sinonChai from 'sinon-chai';
 import { EventEmitter } from 'events';
 import { BigNumber, constants, Wallet } from 'ethers';
 import type { RelayHub, TypedEvent } from '@rsksmart/rif-relay-contracts';
 import { RegistrationManager } from '../../src/RegistrationManager';
 import { TransactionManager } from '../../src/TransactionManager';
 import { TxStoreManager } from '../../src/TxStoreManager';
+import { ServerAction } from '../../src/StoredTransaction';
 import { getServerConfig } from '../../src/ServerConfigParams';
 import * as serverUtils from '../../src/Utils';
 import * as pastEvents from '../../src/getPastEventsForHub';
 
 use(chaiAsPromised);
+use(sinonChai);
 
 describe('RegistrationManager', function () {
   let managerAddress: string;
@@ -209,6 +212,81 @@ describe('RegistrationManager', function () {
       );
 
       expect(registrationManager.isRegistered()).to.be.true;
+    });
+
+    it('should keep a due stake unlock until its withdrawal succeeds', async function () {
+      const unlockEvent = {
+        event: 'StakeUnlocked',
+        transactionHash: '0xaa',
+        logIndex: 0,
+        args: { withdrawBlock: BigNumber.from(12) },
+      } as unknown as TypedEvent;
+      getPastEventsForHub.resolves([unlockEvent]);
+      const withdrawAllFunds = sinon
+        .stub(registrationManager, 'withdrawAllFunds')
+        .onFirstCall()
+        .rejects(new Error('getGasPrice failed'))
+        .onSecondCall()
+        .resolves(['0x01']);
+
+      await expect(
+        registrationManager.handlePastEvents([], 11, 12, false)
+      ).to.be.rejectedWith('getGasPrice failed');
+      expect(stateOf(registrationManager)._delayedEvents).to.be.deep.equal([
+        { block: 12, eventData: unlockEvent },
+      ]);
+
+      // the failed poll didn't advance the scan cursor: the same log comes back
+      const txHashes = await registrationManager.handlePastEvents(
+        [],
+        11,
+        12,
+        false
+      );
+
+      expect(withdrawAllFunds).to.be.calledTwice;
+      expect(withdrawAllFunds.secondCall).to.be.calledWithExactly(false, 12);
+      expect(txHashes).to.be.deep.equal(['0x01']);
+      expect(stateOf(registrationManager)._delayedEvents).to.be.empty;
+    });
+
+    it('should not withdraw again while a value transfer is pending', async function () {
+      stateOf(registrationManager)._delayedEvents.push({
+        block: 12,
+        eventData: { event: 'StakeUnlocked' } as unknown as TypedEvent,
+      });
+      const { _txStoreManager: txStoreManager } =
+        registrationManager as unknown as {
+          _txStoreManager: sinon.SinonStubbedInstance<TxStoreManager>;
+        };
+      txStoreManager.isActionPending
+        .withArgs(ServerAction.VALUE_TRANSFER)
+        .resolves(true);
+      const withdrawAllFunds = sinon.stub(
+        registrationManager,
+        'withdrawAllFunds'
+      );
+
+      await registrationManager.handlePastEvents([], 11, 12, false);
+
+      expect(withdrawAllFunds).not.to.be.called;
+      expect(stateOf(registrationManager)._delayedEvents).to.have.length(1);
+    });
+
+    it('should not handle a stake unlock before it is due', async function () {
+      stateOf(registrationManager)._delayedEvents.push({
+        block: 20,
+        eventData: { event: 'StakeUnlocked' } as unknown as TypedEvent,
+      });
+      const withdrawAllFunds = sinon.stub(
+        registrationManager,
+        'withdrawAllFunds'
+      );
+
+      await registrationManager.handlePastEvents([], 11, 12, false);
+
+      expect(withdrawAllFunds).not.to.be.called;
+      expect(stateOf(registrationManager)._delayedEvents).to.have.length(1);
     });
   });
 });
