@@ -28,7 +28,11 @@ import {
   isRegistrationValid,
   isSameAddress,
 } from './Utils';
-import type { ManagerEvent, PastEventOptions } from './definitions/event.type';
+import type {
+  LatestTag,
+  ManagerEvent,
+  PastEventOptions,
+} from './definitions/event.type';
 import { getServerConfig } from './ServerConfigParams';
 import { getPastEventsForHub } from './getPastEventsForHub';
 import type { RelayManagerData } from '@rsksmart/rif-relay-client';
@@ -127,20 +131,22 @@ export class RegistrationManager {
   }
 
   /**
-   * Rebuilds the worker state from hub events since `initialBlockToScan`; the stake
-   * is rebuilt when the first handlePastEvents call replays the stake events.
+   * Reads the worker state from the hub; the stake is rebuilt when the first
+   * handlePastEvents call replays the stake events. The worker may have been
+   * added before `initialBlockToScan`, so its events can't tell.
    */
-  async init(initialBlockToScan = 1): Promise<void> {
-    const workersAddedEvents = await getPastEventsForHub(
-      this._managerAddress,
-      {
-        fromBlock: initialBlockToScan,
-      },
-      ['RelayWorkersAdded']
-    );
-    this._isWorkerAdded = workersAddedEvents.length > 0;
+  async init(): Promise<void> {
+    this._isWorkerAdded = await this._isWorkerAssigned('latest');
 
     this._isInitialized = true;
+  }
+
+  private _addsThisWorker(eventData: TypedEvent): boolean {
+    return (
+      eventData.args as { newRelayWorkers: string[] }
+    ).newRelayWorkers.some((worker) =>
+      isSameAddress(worker, this._workerAddress)
+    );
   }
 
   /**
@@ -247,7 +253,9 @@ export class RegistrationManager {
     for (const eventData of hubEventsSinceLastScan) {
       switch (eventData.event) {
         case 'RelayWorkersAdded':
-          this._isWorkerAdded = true;
+          if (this._addsThisWorker(eventData)) {
+            this._isWorkerAdded = true;
+          }
           break;
         case 'RelayWorkersDisabled':
           if (
@@ -293,16 +301,24 @@ export class RegistrationManager {
       );
     }
 
+    // the hub rejects every relay call from a disabled worker and it can't be
+    // added again, so registering (or re-registering to keep alive) would only
+    // pay for a server that can't relay
+    if (this._isWorkerDisabled) {
+      return transactionHashes;
+    }
+
     const isRegistrationCorrect = this._isRegistrationCorrect();
     const isRegistrationPending = await this._txStoreManager.isActionPending(
       ServerAction.REGISTER_SERVER
     );
-    if (
-      !(isRegistrationPending || isRegistrationCorrect) ||
-      forceRegistration
-    ) {
+    const shouldRegister =
+      !(isRegistrationPending || isRegistrationCorrect) || forceRegistration;
+    // a registered manager whose worker the hub doesn't know (e.g. after a new
+    // keystore) still has to add it, or the hub rejects every relay call
+    if (shouldRegister || !this._isWorkerAdded) {
       transactionHashes = transactionHashes.concat(
-        await this.attemptRegistration(currentBlock)
+        await this.attemptRegistration(currentBlock, shouldRegister)
       );
     }
 
@@ -447,7 +463,14 @@ export class RegistrationManager {
   }
 
   // TODO: extract worker registration sub-flow
-  async attemptRegistration(currentBlock: number): Promise<string[]> {
+  /**
+   * Adds the worker if the hub doesn't have it, then registers the server.
+   * @param register - false to only add the worker, when the registration is already correct
+   */
+  async attemptRegistration(
+    currentBlock: number,
+    register = true
+  ): Promise<string[]> {
     const allPrerequisitesOk =
       this.isStakeLocked &&
       this._stakeRequired.isSatisfied &&
@@ -469,6 +492,10 @@ export class RegistrationManager {
     if (!(workersAdded || addWorkersPending)) {
       const txHash = await this.addRelayWorker(currentBlock);
       transactions = transactions.concat(txHash);
+    }
+
+    if (!register) {
+      return transactions;
     }
 
     const {
@@ -597,7 +624,9 @@ export class RegistrationManager {
   }
 
   // the hub rejects adding a worker that already has any manager entry, enabled or not
-  private async _isWorkerAssigned(blockTag: number): Promise<boolean> {
+  private async _isWorkerAssigned(
+    blockTag: number | LatestTag
+  ): Promise<boolean> {
     const relayHub = getRelayHub(this._hubAddress);
     const managerEntry = BigNumber.from(
       await relayHub.workerToManager(this._workerAddress, { blockTag })
@@ -623,6 +652,7 @@ export class RegistrationManager {
       this._stakeRequired.isSatisfied &&
       this.isStakeLocked &&
       isRegistrationCorrect &&
+      this._isWorkerAdded &&
       !this._isWorkerDisabled
     );
   }

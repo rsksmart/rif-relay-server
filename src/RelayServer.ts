@@ -745,7 +745,7 @@ export class RelayServer extends EventEmitter {
     log.debug('Relay Server - Transaction Manager initialized');
     const {
       contracts: { relayHubAddress, trustedVerifiers },
-      blockchain: { initialBlockToScan, startupStateSource },
+      blockchain: { startupStateSource },
     } = this.config;
     this._initTrustedVerifiers(trustedVerifiers);
     log.debug(`Relay Server - Relay hub: ${relayHubAddress}`);
@@ -770,7 +770,7 @@ export class RelayServer extends EventEmitter {
       await this.registrationManager.initFromChain(stateBlock);
       this._lastScannedBlock = stateBlock;
     } else {
-      await this.registrationManager.init(initialBlockToScan);
+      await this.registrationManager.init();
     }
     log.debug('Relay Server - Registration manager initialized');
 

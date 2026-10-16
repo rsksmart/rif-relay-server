@@ -1,6 +1,6 @@
 import { expect, use } from 'chai';
 import chaiAsPromised from 'chai-as-promised';
-import sinon, { createStubInstance } from 'sinon';
+import sinon, { createStubInstance, SinonStubbedInstance } from 'sinon';
 import sinonChai from 'sinon-chai';
 import { EventEmitter } from 'events';
 import { BigNumber, constants, Wallet } from 'ethers';
@@ -20,6 +20,7 @@ describe('RegistrationManager', function () {
   let managerAddress: string;
   let workerAddress: string;
   let registrationManager: RegistrationManager;
+  let transactionManager: SinonStubbedInstance<TransactionManager>;
   let workerToManager: sinon.SinonStub;
   let getStakeInfo: sinon.SinonStub;
   let isContractDeployed: sinon.SinonStub;
@@ -29,6 +30,7 @@ describe('RegistrationManager', function () {
     _isInitialized: boolean;
     _isWorkerAdded: boolean;
     _delayedEvents: Array<{ block: number; eventData: TypedEvent }>;
+    _balanceRequired: { currentValue: BigNumber };
   };
   const stateOf = (manager: RegistrationManager) =>
     manager as unknown as StartupState;
@@ -37,6 +39,12 @@ describe('RegistrationManager', function () {
     ({
       event: 'RelayWorkersDisabled',
       args: { relayWorkers },
+    } as unknown as TypedEvent);
+
+  const addedEvent = (newRelayWorkers: string[]) =>
+    ({
+      event: 'RelayWorkersAdded',
+      args: { newRelayWorkers },
     } as unknown as TypedEvent);
 
   before(function () {
@@ -75,8 +83,9 @@ describe('RegistrationManager', function () {
 
     const txStoreManager = createStubInstance(TxStoreManager);
     txStoreManager.isActionPending.resolves(false);
+    transactionManager = createStubInstance(TransactionManager);
     registrationManager = new RegistrationManager(
-      createStubInstance(TransactionManager),
+      transactionManager,
       txStoreManager,
       new EventEmitter(),
       managerAddress,
@@ -86,6 +95,84 @@ describe('RegistrationManager', function () {
 
   afterEach(function () {
     sinon.restore();
+  });
+
+  describe('init', function () {
+    it('should read the worker state from the hub, whenever the worker was added', async function () {
+      await registrationManager.init();
+
+      expect(workerToManager).to.be.calledOnceWithExactly(workerAddress, {
+        blockTag: 'latest',
+      });
+      expect(getPastEventsForHub).not.to.be.called;
+      expect(stateOf(registrationManager)._isWorkerAdded).to.be.true;
+    });
+
+    it('should not consider an unassigned worker as added', async function () {
+      workerToManager.resolves(constants.Zero);
+
+      await registrationManager.init();
+
+      expect(stateOf(registrationManager)._isWorkerAdded).to.be.false;
+    });
+
+    it('should fail if the worker is disabled', async function () {
+      workerToManager.resolves(BigNumber.from(managerAddress).shl(4));
+
+      await expect(registrationManager.init()).to.be.rejectedWith(
+        /is disabled or assigned to another manager/
+      );
+    });
+  });
+
+  describe('with a worker the hub does not know', function () {
+    let addRelayWorker: sinon.SinonStub;
+
+    beforeEach(async function () {
+      workerToManager.resolves(constants.Zero);
+      await registrationManager.initFromChain(10);
+      stateOf(registrationManager)._balanceRequired.currentValue =
+        constants.MaxUint256;
+      addRelayWorker = sinon
+        .stub(registrationManager, 'addRelayWorker')
+        .resolves('0xadd');
+    });
+
+    it('should add the worker without registering again, and be registered once the hub adds it', async function () {
+      const txHashes = await registrationManager.handlePastEvents(
+        [],
+        10,
+        11,
+        false
+      );
+
+      expect(addRelayWorker).to.have.been.calledOnceWithExactly(11);
+      // eslint-disable-next-line @typescript-eslint/unbound-method -- a sinon stub, not a method call
+      expect(transactionManager.sendTransaction).not.to.have.been.called;
+      expect(txHashes).to.deep.equal(['0xadd']);
+      expect(registrationManager.isRegistered()).to.be.false;
+
+      await registrationManager.handlePastEvents(
+        [addedEvent([workerAddress])],
+        11,
+        12,
+        false
+      );
+
+      expect(addRelayWorker).to.have.been.calledOnce;
+      expect(registrationManager.isRegistered()).to.be.true;
+    });
+
+    it('should ignore the addition of another worker', async function () {
+      await registrationManager.handlePastEvents(
+        [addedEvent([Wallet.createRandom().address])],
+        10,
+        11,
+        false
+      );
+
+      expect(registrationManager.isRegistered()).to.be.false;
+    });
   });
 
   describe('initFromChain', function () {
@@ -212,6 +299,28 @@ describe('RegistrationManager', function () {
       );
 
       expect(registrationManager.isRegistered()).to.be.true;
+    });
+
+    it('should not register again once its worker is disabled, even for the keepalive', async function () {
+      const attemptRegistration = sinon
+        .stub(registrationManager, 'attemptRegistration')
+        .resolves([]);
+      await registrationManager.handlePastEvents(
+        [disabledEvent([workerAddress])],
+        11,
+        12,
+        false
+      );
+
+      const txHashes = await registrationManager.handlePastEvents(
+        [],
+        12,
+        13,
+        true
+      );
+
+      expect(attemptRegistration).not.to.be.called;
+      expect(txHashes).to.deep.equal([]);
     });
 
     it('should keep a due stake unlock until its withdrawal succeeds', async function () {

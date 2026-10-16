@@ -80,14 +80,6 @@ export function getLatestEventData(
   return eventDataSorted[0];
 }
 
-export function isSecondEventLater(a: TypedEvent, b: TypedEvent): boolean {
-  if (a.blockNumber === b.blockNumber) {
-    return b.transactionIndex > a.transactionIndex;
-  }
-
-  return b.blockNumber > a.blockNumber;
-}
-
 export function isRegistrationValid(
   relayData: RelayManagerData | undefined,
   managerAddress: string
