@@ -23,6 +23,8 @@ import sinonChai from 'sinon-chai';
 import type { HttpEnvelopingRequest } from 'src/definitions';
 import { SERVER_SIGNATURE_REQUIRED } from '@rsksmart/rif-relay-client';
 import { RegistrationManager } from '../../src/RegistrationManager';
+import * as pastEvents from '../../src/getPastEventsForHub';
+import type { TypedEvent } from '@rsksmart/rif-relay-contracts';
 
 use(sinonChai);
 use(chaiAsPromised);
@@ -622,6 +624,55 @@ describe('RelayServer tests', function () {
       expect(
         (relayServer as unknown as PollingState)._lastSuccessfulRounds
       ).to.be.equal(1);
+    });
+  });
+
+  describe('Function _updateLatestTxBlockNumber()', function () {
+    let getPastEventsForHub: SinonStub;
+
+    beforeEach(function () {
+      relayServer.config = {
+        ...relayServer.config,
+        blockchain: {
+          ...relayServer.config.blockchain,
+          registrationBlockRate: 1000,
+          initialBlockToScan: 1,
+        },
+      };
+      getPastEventsForHub = sinon
+        .stub(pastEvents, 'getPastEventsForHub')
+        .resolves([]);
+    });
+
+    it('should not count the disabling of a worker as server activity', async function () {
+      const relayed = {
+        event: 'TransactionRelayed',
+        blockNumber: 90,
+      } as unknown as TypedEvent;
+      const disabled = {
+        event: 'RelayWorkersDisabled',
+        blockNumber: 95,
+      } as unknown as TypedEvent;
+
+      await relayServer._updateLatestTxBlockNumber([relayed, disabled], 100);
+
+      expect(relayServer.lastMinedActiveTransaction).to.be.equal(relayed);
+    });
+
+    it('should look back for the latest activity only once', async function () {
+      await relayServer._updateLatestTxBlockNumber([], 100);
+      await relayServer._updateLatestTxBlockNumber([], 101);
+
+      expect(getPastEventsForHub).to.be.calledOnce;
+      expect(getPastEventsForHub.firstCall.args[1]).to.deep.equal({
+        fromBlock: 1,
+      });
+      expect(getPastEventsForHub.firstCall.args[2]).to.deep.equal([
+        'RelayServerRegistered',
+        'RelayWorkersAdded',
+        'TransactionRelayed',
+        'TransactionRelayedButRevertedByRecipient',
+      ]);
     });
   });
 
