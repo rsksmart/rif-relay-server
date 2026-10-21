@@ -71,6 +71,7 @@ const appSchema = Joi.object({
 
 const blockchainSchema = Joi.object({
   rskNodeUrl: Joi.string().uri().required(),
+  rskNodeWriteUrl: Joi.string().uri().allow('').optional(),
   gasPriceFactor: Joi.number().required(),
   registrationBlockRate: Joi.number().min(0).required(),
   alertedBlockDelay: Joi.number().min(0).required(),

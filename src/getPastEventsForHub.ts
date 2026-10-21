@@ -95,15 +95,11 @@ export async function performLogRequests(
   const requests = logFilters.map((logFilter) =>
     getProviderLogsRequests(logFilter)
   );
-  const logs = await Promise.allSettled(requests);
+  // Fail if any range could not be fetched: returning partial logs would make the server
+  // miss events (e.g. RelayWorkersAdded) and never look for them again.
+  const logs = await Promise.all(requests);
 
-  return logs
-    .filter((promiseResult) => promiseResult.status === 'fulfilled')
-    .map(
-      (promiseResult) =>
-        (promiseResult as PromiseFulfilledResult<providers.Log[]>).value
-    )
-    .flat();
+  return logs.flat();
 }
 
 export function getTopicsFromEvents(

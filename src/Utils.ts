@@ -16,6 +16,7 @@ const CONFIG_CONTRACTS = 'contracts';
 const CONFIG_BLOCKCHAIN = 'blockchain';
 const CONFIG_RELAY_HUB_ADDRESS = 'relayHubAddress';
 const CONFIG_RSK_URL = 'rskNodeUrl';
+const CONFIG_RSK_WRITE_URL = 'rskNodeWriteUrl';
 
 const getConfiguredRelayHubAddress = () =>
   config.get<string>(`${CONFIG_CONTRACTS}.${CONFIG_RELAY_HUB_ADDRESS}`);
@@ -114,10 +115,41 @@ export async function isContractDeployed(address: string): Promise<boolean> {
   return code !== '0x' && code !== '0x00';
 }
 
+const providersByUrl = new Map<string, providers.Provider>();
+
+function getProviderForUrl(url: string): providers.Provider {
+  let provider = providersByUrl.get(url);
+  if (!provider) {
+    // The chain id never changes for a running server, so we avoid the extra eth_chainId call per request
+    provider = /^https?:/i.test(url)
+      ? new providers.StaticJsonRpcProvider(url)
+      : getDefaultProvider(url);
+    providersByUrl.set(url, provider);
+  }
+
+  return provider;
+}
+
+/**
+ * Provider used for reading the chain state.
+ */
 export function getProvider(): providers.Provider {
-  return getDefaultProvider(
+  return getProviderForUrl(
     config.get<string>(`${CONFIG_BLOCKCHAIN}.${CONFIG_RSK_URL}`)
   );
+}
+
+/**
+ * Provider used for broadcasting signed transactions and reading the pending nonce of the server accounts.
+ * It falls back to the read provider when `blockchain.rskNodeWriteUrl` is not set.
+ */
+export function getWriteProvider(): providers.Provider {
+  const writeUrlKey = `${CONFIG_BLOCKCHAIN}.${CONFIG_RSK_WRITE_URL}`;
+  const writeUrl = config.has(writeUrlKey)
+    ? config.get<string | undefined>(writeUrlKey)
+    : undefined;
+
+  return writeUrl ? getProviderForUrl(writeUrl) : getProvider();
 }
 
 //TODO improve the validating and type handling
