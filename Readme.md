@@ -142,7 +142,8 @@ File [./config/default.json5](config/default.json5) contains all configuration p
     maxGasPrice: 100000000000,
     estimateGasFactor: 1.2,
     initialBlockToScan: 1, // the first block to scan to look for events
-    maxBlockRange: 1000   // the maximum amount of blocks to include while requesting events
+    maxBlockRange: 1000,   // the maximum amount of blocks to include while requesting events
+    maxConcurrentLogRequests: 10, // the maximum amount of event (getLogs) requests sent to the node at the same time
   },
   /*
     Relay contracts addresses

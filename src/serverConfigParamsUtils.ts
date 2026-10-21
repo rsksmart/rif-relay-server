@@ -117,6 +117,7 @@ const blockchainSchema = Joi.object({
   estimateGasFactor: Joi.number().min(0).required(),
   initialBlockToScan: Joi.number().min(1).required(),
   maxBlockRange: Joi.number().min(1).required(),
+  maxConcurrentLogRequests: Joi.number().integer().min(1).required(),
 });
 
 const contractsSchema = Joi.object({
