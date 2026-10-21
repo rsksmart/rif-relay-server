@@ -10,6 +10,7 @@ const parseBigNumberIfDefined = (bn?: BigNumber) =>
 
 const parseBigNumberValues = (tx: StoredTransaction) => ({
   ...tx,
+  value: parseBigNumberIfDefined(tx.value),
   gasPrice: parseBigNumberIfDefined(tx.gasPrice),
   gasLimit: parseBigNumberIfDefined(tx.gasLimit),
 });

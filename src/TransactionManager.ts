@@ -236,12 +236,15 @@ data         | 0x${transaction.data ?? ''}
     tx: StoredTransaction,
     currentBlock: number,
     newGasPrice: BigNumber,
-    isMaxGasPriceReached: boolean
+    isMaxGasPriceReached: boolean,
+    value = tx.value
   ): Promise<SignedTransactionDetails> {
     const { chainId } = await getProvider().getNetwork();
-    // Resend transaction with exactly the same values except for gas price
+    // Resend transaction with the same values except for the gas price and,
+    // when the account can't afford it at the new gas price, the value
     const txToSign: PopulatedTransaction = {
       to: tx.to,
+      value,
       gasLimit: tx.gasLimit,
       gasPrice: newGasPrice,
       data: tx.data,
@@ -447,15 +450,43 @@ data         | 0x${transaction.data ?? ''}
         oldestPendingTx.gasPrice
       );
 
-      const underpricedTransactions = sortedTxs.filter((it) =>
-        it.gasPrice?.lt(newGasPrice)
-      );
-      for (const transaction of underpricedTransactions) {
+      // None of these transactions is mined yet, so the balance has to pay for all of
+      // them in nonce order. A transfer of the whole balance (e.g. a withdrawal) is
+      // worth the balance minus its fee at the old gas price, so at the new gas price
+      // its value has to shrink by the extra fee or the node rejects the replacement.
+      let available = await provider.getBalance(signer);
+      for (const transaction of sortedTxs) {
+        const isUnderpriced = transaction.gasPrice?.lt(newGasPrice) ?? false;
+        const gasPrice = isUnderpriced
+          ? newGasPrice
+          : transaction.gasPrice ?? constants.Zero;
+        const fee = (transaction.gasLimit ?? constants.Zero).mul(gasPrice);
+        const storedValue = transaction.value ?? constants.Zero;
+        const affordableValue = available.gt(fee)
+          ? available.sub(fee)
+          : constants.Zero;
+        const value = storedValue.lt(affordableValue)
+          ? storedValue
+          : affordableValue;
+        const spent = fee.add(isUnderpriced ? value : storedValue);
+        available = available.gt(spent) ? available.sub(spent) : constants.Zero;
+        if (!isUnderpriced) {
+          continue;
+        }
+        if (value.lt(storedValue)) {
+          log.info(
+            `${signer} : lowering the value of transaction ${
+              transaction.txId
+            } from ${storedValue.toString()} to ${value.toString()} to pay for the new gas price`
+          );
+        }
+
         const boostedTransactionDetails = await this.resendTransaction(
           transaction,
           currentBlockHeight,
           newGasPrice,
-          isMaxGasPriceReached
+          isMaxGasPriceReached,
+          value
         );
         boostedTransactions.set(transaction.txId, boostedTransactionDetails);
         log.debug(
