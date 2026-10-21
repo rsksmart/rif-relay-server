@@ -19,10 +19,12 @@ type RegisterOptions = {
   unstakeDelay: BigNumber;
 };
 
+// the server adds its worker and registers in one poll, and sees both mined in
+// a later one, so with 30-second polls readiness takes a few minutes at worst
 const waitForRelay = async (
   httpClient: HttpClient,
   relayUrl: string,
-  timeout = 60
+  timeout = 300
 ): Promise<void> => {
   log.error(`Will wait up to ${timeout}s for the relay to be ready`);
 
