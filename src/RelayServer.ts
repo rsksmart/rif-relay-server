@@ -40,6 +40,7 @@ import {
   getWriteProvider,
   isContractDeployed,
   randomInRange,
+  redactUrl,
   relayTransactionRequestShape,
   sleep,
 } from './Utils';
@@ -193,7 +194,16 @@ export class RelayServer extends EventEmitter {
     this.printServerAddresses();
 
     log.info('RelayServer version', version);
-    log.info('Using server configuration:\n', this.config);
+    log.info('Using server configuration:\n', {
+      ...this.config,
+      blockchain: {
+        ...this.config.blockchain,
+        rskNodeUrl: redactUrl(this.config.blockchain.rskNodeUrl),
+        ...(this.config.blockchain.rskNodeWriteUrl && {
+          rskNodeWriteUrl: redactUrl(this.config.blockchain.rskNodeWriteUrl),
+        }),
+      },
+    });
     registerEventHandlers(this);
   }
 
