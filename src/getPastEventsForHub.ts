@@ -15,6 +15,7 @@ import type AsyncRetry from 'async-retry';
 const DEFAULT_MANAGER_EVENTS: DefaultManagerEvent[] = [
   'RelayServerRegistered',
   'RelayWorkersAdded',
+  'RelayWorkersDisabled',
   'TransactionRelayed',
   'TransactionRelayedButRevertedByRecipient',
 ];
