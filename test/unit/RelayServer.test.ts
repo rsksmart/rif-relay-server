@@ -22,6 +22,7 @@ import * as replenish from 'src/ReplenishFunction';
 import sinonChai from 'sinon-chai';
 import type { HttpEnvelopingRequest } from 'src/definitions';
 import { SERVER_SIGNATURE_REQUIRED } from '@rsksmart/rif-relay-client';
+import { RegistrationManager } from '../../src/RegistrationManager';
 
 use(sinonChai);
 use(chaiAsPromised);
@@ -526,6 +527,154 @@ describe('RelayServer tests', function () {
       expect(result).to.be.deep.equal(expectedResult);
       expect(queryVerifiersSpy).to.be.calledOnce;
       expect(callVerifierMehodStub).to.be.calledWithExactly(verifier);
+    });
+  });
+
+  describe('Function intervalHandler()', function () {
+    type PollingState = {
+      _lastScannedBlock: number;
+      _lastSuccessfulRounds: number;
+      _workerSemaphoreOn: boolean;
+    };
+    let errorListener: SinonSpy;
+    let getBlock: SinonStub;
+    let worker: SinonStub;
+
+    beforeEach(function () {
+      errorListener = sinon.spy();
+      relayServer.on('error', errorListener);
+      getBlock = sinon.stub(provider, 'getBlock');
+      worker = sinon.stub(relayServer, '_worker').resolves([]);
+      (relayServer as unknown as PollingState)._lastScannedBlock = 99;
+    });
+
+    it('should settle and reset the successful rounds if the block lookup fails', async function () {
+      getBlock.rejects(new Error('getBlock failed'));
+
+      await expect(relayServer.intervalHandler()).to.be.fulfilled;
+
+      expect(errorListener).to.be.calledOnce;
+      expect(
+        (relayServer as unknown as PollingState)._lastSuccessfulRounds
+      ).to.be.equal(0);
+      expect(worker).not.to.be.called;
+    });
+
+    it('should settle and reset the successful rounds if the worker fails', async function () {
+      getBlock.resolves({ number: 100 });
+      worker.rejects(new Error('getLogs failed'));
+
+      await expect(relayServer.intervalHandler()).to.be.fulfilled;
+
+      expect(errorListener).to.be.calledOnce;
+      const state = relayServer as unknown as PollingState;
+      expect(state._lastSuccessfulRounds).to.be.equal(0);
+      expect(state._workerSemaphoreOn).to.be.false;
+    });
+
+    it('should retry the block in the next interval after a block lookup failure', async function () {
+      getBlock.onFirstCall().rejects(new Error('getBlock failed'));
+      getBlock.resolves({ number: 100 });
+
+      await relayServer.intervalHandler();
+      await relayServer.intervalHandler();
+
+      expect(worker).to.be.calledOnceWithExactly(100);
+      expect(
+        (relayServer as unknown as PollingState)._lastSuccessfulRounds
+      ).to.be.equal(1);
+    });
+
+    it('should retry the block in the next interval after a worker failure', async function () {
+      getBlock.resolves({ number: 100 });
+      worker.onFirstCall().rejects(new Error('getLogs failed'));
+
+      await relayServer.intervalHandler();
+      await relayServer.intervalHandler();
+
+      expect(worker).to.be.calledTwice;
+      expect(worker.secondCall).to.be.calledWithExactly(100);
+      expect(
+        (relayServer as unknown as PollingState)._lastSuccessfulRounds
+      ).to.be.equal(1);
+    });
+
+    it('should time out a round whose worker outlasts the ready timeout', async function () {
+      const readyTimeout = 1000;
+      relayServer.config = {
+        ...relayServer.config,
+        app: { ...relayServer.config.app, devMode: false, readyTimeout },
+      };
+      const clock = sinon.useFakeTimers();
+      getBlock.resolves({ number: 100 });
+      worker.callsFake(
+        () =>
+          new Promise<string[]>((resolve) =>
+            setTimeout(() => resolve([]), readyTimeout + 1)
+          )
+      );
+
+      const round = relayServer.intervalHandler();
+      await clock.tickAsync(readyTimeout + 1);
+      await round;
+
+      // the timeout reset the rounds while the worker was still running, then the round counted
+      expect(
+        (relayServer as unknown as PollingState)._lastSuccessfulRounds
+      ).to.be.equal(1);
+    });
+  });
+
+  describe('Function init()', function () {
+    let initFromChain: SinonStub;
+    let writeProvider: providers.Provider;
+
+    beforeEach(function () {
+      relayServer.config = {
+        ...relayServer.config,
+        blockchain: {
+          ...relayServer.config.blockchain,
+          startupStateSource: 'chain',
+        },
+      };
+      sinon.stub(serverUtils, 'isContractDeployed').resolves(true);
+      sinon
+        .stub(provider, 'getBlock')
+        .resolves({ number: 100, timestamp: 0 } as providers.Block);
+      sinon.stub(provider, 'getNetwork').resolves({ chainId: 31, name: '' });
+      (provider as providers.BaseProvider & { send: SinonStub }).send = sinon
+        .stub()
+        .resolves('31');
+      writeProvider = providers.getDefaultProvider();
+      sinon.stub(serverUtils, 'getWriteProvider').returns(writeProvider);
+      initFromChain = sinon
+        .stub(RegistrationManager.prototype, 'initFromChain')
+        .resolves();
+      sinon.stub(RegistrationManager.prototype, 'printNotRegisteredMessage');
+    });
+
+    it('should read the chain state at the block before the first scanned one', async function () {
+      sinon
+        .stub(writeProvider, 'getNetwork')
+        .resolves({ chainId: 31, name: '' });
+
+      await relayServer.init();
+
+      expect(initFromChain).to.be.calledOnceWithExactly(99);
+      expect(
+        (relayServer as unknown as { _lastScannedBlock: number })
+          ._lastScannedBlock
+      ).to.be.equal(99);
+    });
+
+    it('should fail if the write node is on another chain', async function () {
+      sinon
+        .stub(writeProvider, 'getNetwork')
+        .resolves({ chainId: 30, name: '' });
+
+      await expect(relayServer.init()).to.be.rejectedWith(
+        'rskNodeWriteUrl is on chain 30, but rskNodeUrl is on chain 31'
+      );
     });
   });
 });

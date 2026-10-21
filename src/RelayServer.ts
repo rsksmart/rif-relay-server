@@ -612,7 +612,7 @@ export class RelayServer extends EventEmitter {
       app: { devMode, readyTimeout },
     } = this.config;
     const now = Date.now();
-    let workerTimeout: Timeout;
+    let workerTimeout: Timeout | undefined;
     if (!devMode) {
       workerTimeout = setTimeout(() => {
         const timedOut = Date.now() - now;
@@ -633,21 +633,17 @@ export class RelayServer extends EventEmitter {
       this._lastSuccessfulRounds = 0;
     };
 
-    return new Promise<void>((resolve) => {
-      provider
-        .getBlock('latest')
-        .then((block) => {
-          if (block.number > this._lastScannedBlock) {
-            resolve(
-              this._workerSemaphore.bind(this)(block.number).catch(handleError)
-            );
-          }
-        })
-        .catch(handleError)
-        .finally(() => {
-          clearTimeout(workerTimeout);
-        });
-    });
+    try {
+      const { number: blockNumber } = await provider.getBlock('latest');
+      if (blockNumber > this._lastScannedBlock) {
+        await this._workerSemaphore(blockNumber);
+      }
+    } catch (e) {
+      handleError(e);
+    } finally {
+      // the timeout watches the whole round, not only the block lookup
+      clearTimeout(workerTimeout);
+    }
   }
 
   start(): void {
