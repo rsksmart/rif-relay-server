@@ -55,6 +55,17 @@ describe('ServerConfigParams tests', function () {
       );
     });
 
+    it('Should fail if maxRequestGasPriceFactor is lower than 1', function () {
+      config.util.extendDeep(config, {
+        app: { disableSponsoredTx: false },
+        blockchain: { maxRequestGasPriceFactor: 0.5 },
+      });
+
+      expect(() => verifyServerConfiguration()).to.throw(
+        /"blockchain.maxRequestGasPriceFactor" must be greater than or equal to 1/
+      );
+    });
+
     it('Should pass if it is sponsored, even if none fee is configured', function () {
       config.util.extendDeep(config, { app: { disableSponsoredTx: false } });
 

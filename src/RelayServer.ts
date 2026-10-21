@@ -32,6 +32,7 @@ import {
   providers,
 } from 'ethers';
 import ow from 'ow';
+import { BigNumber as BigNumberJs } from 'bignumber.js';
 import {
   deployTransactionRequestShape,
   getLatestEventData,
@@ -290,6 +291,7 @@ export class RelayServer extends EventEmitter {
 
     const {
       app: { requestMinValidSeconds },
+      blockchain: { maxRequestGasPriceFactor },
       contracts: { relayHubAddress },
     } = this.config;
 
@@ -316,6 +318,17 @@ export class RelayServer extends EventEmitter {
       );
     }
 
+    // The node rejects a transaction priced above its gas price cap (80 times
+    // the minimum gas price on RSK), but eth_call and eth_estimateGas do not,
+    // so such a request would pass every other check, and the worker nonce
+    // it takes would never be mined and would hold every later relay
+    const maxGasPrice = this._getMaxRequestGasPrice(maxRequestGasPriceFactor);
+    if (maxGasPrice.lt(gasPrice)) {
+      throw new Error(
+        `Unacceptable gasPrice: relayServer's maximum gasPrice:${maxGasPrice.toString()} request's gasPrice: ${gasPrice.toString()}`
+      );
+    }
+
     // validate the validUntil is not too close
     await validateExpirationTime(
       relayRequest.request.validUntilTime,
@@ -327,6 +340,15 @@ export class RelayServer extends EventEmitter {
         'Unacceptable signature: it must be required and provided by the client'
       );
     }
+  }
+
+  _getMaxRequestGasPrice(maxRequestGasPriceFactor: number): BigNumber {
+    return BigNumber.from(
+      BigNumberJs(this.gasPrice.toString())
+        .multipliedBy(maxRequestGasPriceFactor)
+        .integerValue(BigNumberJs.ROUND_FLOOR)
+        .toFixed()
+    );
   }
 
   validateVerifier(envelopingRequest: HttpEnvelopingRequest): void {

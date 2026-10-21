@@ -140,6 +140,7 @@ File [./config/default.json5](config/default.json5) contains all configuration p
     retryGasPriceFactor: 1.2, // gas price factor used to calculate the gas on the server, you can leave it as 1
     defaultGasLimit: 500000,
     maxGasPrice: 100000000000,
+    maxRequestGasPriceFactor: 20, // the highest gasPrice a request may set, as a multiple of the node's gasPrice; must stay well below the node's gas price cap (80 times the minimum gas price on RSK, about 73 times the node's gasPrice)
     estimateGasFactor: 1.2,
     initialBlockToScan: 1, // the first block to scan for events: at startup with startupStateSource "events", and for server activity when registrationBlockRate is set
     startupStateSource: "events", // how the server learns its registration state at startup: "events" replays the hub events since initialBlockToScan, "chain" reads it from the RelayHub

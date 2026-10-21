@@ -115,6 +115,7 @@ const blockchainSchema = Joi.object({
   confirmationsNeeded: Joi.number().min(0).required(),
   retryGasPriceFactor: Joi.number().min(0).required(),
   maxGasPrice: Joi.number().min(0).unsafe().custom(isBigNumberish).required(),
+  maxRequestGasPriceFactor: Joi.number().min(1).required(),
   defaultGasLimit: Joi.number()
     .min(0)
     .unsafe()
