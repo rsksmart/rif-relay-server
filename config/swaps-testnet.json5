@@ -1,0 +1,28 @@
+{
+  app: {
+    url: "https://satora.testnet.relay.rifcomputing.net",
+    port: 8090,
+    devMode: false,
+    logLevel: 0,
+    workdir: "/srv/app/environment",
+    disableSponsoredTx: true,
+    gasFeePercentage: "0",
+  },
+  blockchain: {
+    // the hosted JSON-RPC endpoint must be provided through the RSK_NODE_URL environment variable;
+    // the empty value makes the config validation fail instead of silently using the default node
+    rskNodeUrl: "",
+    startupStateSource: "chain",
+    initialBlockToScan: 8128149,
+    maxBlockRange: 1999,
+  },
+  contracts: {
+    relayHubAddress: "0xD2EFC2B1e5296235779A79B69e7511764E2FC8cd",
+    trustedVerifiers: [
+      "0xd84D65CA5cFaBeA721683D3ce5eA7F72992C30E1", // LendaswapDeployVerifier 10-15-2026
+      "0xC92BF8720A6126c7f000353e184B4fE2E0a51f4e", // LendaswapRelayVerifier 10-15-2026
+      "0xBB894e893Be2B0c9CB32E76fA066e4B876E30690", // MinimalLendaswapDeployVerifier 10-15-2026
+      "0x063D342a6f8Ce5c9B01774bCA6cE1c9Ee76A41be", // MinimalLendaswapRelayVerifier 10-15-2026
+    ],
+  }
+}
