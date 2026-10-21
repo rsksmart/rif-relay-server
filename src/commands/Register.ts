@@ -1,11 +1,11 @@
-import { JsonRpcProvider } from '@ethersproject/providers';
+import type { JsonRpcProvider } from '@ethersproject/providers';
 import { HttpClient } from '@rsksmart/rif-relay-client';
 import { RelayHub__factory } from '@rsksmart/rif-relay-contracts';
 import config from 'config';
 import { BigNumber, constants, Signer, utils, Wallet } from 'ethers';
 import log from 'loglevel';
 import { getServerConfig, RegisterConfig } from '../ServerConfigParams';
-import { isSameAddress, sleep } from '../Utils';
+import { isSameAddress, RedactingJsonRpcProvider, sleep } from '../Utils';
 import { findWealthyAccount } from './findWealthyAccount';
 
 //TODO: This is almost the same type as RegisterConfig from /ServerConfigParams
@@ -19,10 +19,12 @@ type RegisterOptions = {
   unstakeDelay: BigNumber;
 };
 
+// the server adds its worker and registers in one poll, and sees both mined in
+// a later one, so with 30-second polls readiness takes a few minutes at worst
 const waitForRelay = async (
   httpClient: HttpClient,
   relayUrl: string,
-  timeout = 60
+  timeout = 300
 ): Promise<void> => {
   log.error(`Will wait up to ${timeout}s for the relay to be ready`);
 
@@ -172,9 +174,13 @@ const executeRegister = async (): Promise<void> => {
   } = getServerConfig();
 
   log.setLevel(logLevel);
-  log.debug('configSources', config.util.getConfigSources());
+  // only the names: a source's content can hold the node URL with its API key
+  log.debug(
+    'configSources',
+    config.util.getConfigSources().map(({ name }) => name)
+  );
 
-  const rpcProvider = new JsonRpcProvider(blockchain.rskNodeUrl);
+  const rpcProvider = new RedactingJsonRpcProvider(blockchain.rskNodeUrl);
 
   await register(rpcProvider, {
     relayHub: relayHub || contracts.relayHubAddress,

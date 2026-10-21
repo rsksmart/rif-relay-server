@@ -44,6 +44,17 @@ describe('ServerConfigParams tests', function () {
       );
     });
 
+    it('Should fail if the node URL is not an http(s) one', function () {
+      config.util.extendDeep(config, {
+        app: { disableSponsoredTx: false },
+        blockchain: { rskNodeUrl: 'ws://127.0.0.1:4445/websocket' },
+      });
+
+      expect(() => verifyServerConfiguration()).to.throw(
+        /"blockchain.rskNodeUrl" must be a valid uri with a scheme matching the http\|https pattern/
+      );
+    });
+
     it('Should pass if it is sponsored, even if none fee is configured', function () {
       config.util.extendDeep(config, { app: { disableSponsoredTx: false } });
 

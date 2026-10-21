@@ -17,7 +17,7 @@ import {
   StoredTransaction,
   StoredTransactionMetadata,
 } from './StoredTransaction';
-import { getProvider } from './Utils';
+import { getProvider, getWriteProvider } from './Utils';
 
 export interface SignedTransactionDetails {
   txHash: string;
@@ -150,6 +150,7 @@ data         | 0x${transaction.data ?? ''}
     const provider = getProvider();
 
     const providerGasPrice = await provider.getGasPrice();
+    const { chainId } = await provider.getNetwork();
 
     const releaseMutex = await this.nonceMutex.acquire();
     let signedTransaction: SignedTransactionDetails;
@@ -165,6 +166,7 @@ data         | 0x${transaction.data ?? ''}
         gasLimit,
         gasPrice: gasPrice ?? providerGasPrice,
         nonce,
+        chainId,
       };
       // TODO omg! do not do this!
       const keyManager = this.managerKeyManager.isSigner(signer)
@@ -186,7 +188,7 @@ data         | 0x${transaction.data ?? ''}
       releaseMutex();
     }
 
-    const transaction = await provider.sendTransaction(
+    const transaction = await getWriteProvider().sendTransaction(
       signedTransaction.signedTx
     );
 
@@ -236,6 +238,7 @@ data         | 0x${transaction.data ?? ''}
     newGasPrice: BigNumber,
     isMaxGasPriceReached: boolean
   ): Promise<SignedTransactionDetails> {
+    const { chainId } = await getProvider().getNetwork();
     // Resend transaction with exactly the same values except for gas price
     const txToSign: PopulatedTransaction = {
       to: tx.to,
@@ -243,6 +246,7 @@ data         | 0x${transaction.data ?? ''}
       gasPrice: newGasPrice,
       data: tx.data,
       nonce: tx.nonce,
+      chainId,
     };
 
     const keyManager = this.managerKeyManager.isSigner(tx.from)
@@ -266,7 +270,7 @@ data         | 0x${transaction.data ?? ''}
       isMaxGasPriceReached
     );
 
-    const provider = getProvider();
+    const provider = getWriteProvider();
 
     this.printSendTransactionLog(txToSign, tx.from, signedTransaction.txHash);
     const currentNonce = await provider.getTransactionCount(tx.from);
@@ -310,7 +314,7 @@ data         | 0x${transaction.data ?? ''}
   }
 
   async pollNonce(signer: string): Promise<number> {
-    const provider = getProvider();
+    const provider = getWriteProvider();
 
     const nonce: number = await provider.getTransactionCount(signer, 'pending');
     const nonceSigner = this.nonces[signer] ?? 0;

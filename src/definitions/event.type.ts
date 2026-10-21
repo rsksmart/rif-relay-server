@@ -12,6 +12,7 @@ export type DefaultManagerEvent = Extract<
   ManagerEvent,
   | 'RelayServerRegistered'
   | 'RelayWorkersAdded'
+  | 'RelayWorkersDisabled'
   | 'TransactionRelayed'
   | 'TransactionRelayedButRevertedByRecipient'
 >;
