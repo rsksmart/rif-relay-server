@@ -230,8 +230,15 @@ describe('TransactionManager tests', function () {
         sinon.match({ txId: TX_HASH, attempts: 2 }),
         true
       );
+      // the hash and price the node has seen, with this attempt, so the next
+      // boost waits for the timeout
       expect(txStoreManager.putTx.lastCall).to.have.been.calledWith(
-        storedTx,
+        sinon.match({
+          txId: OLD_TX_HASH,
+          gasPrice: storedTx.gasPrice,
+          attempts: 2,
+          boostBlockNumber: 10,
+        }),
         true
       );
     });
@@ -347,7 +354,7 @@ describe('TransactionManager tests', function () {
       ).to.be.rejectedWith('processing response error');
 
       expect(txStoreManager.putTx.lastCall).to.have.been.calledWith(
-        storedTx,
+        sinon.match({ txId: OLD_TX_HASH, attempts: 2, boostBlockNumber: 10 }),
         true
       );
     });
@@ -600,6 +607,41 @@ describe('TransactionManager tests', function () {
           1 + pendingTransactionTimeoutBlocks
         );
       expect(onTime.size).to.equal(1);
+    });
+
+    it('should wait for the pending timeout again after the node refuses a boost', async function () {
+      const { pendingTransactionTimeoutBlocks } =
+        transactionManager.config.blockchain;
+      const boostBlock = 1 + pendingTransactionTimeoutBlocks;
+      const BOOST_HASH =
+        '0x3333333333333333333333333333333333333333333333333333333333333333';
+      workersKeyManager.signTransaction.resolves({
+        txHash: BOOST_HASH,
+        signedTx: '0xboosted',
+      });
+      broadcast.rejects(nodeRefusal('gas price above cap'));
+      txStoreManager.getAllBySigner.resolves([
+        createStoredTx(BigNumber.from(NODE_GAS_PRICE)),
+      ]);
+
+      await expect(
+        transactionManager.boostUnderpricedPendingTransactionsForSigner(
+          WORKER_ADDRESS,
+          boostBlock
+        )
+      ).to.be.rejectedWith('processing response error');
+
+      // the store now holds what the refusal restored
+      const [restoredTx] = txStoreManager.putTx.lastCall.args;
+      txStoreManager.getAllBySigner.resolves([restoredTx]);
+      const nextBlock =
+        await transactionManager.boostUnderpricedPendingTransactionsForSigner(
+          WORKER_ADDRESS,
+          boostBlock + 1
+        );
+
+      expect(nextBlock.size).to.equal(0);
+      expect(broadcast).to.have.been.calledOnce;
     });
 
     it('should go on boosting when the node already has the oldest transaction sent again unchanged', async function () {

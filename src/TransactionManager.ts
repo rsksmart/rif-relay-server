@@ -363,11 +363,18 @@ data         | 0x${transaction.data ?? ''}
           error instanceof Error ? error.message : error
         );
         // Keep tracking the transaction as it was last broadcast, so the next
-        // boost starts from a gas price the node has seen; a transaction sent
-        // again unchanged keeps the attempt, so it waits for the next timeout
-        // instead of being sent on every block
+        // boost starts from a gas price the node has seen, but keep this
+        // attempt, so it waits for the next timeout instead of being sent on
+        // every block; a transaction sent again unchanged is already stored that way
         if (!isSentAgainUnchanged) {
-          await this.txStoreManager.putTx(tx, true);
+          await this.txStoreManager.putTx(
+            {
+              ...tx,
+              attempts: storedTx.attempts,
+              boostBlockNumber: storedTx.boostBlockNumber,
+            },
+            true
+          );
         }
       } else {
         // Either hash may be mined; the boost is kept since it is the one
