@@ -21,6 +21,7 @@ export interface StoredTransactionMetadata {
 
 export interface StoredTransactionSerialized {
   readonly to?: string;
+  readonly value?: BigNumber;
   readonly gasLimit?: BigNumber;
   readonly gasPrice?: BigNumber;
   readonly data?: string;
@@ -50,6 +51,7 @@ export function createStoredTransaction(
   //TODO check what to do if the gasLimit and gasPrice its zero
   const details: StoredTransactionSerialized = {
     to: tx.to,
+    value: tx.value,
     gasLimit: tx.gasLimit,
     gasPrice: tx.gasPrice,
     data: tx.data,

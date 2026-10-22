@@ -18,6 +18,7 @@ import {
   StoredTransactionMetadata,
 } from './StoredTransaction';
 import { getProvider, getWriteProvider } from './Utils';
+import { planBoost } from './planBoost';
 
 export interface SignedTransactionDetails {
   txHash: string;
@@ -236,12 +237,15 @@ data         | 0x${transaction.data ?? ''}
     tx: StoredTransaction,
     currentBlock: number,
     newGasPrice: BigNumber,
-    isMaxGasPriceReached: boolean
+    isMaxGasPriceReached: boolean,
+    value = tx.value
   ): Promise<SignedTransactionDetails> {
     const { chainId } = await getProvider().getNetwork();
-    // Resend transaction with exactly the same values except for gas price
+    // Resend transaction with the same values except for the gas price and,
+    // when the account can't afford it at the new gas price, the value
     const txToSign: PopulatedTransaction = {
       to: tx.to,
+      value,
       gasLimit: tx.gasLimit,
       gasPrice: newGasPrice,
       data: tx.data,
@@ -447,15 +451,29 @@ data         | 0x${transaction.data ?? ''}
         oldestPendingTx.gasPrice
       );
 
-      const underpricedTransactions = sortedTxs.filter((it) =>
-        it.gasPrice?.lt(newGasPrice)
-      );
-      for (const transaction of underpricedTransactions) {
+      // the write node accepts or refuses the replacements, so they have to fit
+      // in the balance it sees
+      const balance = await getWriteProvider().getBalance(signer);
+      for (const { transaction, value } of planBoost(
+        sortedTxs,
+        balance,
+        newGasPrice
+      )) {
+        const storedValue = transaction.value ?? constants.Zero;
+        if (value.lt(storedValue)) {
+          log.info(
+            `${signer} : lowering the value of transaction ${
+              transaction.txId
+            } from ${storedValue.toString()} to ${value.toString()} to pay for the new gas price`
+          );
+        }
+
         const boostedTransactionDetails = await this.resendTransaction(
           transaction,
           currentBlockHeight,
           newGasPrice,
-          isMaxGasPriceReached
+          isMaxGasPriceReached,
+          value
         );
         boostedTransactions.set(transaction.txId, boostedTransactionDetails);
         log.debug(
