@@ -145,6 +145,27 @@ describe('TransactionManager', function () {
       expect(storedTx?.value?.eq(expectedValue)).to.be.true;
     });
 
+    it('should fit the replacement in the balance the write node sees', async function () {
+      await storeWithFailedBroadcast(balance.sub(GAS_LIMIT.mul(GAS_PRICE)));
+      // the read node is behind a top-up the write node already has
+      const writeBalance = balance.add(utils.parseEther('0.002'));
+      const writeProvider = {
+        getNetwork: () => Promise.resolve({ chainId: 31 }),
+        getTransactionCount: () => Promise.resolve(0),
+        getBalance: () => Promise.resolve(writeBalance),
+        sendTransaction: broadcast,
+      } as unknown as providers.Provider;
+      (serverUtils.getWriteProvider as SinonStub).returns(writeProvider);
+
+      await transactionManager.boostUnderpricedPendingTransactionsForSigner(
+        worker,
+        boostBlock()
+      );
+
+      const [original, replacement] = broadcastTransactions();
+      expect(replacement?.value.eq(original?.value ?? 0)).to.be.true;
+    });
+
     it('should leave a later transfer only what the earlier pending ones do not spend', async function () {
       const firstValue = utils.parseEther('0.0006');
       await storeWithFailedBroadcast(firstValue);
