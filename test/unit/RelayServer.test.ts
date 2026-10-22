@@ -374,17 +374,46 @@ describe('RelayServer tests', function () {
       ).to.eql(expected);
     });
 
-    it('should release the requests whose transaction is mined on each block', async function () {
+    function stubMinedNonces(read: number, write: number) {
+      // getProvider already returns the shared provider of these tests
+      const readCount = sinon
+        .stub(provider, 'getTransactionCount')
+        .resolves(read);
+      const writeCount = sinon.stub().resolves(write);
+      sinon.stub(serverUtils, 'getWriteProvider').returns({
+        getTransactionCount: writeCount,
+      } as unknown as providers.Provider);
+
+      return { readCount, writeCount };
+    }
+
+    it('should release the requests whose transaction both nodes have mined on each block', async function () {
       await relayServer.createRelayTransaction(createEnvelopingRequest());
-      const getTransactionCount = sinon.stub().resolves(8);
-      sinon
-        .stub(serverUtils, 'getWriteProvider')
-        .returns({ getTransactionCount } as unknown as providers.Provider);
+      const { readCount, writeCount } = stubMinedNonces(8, 8);
 
       await relayServer._releaseMinedRelays();
 
-      expect(getTransactionCount).to.have.been.calledWith('0x123', 'latest');
+      expect(readCount).to.have.been.calledWith('0x123', 'latest');
+      expect(writeCount).to.have.been.calledWith('0x123', 'latest');
       expect(relayServer.inFlightRelays.hasBroadcast()).to.be.false;
+    });
+
+    it('should hold a request while the read node has not seen its transaction mined', async function () {
+      await relayServer.createRelayTransaction(createEnvelopingRequest());
+      stubMinedNonces(7, 8);
+
+      await relayServer._releaseMinedRelays();
+
+      expect(relayServer.inFlightRelays.hasBroadcast()).to.be.true;
+    });
+
+    it('should hold a request while the write node has not seen its transaction mined', async function () {
+      await relayServer.createRelayTransaction(createEnvelopingRequest());
+      stubMinedNonces(8, 7);
+
+      await relayServer._releaseMinedRelays();
+
+      expect(relayServer.inFlightRelays.hasBroadcast()).to.be.true;
     });
   });
 

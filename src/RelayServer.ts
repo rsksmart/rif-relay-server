@@ -909,12 +909,15 @@ latestBlock timestamp   | ${latestBlock.timestamp}
     if (!this.inFlightRelays.hasBroadcast()) {
       return;
     }
-    // The write node is the one the worker transactions were broadcast to
-    const minedNonce = await getWriteProvider().getTransactionCount(
-      this.workerAddress,
-      'latest'
-    );
-    this.inFlightRelays.releaseMined(minedNonce);
+    // A request is released once both nodes have its transaction mined: the
+    // write node is the one it was broadcast to, and the read node is the one
+    // the verifier and the dry run of a retry run against, so a retry checked
+    // against a read node that hasn't seen it would pass and then revert
+    const [readMinedNonce, writeMinedNonce] = await Promise.all([
+      getProvider().getTransactionCount(this.workerAddress, 'latest'),
+      getWriteProvider().getTransactionCount(this.workerAddress, 'latest'),
+    ]);
+    this.inFlightRelays.releaseMined(Math.min(readMinedNonce, writeMinedNonce));
   }
 
   async _refreshGasPrice(): Promise<void> {
