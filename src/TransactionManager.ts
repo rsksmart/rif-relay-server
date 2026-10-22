@@ -3,7 +3,6 @@ import log from 'loglevel';
 import { Mutex } from 'async-mutex';
 import { utils, BigNumber, PopulatedTransaction, constants } from 'ethers';
 import type { TransactionResponse } from '@ethersproject/providers';
-import { BigNumber as BigNumberJs } from 'bignumber.js';
 import type { TxStoreManager } from './TxStoreManager';
 import type { KeyManager } from './KeyManager';
 import {
@@ -19,6 +18,8 @@ import {
 } from './StoredTransaction';
 import { getProvider, getWriteProvider } from './Utils';
 import { planBoost } from './planBoost';
+import { applyFactor } from './Conversions';
+import { getMaxRequestGasPrice } from './relayServerUtils';
 
 export interface SignedTransactionDetails {
   txHash: string;
@@ -118,12 +119,8 @@ data         | 0x${transaction.data ?? ''}
         ...transaction,
         from,
       });
-      const bigEstimateGasFactor = BigNumberJs(
-        this.config.blockchain.estimateGasFactor
-      );
-      const mul = bigEstimateGasFactor.multipliedBy(estimateGas.toString());
 
-      return BigNumber.from(mul.toFixed(0));
+      return applyFactor(estimateGas, this.config.blockchain.estimateGasFactor);
     } catch (e) {
       if (e instanceof Error) {
         log.error(
@@ -153,9 +150,11 @@ data         | 0x${transaction.data ?? ''}
     const providerGasPrice = await provider.getGasPrice();
     const { chainId } = await provider.getNetwork();
 
+    // The broadcast stays under the mutex so that a transaction the node
+    // refuses can give its nonce back before any later transaction takes the
+    // next one; otherwise the refused nonce would never be mined and would
+    // hold every later transaction of the signer
     const releaseMutex = await this.nonceMutex.acquire();
-    let signedTransaction: SignedTransactionDetails;
-    let storedTx: StoredTransaction;
     try {
       const nonce = await this.pollNonce(signer);
 
@@ -173,7 +172,10 @@ data         | 0x${transaction.data ?? ''}
       const keyManager = this.managerKeyManager.isSigner(signer)
         ? this.managerKeyManager
         : this.workersKeyManager;
-      signedTransaction = await keyManager.signTransaction(signer, txToSign);
+      const signedTransaction = await keyManager.signTransaction(
+        signer,
+        txToSign
+      );
       const metadata: StoredTransactionMetadata = {
         txId: signedTransaction.txHash,
         from: signer,
@@ -181,25 +183,52 @@ data         | 0x${transaction.data ?? ''}
         serverAction,
         creationBlockNumber,
       };
-      storedTx = createStoredTransaction(txToSign, metadata);
+      const storedTx = createStoredTransaction(txToSign, metadata);
       this.nonces[signer]++;
       await this.txStoreManager.putTx(storedTx, false);
       this.printSendTransactionLog(txToSign, signer, signedTransaction.txHash);
+
+      let transaction: TransactionResponse;
+      try {
+        transaction = await getWriteProvider().sendTransaction(
+          signedTransaction.signedTx
+        );
+      } catch (error) {
+        await this._discardRefusedTransaction(storedTx, error);
+        throw error;
+      }
+
+      if (transaction.hash.toLowerCase() !== storedTx.txId.toLowerCase()) {
+        throw new Error(
+          `txhash mismatch: from receipt: ${transaction.hash} from txstore:${storedTx.txId}`
+        );
+      }
+
+      return signedTransaction;
     } finally {
       releaseMutex();
     }
+  }
 
-    const transaction = await getWriteProvider().sendTransaction(
-      signedTransaction.signedTx
+  /**
+   * Forgets a transaction the node refused to broadcast and gives its nonce
+   * back, so the next transaction of the signer takes it. Must be called
+   * under the nonce mutex. If the node did accept the transaction despite
+   * the error, pollNonce catches up with the node's pending nonce on the
+   * next send.
+   */
+  async _discardRefusedTransaction(
+    storedTx: StoredTransaction,
+    error: unknown
+  ): Promise<void> {
+    log.error(
+      `Transaction ${storedTx.txId} with nonce ${
+        storedTx.nonce ?? 'unnonce'
+      } from ${storedTx.from} was refused by the node, discarding it:`,
+      error instanceof Error ? error.message : error
     );
-
-    if (transaction.hash.toLowerCase() !== storedTx.txId.toLowerCase()) {
-      throw new Error(
-        `txhash mismatch: from receipt: ${transaction.hash} from txstore:${storedTx.txId}`
-      );
-    }
-
-    return signedTransaction;
+    this.nonces[storedTx.from]--;
+    await this.txStoreManager.removeTx(storedTx);
   }
 
   async updateTransactionWithMinedBlock(
@@ -279,9 +308,19 @@ data         | 0x${transaction.data ?? ''}
     this.printSendTransactionLog(txToSign, tx.from, signedTransaction.txHash);
     const currentNonce = await provider.getTransactionCount(tx.from);
     log.debug(`Current account nonce for ${tx.from} is ${currentNonce}`);
-    const transaction = await provider.sendTransaction(
-      signedTransaction.signedTx
-    );
+    let transaction: TransactionResponse;
+    try {
+      transaction = await provider.sendTransaction(signedTransaction.signedTx);
+    } catch (error) {
+      // Keep tracking the transaction as it was last broadcast, so the next
+      // boost starts from a gas price the node has seen
+      log.error(
+        `Boosted transaction ${signedTransaction.txHash} was refused by the node, keeping ${tx.txId}:`,
+        error instanceof Error ? error.message : error
+      );
+      await this.txStoreManager.putTx(tx, true);
+      throw error;
+    }
     if (transaction.hash.toLowerCase() !== storedTx.txId.toLowerCase()) {
       throw new Error(
         `txhash mismatch: from receipt: ${transaction.hash} from txstore:${storedTx.txId}`
@@ -291,24 +330,38 @@ data         | 0x${transaction.data ?? ''}
     return signedTransaction;
   }
 
-  _resolveNewGasPrice(oldGasPrice: BigNumber | undefined): {
+  /**
+   * The highest gas price a stale transaction is boosted to: the configured
+   * maxGasPrice, so we are not burning all our balance in gas fees, or the
+   * highest price the node accepts if that is lower; see getMaxRequestGasPrice
+   */
+  _getMaxBoostGasPrice(nodeGasPrice: BigNumber): BigNumber {
+    const maxGasPrice = BigNumber.from(this.config.blockchain.maxGasPrice);
+    const maxAcceptedGasPrice = getMaxRequestGasPrice(
+      nodeGasPrice,
+      this.config.blockchain
+    );
+
+    return maxAcceptedGasPrice.lt(maxGasPrice)
+      ? maxAcceptedGasPrice
+      : maxGasPrice;
+  }
+
+  _resolveNewGasPrice(
+    oldGasPrice: BigNumber | undefined,
+    nodeGasPrice: BigNumber
+  ): {
     newGasPrice: BigNumber;
     isMaxGasPriceReached: boolean;
   } {
     let isMaxGasPriceReached = false;
-    const bigRetryGasPriceFactor = BigNumberJs(
+    let newGasPrice = applyFactor(
+      oldGasPrice ?? 0,
       this.config.blockchain.retryGasPriceFactor
     );
 
-    const bigNewGasPrice = bigRetryGasPriceFactor.multipliedBy(
-      oldGasPrice ? oldGasPrice.toString() : 0
-    );
+    const maxGasPrice = this._getMaxBoostGasPrice(nodeGasPrice);
 
-    let newGasPrice = BigNumber.from(bigNewGasPrice.toFixed(0));
-
-    const maxGasPrice = BigNumber.from(this.config.blockchain.maxGasPrice);
-
-    // Sanity check to ensure we are not burning all our balance in gas fees
     if (newGasPrice.gt(maxGasPrice)) {
       isMaxGasPriceReached = true;
       newGasPrice = maxGasPrice;
@@ -447,8 +500,10 @@ data         | 0x${transaction.data ?? ''}
       }
 
       // Calculate new gas price as a % increase over the previous one
+      const nodeGasPrice = await provider.getGasPrice();
       const { newGasPrice, isMaxGasPriceReached } = this._resolveNewGasPrice(
-        oldestPendingTx.gasPrice
+        oldestPendingTx.gasPrice,
+        nodeGasPrice
       );
 
       // the write node accepts or refuses the replacements, so they have to fit

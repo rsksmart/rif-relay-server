@@ -32,7 +32,6 @@ import {
   providers,
 } from 'ethers';
 import ow from 'ow';
-import { BigNumber as BigNumberJs } from 'bignumber.js';
 import {
   deployTransactionRequestShape,
   getLatestEventData,
@@ -60,6 +59,7 @@ import {
 } from '@rsksmart/rif-relay-client';
 import {
   validateIfGasAmountIsAcceptable,
+  getMaxRequestGasPrice,
   validateIfTokenAmountIsAcceptable,
   convertGasToTokenAndNative,
   calculateFee,
@@ -291,7 +291,6 @@ export class RelayServer extends EventEmitter {
 
     const {
       app: { requestMinValidSeconds },
-      blockchain: { maxRequestGasPriceFactor },
       contracts: { relayHubAddress },
     } = this.config;
 
@@ -310,19 +309,28 @@ export class RelayServer extends EventEmitter {
       throw new Error(`Wrong fees receiver address: ${feesReceiver}\n`);
     }
 
+    // The node's gasPrice is read on every block scan, so until the first one
+    // the server cannot tell whether a request is acceptably priced
+    if (this.gasPrice.isZero()) {
+      throw new Error(
+        "Unacceptable gasPrice: relayServer's gasPrice is not initialized yet"
+      );
+    }
+
     const gasPrice = relayRequest.relayData.gasPrice;
-    // Check that the gasPrice is initialized & acceptable
     if (this.gasPrice.gt(gasPrice)) {
       throw new Error(
         `Unacceptable gasPrice: relayServer's gasPrice:${this.gasPrice.toString()} request's gasPrice: ${gasPrice.toString()}`
       );
     }
 
-    // The node rejects a transaction priced above its gas price cap (80 times
-    // the minimum gas price on RSK), but eth_call and eth_estimateGas do not,
-    // so such a request would pass every other check, and the worker nonce
-    // it takes would never be mined and would hold every later relay
-    const maxGasPrice = this._getMaxRequestGasPrice(maxRequestGasPriceFactor);
+    // A request priced above the node's gas price cap would pass every other
+    // check, and the worker nonce it takes would never be mined and would
+    // hold every later relay; see getMaxRequestGasPrice
+    const maxGasPrice = getMaxRequestGasPrice(
+      this.gasPrice,
+      this.config.blockchain
+    );
     if (maxGasPrice.lt(gasPrice)) {
       throw new Error(
         `Unacceptable gasPrice: relayServer's maximum gasPrice:${maxGasPrice.toString()} request's gasPrice: ${gasPrice.toString()}`
@@ -340,15 +348,6 @@ export class RelayServer extends EventEmitter {
         'Unacceptable signature: it must be required and provided by the client'
       );
     }
-  }
-
-  _getMaxRequestGasPrice(maxRequestGasPriceFactor: number): BigNumber {
-    return BigNumber.from(
-      BigNumberJs(this.gasPrice.toString())
-        .multipliedBy(maxRequestGasPriceFactor)
-        .integerValue(BigNumberJs.ROUND_FLOOR)
-        .toFixed()
-    );
   }
 
   validateVerifier(envelopingRequest: HttpEnvelopingRequest): void {

@@ -55,6 +55,7 @@ type BlockchainConfig = {
   retryGasPriceFactor: string;
   maxGasPrice: string | number;
   maxRequestGasPriceFactor: number;
+  maxRequestGasPriceFloor: string | number;
   defaultGasLimit: string | number;
   estimateGasFactor: number;
   versionRegistryDelayPeriod?: number;

@@ -2,7 +2,7 @@ import {
   estimateInternalCallGas,
   isDeployRequest,
 } from '@rsksmart/rif-relay-client';
-import { BigNumber as BigNumberJs } from 'bignumber.js';
+import { applyFactor } from '../Conversions';
 import type { HttpEnvelopingRequest, RelayRequestBody } from '../definitions';
 import { MAX_ESTIMATED_GAS_DEVIATION } from '../definitions/server.const';
 
@@ -31,17 +31,10 @@ export async function validateIfGasAmountIsAcceptable({
     data: request.data,
   });
 
-  const bigMaxEstimatedGasDeviation = BigNumberJs(
-    1 + MAX_ESTIMATED_GAS_DEVIATION
-  );
-
   const { gas } = request as RelayRequestBody;
-  const gasValue = gas;
-  const bigGasFromRequestMaxAgreed = bigMaxEstimatedGasDeviation.multipliedBy(
-    gasValue.toString()
-  );
+  const maxAgreedGas = applyFactor(gas, 1 + MAX_ESTIMATED_GAS_DEVIATION);
 
-  if (estimatedDestinationGasCost.gt(bigGasFromRequestMaxAgreed.toFixed(0))) {
+  if (estimatedDestinationGasCost.gt(maxAgreedGas)) {
     throw new Error(
       "Request payload's gas parameters deviate too much fom the estimated gas for this transaction"
     );

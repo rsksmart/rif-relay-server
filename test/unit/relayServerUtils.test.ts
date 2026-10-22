@@ -15,6 +15,7 @@ import {
   TRANSFER_HASH,
   TRANSFER_FROM_HASH,
   validateExpirationTime,
+  getMaxRequestGasPrice,
 } from '../../src/relayServerUtils';
 import { toPrecision } from '../../src/Conversions';
 import chaiAsPromised from 'chai-as-promised';
@@ -680,6 +681,39 @@ describe('relayServerUtils tests', function () {
         expect(getAcceptedContracts).to.be.calledOnce;
         expect(contracts).to.be.empty;
       });
+    });
+  });
+
+  describe('Function getMaxRequestGasPrice()', function () {
+    // eth_gasPrice of a Rootstock testnet node
+    const NODE_GAS_PRICE = '6215177';
+
+    it('should scale the node gasPrice by the factor', function () {
+      const maxGasPrice = getMaxRequestGasPrice(NODE_GAS_PRICE, {
+        maxRequestGasPriceFactor: 20,
+        maxRequestGasPriceFloor: 0,
+      });
+
+      expect(maxGasPrice.toString()).to.equal('124303540');
+    });
+
+    it('should scale the node gasPrice by a fractional factor', function () {
+      const maxGasPrice = getMaxRequestGasPrice(NODE_GAS_PRICE, {
+        maxRequestGasPriceFactor: 1.5,
+        maxRequestGasPriceFloor: 0,
+      });
+
+      // 9322765.5 rounded to the nearest wei
+      expect(maxGasPrice.toString()).to.equal('9322766');
+    });
+
+    it('should not drop below the floor', function () {
+      const maxGasPrice = getMaxRequestGasPrice(NODE_GAS_PRICE, {
+        maxRequestGasPriceFactor: 20,
+        maxRequestGasPriceFloor: '200000000',
+      });
+
+      expect(maxGasPrice.toString()).to.equal('200000000');
     });
   });
 

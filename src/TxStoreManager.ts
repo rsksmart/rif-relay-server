@@ -125,6 +125,15 @@ export class TxStoreManager {
     );
   }
 
+  /**
+   * Forgets a transaction the node refused to broadcast, freeing its nonce
+   */
+  async removeTx(tx: StoredTransaction): Promise<unknown> {
+    ow(tx.txId, ow.string);
+
+    return await this._txstore.asyncRemove({ txId: tx.txId });
+  }
+
   async clearAll(): Promise<void> {
     await this._txstore.asyncRemove({}, { multi: true });
   }

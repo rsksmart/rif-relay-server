@@ -1,206 +1,241 @@
 import { expect, use } from 'chai';
 import chaiAsPromised from 'chai-as-promised';
-import sinon, { SinonStub } from 'sinon';
-import { BigNumber, providers, utils } from 'ethers';
-import { BigNumber as BigNumberJs } from 'bignumber.js';
+import sinon, { SinonStub, SinonStubbedInstance } from 'sinon';
+import sinonChai from 'sinon-chai';
+import { BigNumber, providers } from 'ethers';
+import {
+  KeyManager,
+  ServerAction,
+  StoredTransaction,
+  TransactionManager,
+  TxStoreManager,
+} from '../../src';
 import * as serverUtils from '../../src/Utils';
-import { KeyManager } from '../../src/KeyManager';
-import { TxStoreManager } from '../../src/TxStoreManager';
-import { TransactionManager } from '../../src/TransactionManager';
-import { ServerAction } from '../../src/StoredTransaction';
-import { getServerConfig } from '../../src/ServerConfigParams';
 
+use(sinonChai);
 use(chaiAsPromised);
 
-const GAS_PRICE = BigNumber.from(60000000);
-const GAS_LIMIT = BigNumber.from(21000);
-const CREATION_BLOCK = 100;
-const OWNER = '0x00000000000000000000000000000000000000dd';
+describe('TransactionManager tests', function () {
+  const MANAGER_ADDRESS = '0x0000000000000000000000000000000000000001';
+  const WORKER_ADDRESS = '0x74105590d404df3f384a099c2e55135281ca6b40';
+  const DESTINATION = '0x0000000000000000000000000000000000000002';
+  const TX_HASH =
+    '0x1111111111111111111111111111111111111111111111111111111111111111';
+  const OLD_TX_HASH =
+    '0x2222222222222222222222222222222222222222222222222222222222222222';
+  const NONCE = 5;
+  // eth_gasPrice of a Rootstock testnet node
+  const NODE_GAS_PRICE = '6215177';
 
-describe('TransactionManager', function () {
   let transactionManager: TransactionManager;
-  let txStoreManager: TxStoreManager;
-  let worker: string;
-  let balance: BigNumber;
+  let txStoreManager: SinonStubbedInstance<TxStoreManager>;
+  let workersKeyManager: SinonStubbedInstance<KeyManager>;
   let broadcast: SinonStub;
 
-  const boostedGasPrice = () => {
-    const {
-      blockchain: { retryGasPriceFactor, maxGasPrice },
-    } = getServerConfig();
-    const boosted = BigNumber.from(
-      BigNumberJs(retryGasPriceFactor)
-        .multipliedBy(GAS_PRICE.toString())
-        .toFixed(0)
-    );
-
-    return boosted.gt(maxGasPrice) ? BigNumber.from(maxGasPrice) : boosted;
-  };
-
-  const boostBlock = () =>
-    CREATION_BLOCK +
-    getServerConfig().blockchain.pendingTransactionTimeoutBlocks;
-
-  const sendTransfer = (value: BigNumber) =>
-    transactionManager.sendTransaction({
-      signer: worker,
-      serverAction: ServerAction.VALUE_TRANSFER,
-      destination: OWNER,
-      gasLimit: GAS_LIMIT,
-      gasPrice: GAS_PRICE,
-      value,
-      creationBlockNumber: CREATION_BLOCK,
-    });
-
-  // the transactions the node received, decoded
-  const broadcastTransactions = () =>
-    broadcast.args.map(([signedTx]) =>
-      utils.parseTransaction(signedTx as string)
-    );
-
   beforeEach(function () {
-    balance = utils.parseEther('0.001');
-    broadcast = sinon
-      .stub()
-      .callsFake((signedTx: string) =>
-        Promise.resolve({ hash: utils.keccak256(signedTx) })
-      );
-    const provider = {
-      getGasPrice: () => Promise.resolve(GAS_PRICE),
-      getNetwork: () => Promise.resolve({ chainId: 31 }),
-      // nothing sent by the tests is mined
-      getTransactionCount: () => Promise.resolve(0),
-      getBalance: () => Promise.resolve(balance),
-      sendTransaction: broadcast,
-    } as unknown as providers.Provider;
-    sinon.stub(serverUtils, 'getProvider').returns(provider);
-    sinon.stub(serverUtils, 'getWriteProvider').returns(provider);
+    const managerKeyManager = sinon.createStubInstance(KeyManager);
+    managerKeyManager.getAddress.returns(MANAGER_ADDRESS);
+    managerKeyManager.isSigner.callsFake(
+      (address) => address === MANAGER_ADDRESS
+    );
+    workersKeyManager = sinon.createStubInstance(KeyManager);
+    workersKeyManager.getAddress.returns(WORKER_ADDRESS);
+    workersKeyManager.isSigner.callsFake(
+      (address) => address === WORKER_ADDRESS
+    );
+    workersKeyManager.signTransaction.resolves({
+      txHash: TX_HASH,
+      signedTx: '0xsigned',
+    });
+    txStoreManager = sinon.createStubInstance(TxStoreManager);
 
-    txStoreManager = new TxStoreManager({ inMemory: true });
-    const workersKeyManager = new KeyManager(1, undefined, '11'.repeat(32));
+    sinon.stub(serverUtils, 'getProvider').returns({
+      getGasPrice: sinon.stub().resolves(BigNumber.from(NODE_GAS_PRICE)),
+      getNetwork: sinon.stub().resolves({ chainId: 31, name: 'rsk' }),
+      getTransactionCount: sinon.stub().resolves(NONCE),
+    } as unknown as providers.Provider);
+    broadcast = sinon.stub();
+    sinon.stub(serverUtils, 'getWriteProvider').returns({
+      sendTransaction: broadcast,
+      getTransactionCount: sinon.stub().resolves(NONCE),
+      // enough for any boost, so planBoost never lowers a value
+      getBalance: sinon.stub().resolves(BigNumber.from(10).pow(18)),
+    } as unknown as providers.Provider);
+
     transactionManager = new TransactionManager({
-      managerKeyManager: new KeyManager(1, undefined, '22'.repeat(32)),
+      managerKeyManager,
       workersKeyManager,
       txStoreManager,
     });
-    worker = workersKeyManager.getAddress(0) as string;
   });
 
   afterEach(function () {
     sinon.restore();
   });
 
-  // the broadcast of the original transaction fails, so it is only in the store
-  const storeWithFailedBroadcast = async (value: BigNumber) => {
-    broadcast.onCall(broadcast.callCount).rejects(new Error('node is down'));
-    await expect(sendTransfer(value)).to.be.rejectedWith('node is down');
-  };
+  function sendRelayTransaction() {
+    return transactionManager.sendTransaction({
+      signer: WORKER_ADDRESS,
+      serverAction: ServerAction.RELAY_CALL,
+      destination: DESTINATION,
+      gasLimit: BigNumber.from(100000),
+      gasPrice: BigNumber.from(NODE_GAS_PRICE),
+      creationBlockNumber: 1,
+    });
+  }
 
-  describe('sendTransaction', function () {
-    it('should store the value of a transfer whose broadcast failed', async function () {
-      const value = utils.parseEther('0.0001');
+  function createStoredTx(gasPrice: BigNumber): StoredTransaction {
+    return {
+      txId: OLD_TX_HASH,
+      from: WORKER_ADDRESS,
+      attempts: 1,
+      serverAction: ServerAction.RELAY_CALL,
+      creationBlockNumber: 1,
+      to: DESTINATION,
+      gasLimit: BigNumber.from(100000),
+      gasPrice,
+      data: '0x',
+      nonce: NONCE,
+    };
+  }
 
-      await storeWithFailedBroadcast(value);
+  describe('Function sendTransaction()', function () {
+    it('should take the next nonce and keep the transaction when the node accepts it', async function () {
+      broadcast.resolves({ hash: TX_HASH });
 
-      const [storedTx] = await txStoreManager.getAllBySigner(worker);
-      expect(storedTx?.value).to.be.instanceOf(BigNumber);
-      expect(storedTx?.value?.eq(value)).to.be.true;
+      await expect(sendRelayTransaction()).to.be.fulfilled;
+
+      expect(transactionManager.nonces[WORKER_ADDRESS]).to.equal(NONCE + 1);
+      // eslint-disable-next-line @typescript-eslint/unbound-method -- a sinon stub, not a method call
+      expect(txStoreManager.putTx).to.have.been.calledOnceWith(
+        sinon.match({ txId: TX_HASH, nonce: NONCE }),
+        false
+      );
+      // eslint-disable-next-line @typescript-eslint/unbound-method -- a sinon stub, not a method call
+      expect(txStoreManager.removeTx).not.to.have.been.called;
+    });
+
+    it('should give the nonce back and forget the transaction when the node refuses it', async function () {
+      broadcast.rejects(new Error('gas price above cap'));
+
+      await expect(sendRelayTransaction()).to.be.rejectedWith(
+        'gas price above cap'
+      );
+
+      expect(transactionManager.nonces[WORKER_ADDRESS]).to.equal(NONCE);
+      // eslint-disable-next-line @typescript-eslint/unbound-method -- a sinon stub, not a method call
+      expect(txStoreManager.removeTx).to.have.been.calledOnceWith(
+        sinon.match({ txId: TX_HASH, nonce: NONCE })
+      );
+    });
+
+    it('should reuse the nonce of a refused transaction for the next one', async function () {
+      broadcast.onFirstCall().rejects(new Error('gas price above cap'));
+      broadcast.onSecondCall().resolves({ hash: TX_HASH });
+
+      await expect(sendRelayTransaction()).to.be.rejected;
+      await expect(sendRelayTransaction()).to.be.fulfilled;
+
+      const [, firstTx] = workersKeyManager.signTransaction.firstCall.args;
+      const [, secondTx] = workersKeyManager.signTransaction.secondCall.args;
+      expect(firstTx.nonce).to.equal(NONCE);
+      expect(secondTx.nonce).to.equal(NONCE);
+      expect(transactionManager.nonces[WORKER_ADDRESS]).to.equal(NONCE + 1);
     });
   });
 
-  describe('boostUnderpricedPendingTransactionsForSigner', function () {
-    it('should resend a transfer with its value', async function () {
-      const value = utils.parseEther('0.0001');
-      await storeWithFailedBroadcast(value);
+  describe('Function resendTransaction()', function () {
+    it('should keep the transaction as last broadcast when the node refuses the boost', async function () {
+      const storedTx = createStoredTx(BigNumber.from(100000000));
+      broadcast.rejects(new Error('gas price above cap'));
 
-      await transactionManager.boostUnderpricedPendingTransactionsForSigner(
-        worker,
-        boostBlock()
-      );
+      await expect(
+        transactionManager.resendTransaction(
+          storedTx,
+          10,
+          BigNumber.from(120000000),
+          false
+        )
+      ).to.be.rejectedWith('gas price above cap');
 
-      const [, replacement] = broadcastTransactions();
-      expect(replacement?.nonce).to.be.equal(0);
-      expect(replacement?.gasPrice?.eq(boostedGasPrice())).to.be.true;
-      expect(replacement?.value.eq(value)).to.be.true;
-      const [storedTx] = await txStoreManager.getAllBySigner(worker);
-      expect(storedTx?.value?.eq(value)).to.be.true;
-    });
-
-    it('should lower the value of a whole-balance transfer by the extra fee', async function () {
-      // what _sendWorkersEthBalancesToOwner sends on a stake unlock
-      await storeWithFailedBroadcast(balance.sub(GAS_LIMIT.mul(GAS_PRICE)));
-
-      await transactionManager.boostUnderpricedPendingTransactionsForSigner(
-        worker,
-        boostBlock()
-      );
-
-      const [, replacement] = broadcastTransactions();
-      const expectedValue = balance.sub(GAS_LIMIT.mul(boostedGasPrice()));
-      expect(replacement?.value.eq(expectedValue)).to.be.true;
-      expect(
-        replacement?.value.add(GAS_LIMIT.mul(boostedGasPrice())).eq(balance)
-      ).to.be.true;
-      const [storedTx] = await txStoreManager.getAllBySigner(worker);
-      expect(storedTx?.value?.eq(expectedValue)).to.be.true;
-    });
-
-    it('should fit the replacement in the balance the write node sees', async function () {
-      await storeWithFailedBroadcast(balance.sub(GAS_LIMIT.mul(GAS_PRICE)));
-      // the read node is behind a top-up the write node already has
-      const writeBalance = balance.add(utils.parseEther('0.002'));
-      const writeProvider = {
-        getNetwork: () => Promise.resolve({ chainId: 31 }),
-        getTransactionCount: () => Promise.resolve(0),
-        getBalance: () => Promise.resolve(writeBalance),
-        sendTransaction: broadcast,
-      } as unknown as providers.Provider;
-      (serverUtils.getWriteProvider as SinonStub).returns(writeProvider);
-
-      await transactionManager.boostUnderpricedPendingTransactionsForSigner(
-        worker,
-        boostBlock()
-      );
-
-      const [original, replacement] = broadcastTransactions();
-      expect(replacement?.value.eq(original?.value ?? 0)).to.be.true;
-    });
-
-    it('should leave a later transfer only what the earlier pending ones do not spend', async function () {
-      const firstValue = utils.parseEther('0.0006');
-      await storeWithFailedBroadcast(firstValue);
-      await storeWithFailedBroadcast(utils.parseEther('0.0006'));
-
-      await transactionManager.boostUnderpricedPendingTransactionsForSigner(
-        worker,
-        boostBlock()
-      );
-
-      const [, , first, second] = broadcastTransactions();
-      const fee = GAS_LIMIT.mul(boostedGasPrice());
-      expect(first?.nonce).to.be.equal(0);
-      expect(first?.value.eq(firstValue)).to.be.true;
-      expect(second?.nonce).to.be.equal(1);
-      expect(second?.value.eq(balance.sub(fee).sub(firstValue).sub(fee))).to.be
-        .true;
-    });
-
-    it('should resend a transaction stored without a value with value zero', async function () {
-      await storeWithFailedBroadcast(utils.parseEther('0.0001'));
-      // a record written before the value was stored
-      const [storedTx] = await txStoreManager.getAllBySigner(worker);
-      await txStoreManager.putTx(
-        { ...storedTx, value: undefined } as NonNullable<typeof storedTx>,
+      expect(txStoreManager.putTx.firstCall).to.have.been.calledWith(
+        sinon.match({ txId: TX_HASH, attempts: 2 }),
         true
       );
-
-      await transactionManager.boostUnderpricedPendingTransactionsForSigner(
-        worker,
-        boostBlock()
+      expect(txStoreManager.putTx.lastCall).to.have.been.calledWith(
+        storedTx,
+        true
       );
+    });
+  });
 
-      const [, replacement] = broadcastTransactions();
-      expect(replacement?.value.isZero()).to.be.true;
+  describe('Function _resolveNewGasPrice()', function () {
+    it('should raise the gasPrice by the retry factor', function () {
+      const { newGasPrice, isMaxGasPriceReached } =
+        transactionManager._resolveNewGasPrice(
+          BigNumber.from(10000000),
+          BigNumber.from(NODE_GAS_PRICE)
+        );
+
+      expect(newGasPrice.toString()).to.equal('12000000');
+      expect(isMaxGasPriceReached).to.be.false;
+    });
+
+    it('should not raise the gasPrice above what the node accepts', function () {
+      // 20 times the node gasPrice, below maxGasPrice
+      const nodeMaxGasPrice = BigNumber.from(NODE_GAS_PRICE).mul(20);
+
+      const { newGasPrice, isMaxGasPriceReached } =
+        transactionManager._resolveNewGasPrice(
+          nodeMaxGasPrice.sub(1),
+          BigNumber.from(NODE_GAS_PRICE)
+        );
+
+      expect(newGasPrice.toString()).to.equal(nodeMaxGasPrice.toString());
+      expect(isMaxGasPriceReached).to.be.true;
+    });
+
+    it('should not raise the gasPrice above maxGasPrice', function () {
+      transactionManager.config = {
+        ...transactionManager.config,
+        blockchain: {
+          ...transactionManager.config.blockchain,
+          maxGasPrice: 100000000,
+        },
+      };
+
+      const { newGasPrice, isMaxGasPriceReached } =
+        transactionManager._resolveNewGasPrice(
+          BigNumber.from(99999999),
+          BigNumber.from(NODE_GAS_PRICE)
+        );
+
+      expect(newGasPrice.toString()).to.equal('100000000');
+      expect(isMaxGasPriceReached).to.be.true;
+    });
+  });
+
+  describe('Function boostUnderpricedPendingTransactionsForSigner()', function () {
+    it('should boost a stale transaction up to what the node accepts at that moment', async function () {
+      const { pendingTransactionTimeoutBlocks } =
+        transactionManager.config.blockchain;
+      const nodeMaxGasPrice = BigNumber.from(NODE_GAS_PRICE).mul(20);
+      txStoreManager.getAllBySigner.resolves([
+        createStoredTx(nodeMaxGasPrice.sub(1)),
+      ]);
+      broadcast.resolves({ hash: TX_HASH });
+
+      const boosted =
+        await transactionManager.boostUnderpricedPendingTransactionsForSigner(
+          WORKER_ADDRESS,
+          1 + pendingTransactionTimeoutBlocks
+        );
+
+      expect(boosted.size).to.equal(1);
+      const [, boostedTx] = workersKeyManager.signTransaction.firstCall.args;
+      expect(boostedTx.gasPrice?.toString()).to.equal(
+        nodeMaxGasPrice.toString()
+      );
     });
   });
 });
