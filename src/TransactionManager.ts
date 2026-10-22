@@ -621,11 +621,20 @@ data         | 0x${transaction.data ?? ''}
 
     const provider = getProvider();
 
-    // Check if the tx was mined by comparing its nonce against the latest one
-    const nonce = await provider.getTransactionCount(signer);
+    // Check if the tx was mined by comparing its nonce against the latest one.
+    // The transactions are broadcast to the write node, which can be ahead of
+    // a lagging read node; a mined transaction re-signed and broadcast again
+    // is refused as a nonce too low, so the higher of the two counts is used
+    const nonce = Math.max(
+      await provider.getTransactionCount(signer),
+      await getWriteProvider().getTransactionCount(signer)
+    );
     const oldestPendingTx = sortedTxs[0];
     if (oldestPendingTx) {
-      if (oldestPendingTx.nonce && oldestPendingTx.nonce < nonce) {
+      if (
+        oldestPendingTx.nonce !== undefined &&
+        oldestPendingTx.nonce < nonce
+      ) {
         log.debug(
           `${signer} : transaction is mined, awaiting confirmations. Account nonce: ${nonce}, oldest transaction: nonce: ${oldestPendingTx.nonce} txId: ${oldestPendingTx.txId}`
         );
