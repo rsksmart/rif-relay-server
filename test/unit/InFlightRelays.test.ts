@@ -14,7 +14,7 @@ const redeem = new utils.Interface([
 function createRequest({
   callForwarder = Wallet.createRandom().address,
   from = Wallet.createRandom().address,
-  nonce = 0,
+  nonce = '0' as string | number,
   to = HTLC,
   data = redeem.encodeFunctionData('redeem', [
     PREIMAGE,
@@ -36,6 +36,19 @@ describe('InFlightRelays', function () {
 
       expect(getInFlightKeys(request)).to.have.lengthOf(1);
       expect(getInFlightKeys(request)[0]).to.match(/^nonce:/);
+    });
+
+    it('should give every encoding of the same nonce the same key', function () {
+      const callForwarder = Wallet.createRandom().address;
+      const from = Wallet.createRandom().address;
+      const keyOf = (nonce: string) =>
+        getInFlightKeys(
+          createRequest({ callForwarder, from, nonce, data: '0x' })
+        )[0];
+
+      expect(keyOf('01')).to.equal(keyOf('1'));
+      expect(keyOf('0x01')).to.equal(keyOf('1'));
+      expect(keyOf('0x00')).to.equal(keyOf('0'));
     });
 
     it('should key a claim by its swap too', function () {
