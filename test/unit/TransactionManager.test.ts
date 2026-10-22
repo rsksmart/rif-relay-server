@@ -196,7 +196,9 @@ describe('TransactionManager tests', function () {
       // it tells the caller which nonce it keeps
       expect(error).to.be.instanceOf(UnansweredBroadcastError);
       expect((error as UnansweredBroadcastError).nonce).to.equal(NONCE);
-      expect((error as UnansweredBroadcastError).message).to.contain('timeout');
+      expect((error as UnansweredBroadcastError).message).to.equal(
+        'timeout (TIMEOUT)'
+      );
       expect(transactionManager.nonces[WORKER_ADDRESS]).to.equal(NONCE + 1);
       // eslint-disable-next-line @typescript-eslint/unbound-method -- a sinon stub, not a method call
       expect(txStoreManager.putTx).to.have.been.calledOnceWith(
@@ -205,6 +207,29 @@ describe('TransactionManager tests', function () {
       );
       // eslint-disable-next-line @typescript-eslint/unbound-method -- a sinon stub, not a method call
       expect(txStoreManager.removeTx).not.to.have.been.called;
+    });
+
+    it('should give the client only the reason of a broadcast the node did not answer', async function () {
+      // ethers puts the whole request, signed transaction included, in it
+      const lost = logger.makeError(
+        'missing response',
+        utils.Logger.errors.SERVER_ERROR,
+        {
+          requestBody:
+            '{"method":"eth_sendRawTransaction","params":["0xsigned"]}',
+          serverError: new Error('socket hang up'),
+        }
+      );
+      broadcast.rejects(lost);
+
+      const error: unknown = await sendRelayTransaction().catch(
+        (e: unknown) => e
+      );
+
+      expect(serverUtils.clientErrorMessage(error)).to.equal(
+        'missing response (SERVER_ERROR)'
+      );
+      expect((error as UnansweredBroadcastError).error).to.equal(lost);
     });
 
     it('should not reuse the nonce of a transaction whose broadcast response was lost', async function () {

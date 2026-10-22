@@ -16,7 +16,7 @@ import {
   StoredTransaction,
   StoredTransactionMetadata,
 } from './StoredTransaction';
-import { getProvider, getWriteProvider } from './Utils';
+import { clientErrorMessage, getProvider, getWriteProvider } from './Utils';
 import { planBoost } from './planBoost';
 import { applyFactor } from './Conversions';
 import { getMaxRequestGasPrice } from './relayServerUtils';
@@ -48,7 +48,9 @@ export class UnansweredBroadcastError extends Error {
   readonly error: unknown;
 
   constructor(nonce: number, error: unknown) {
-    super(error instanceof Error ? error.message : String(error));
+    // the message a client gets; the full error, which can hold the request
+    // and the signed transaction, stays in `error` for the log
+    super(clientErrorMessage(error));
     this.name = 'UnansweredBroadcastError';
     this.nonce = nonce;
     this.error = error;
