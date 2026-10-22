@@ -435,6 +435,29 @@ describe('RelayServer tests', function () {
       expect(sendTransaction).to.have.been.calledOnce;
     });
 
+    it('should refuse a copy checked before its request was confirmed', async function () {
+      const request = createEnvelopingRequest();
+      // the first copy is checked against the chain before the request is mined
+      let passFirstCheck: () => void = () => undefined;
+      (relayServer.validateRequestWithVerifier as SinonStub)
+        .onFirstCall()
+        .returns(
+          new Promise<void>((resolve) => {
+            passFirstCheck = resolve;
+          })
+        );
+
+      const first = relayServer.createRelayTransaction(request);
+      await expect(relayServer.createRelayTransaction(request)).to.be.fulfilled;
+      relayServer.inFlightRelays.releaseMined(8);
+
+      passFirstCheck();
+      await expect(first).to.be.rejectedWith(
+        'was mined while this one was checked'
+      );
+      expect(sendTransaction).to.have.been.calledOnce;
+    });
+
     it('should answer with a transaction kept under another hash, and hold its request', async function () {
       const request = createEnvelopingRequest();
       const kept = { txHash: utils.keccak256(signedTx), signedTx, nonce: 7 };

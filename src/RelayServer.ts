@@ -616,11 +616,19 @@ export class RelayServer extends EventEmitter {
     }
     this.validateInputTypes(envelopingTransaction);
 
-    return await this._createRelayTransaction(envelopingTransaction);
+    // The checks run against the chain as it is when they start, see
+    // InFlightRelays.acquire
+    const check = this.inFlightRelays.startCheck();
+    try {
+      return await this._createRelayTransaction(envelopingTransaction, check);
+    } finally {
+      this.inFlightRelays.endCheck(check);
+    }
   }
 
   async _createRelayTransaction(
-    envelopingTransaction: HttpEnvelopingRequest
+    envelopingTransaction: HttpEnvelopingRequest,
+    check: number
   ): Promise<SignedTransactionDetails> {
     const {
       blockchain: { minAlertedDelayMS, maxAlertedDelayMS },
@@ -698,8 +706,9 @@ export class RelayServer extends EventEmitter {
     // The keys are taken only once the request has passed every check and the
     // dry run, so one that fails them, such as a forged copy, never holds the
     // keys of another. They are taken synchronously, so of two copies that
-    // passed together only the first is broadcast
-    const inFlightRelay = this.inFlightRelays.acquire(inFlightKeys);
+    // passed together only the first is broadcast, and a copy whose checks
+    // started before the first was confirmed is refused
+    const inFlightRelay = this.inFlightRelays.acquire(inFlightKeys, check);
     let txDetails: SentTransactionDetails;
     try {
       txDetails = await this.transactionManager.sendTransaction(details);

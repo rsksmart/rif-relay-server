@@ -34,6 +34,11 @@ function createRequest({
   } as unknown as EnvelopingRequest;
 }
 
+// Takes the keys of a request whose checks have just started
+function acquire(inFlightRelays: InFlightRelays, keys: string[]) {
+  return inFlightRelays.acquire(keys, inFlightRelays.startCheck());
+}
+
 // The worker transaction that relays a request: a call to RelayHub
 function encodeRelayTransaction(
   { request, relayData }: EnvelopingRequest,
@@ -201,36 +206,40 @@ describe('InFlightRelays', function () {
     it('should refuse a request with the same smart wallet nonce', function () {
       const callForwarder = Wallet.createRandom().address;
       const from = Wallet.createRandom().address;
-      inFlightRelays.acquire(
+      acquire(
+        inFlightRelays,
         getInFlightKeys(createRequest({ callForwarder, from, data: '0x' }))
       );
 
       expect(() =>
-        inFlightRelays.acquire(
+        acquire(
+          inFlightRelays,
           getInFlightKeys(createRequest({ callForwarder, from, data: '0x01' }))
         )
       ).to.throw('same smart wallet nonce');
     });
 
     it('should refuse a claim of the same swap from another smart wallet', function () {
-      inFlightRelays.acquire(getInFlightKeys(createRequest()));
+      acquire(inFlightRelays, getInFlightKeys(createRequest()));
 
       expect(() =>
-        inFlightRelays.acquire(getInFlightKeys(createRequest()))
+        acquire(inFlightRelays, getInFlightKeys(createRequest()))
       ).to.throw('same swap');
     });
 
     it('should accept the next nonce of the same smart wallet', function () {
       const callForwarder = Wallet.createRandom().address;
       const from = Wallet.createRandom().address;
-      inFlightRelays.acquire(
+      acquire(
+        inFlightRelays,
         getInFlightKeys(
           createRequest({ callForwarder, from, nonce: 0, data: '0x' })
         )
       );
 
       expect(() =>
-        inFlightRelays.acquire(
+        acquire(
+          inFlightRelays,
           getInFlightKeys(
             createRequest({ callForwarder, from, nonce: 1, data: '0x' })
           )
@@ -240,9 +249,60 @@ describe('InFlightRelays', function () {
 
     it('should accept the request again once released', function () {
       const keys = getInFlightKeys(createRequest());
-      inFlightRelays.release(inFlightRelays.acquire(keys));
+      inFlightRelays.release(acquire(inFlightRelays, keys));
 
-      expect(() => inFlightRelays.acquire(keys)).not.to.throw();
+      expect(() => acquire(inFlightRelays, keys)).not.to.throw();
+    });
+  });
+
+  describe('startCheck()', function () {
+    let inFlightRelays: InFlightRelays;
+    let keys: string[];
+
+    beforeEach(function () {
+      inFlightRelays = new InFlightRelays();
+      keys = getInFlightKeys(createRequest());
+    });
+
+    it('should refuse a request checked before another with its keys was confirmed', function () {
+      const check = inFlightRelays.startCheck();
+      acquire(inFlightRelays, keys).nonce = 7;
+      inFlightRelays.releaseMined(8);
+
+      expect(() => inFlightRelays.acquire(keys, check)).to.throw(
+        'was mined while this one was checked'
+      );
+    });
+
+    it('should accept a request checked after another with its keys was confirmed', function () {
+      acquire(inFlightRelays, keys).nonce = 7;
+      inFlightRelays.releaseMined(8);
+      const check = inFlightRelays.startCheck();
+
+      expect(() => inFlightRelays.acquire(keys, check)).not.to.throw();
+    });
+
+    it('should accept a request checked before another with its keys failed', function () {
+      const check = inFlightRelays.startCheck();
+      inFlightRelays.release(acquire(inFlightRelays, keys));
+
+      expect(() => inFlightRelays.acquire(keys, check)).not.to.throw();
+    });
+
+    it('should forget a confirmation once the checks that started before it end', function () {
+      const confirmedAt = (
+        inFlightRelays as unknown as { _confirmedAt: Map<string, number> }
+      )._confirmedAt;
+      const check = inFlightRelays.startCheck();
+      const originalCheck = inFlightRelays.startCheck();
+      inFlightRelays.acquire(keys, originalCheck).nonce = 7;
+      inFlightRelays.endCheck(originalCheck);
+      inFlightRelays.releaseMined(8);
+      expect(confirmedAt.size).to.equal(keys.length);
+
+      inFlightRelays.endCheck(check);
+
+      expect(confirmedAt.size).to.equal(0);
     });
   });
 
@@ -257,10 +317,10 @@ describe('InFlightRelays', function () {
       const keys = getInFlightKeys(createRequest());
       inFlightRelays.restore(keys, 7);
 
-      expect(() => inFlightRelays.acquire(keys)).to.throw();
+      expect(() => acquire(inFlightRelays, keys)).to.throw();
 
       inFlightRelays.releaseMined(8);
-      expect(() => inFlightRelays.acquire(keys)).not.to.throw();
+      expect(() => acquire(inFlightRelays, keys)).not.to.throw();
     });
 
     it('should keep a key two restored requests share with the later worker nonce', function () {
@@ -269,10 +329,10 @@ describe('InFlightRelays', function () {
       inFlightRelays.restore([claimKey], 7);
 
       inFlightRelays.releaseMined(8);
-      expect(() => inFlightRelays.acquire([claimKey])).to.throw('same swap');
+      expect(() => acquire(inFlightRelays, [claimKey])).to.throw('same swap');
 
       inFlightRelays.releaseMined(10);
-      expect(() => inFlightRelays.acquire([claimKey])).not.to.throw();
+      expect(() => acquire(inFlightRelays, [claimKey])).not.to.throw();
     });
   });
 
@@ -285,23 +345,23 @@ describe('InFlightRelays', function () {
 
     it('should hold a request until its worker transaction is mined', function () {
       const keys = getInFlightKeys(createRequest());
-      inFlightRelays.acquire(keys).nonce = 7;
+      acquire(inFlightRelays, keys).nonce = 7;
 
       inFlightRelays.releaseMined(7);
-      expect(() => inFlightRelays.acquire(keys)).to.throw();
+      expect(() => acquire(inFlightRelays, keys)).to.throw();
 
       inFlightRelays.releaseMined(8);
-      expect(() => inFlightRelays.acquire(keys)).not.to.throw();
+      expect(() => acquire(inFlightRelays, keys)).not.to.throw();
     });
 
     it('should hold a request that is not broadcast yet', function () {
       const keys = getInFlightKeys(createRequest());
-      inFlightRelays.acquire(keys);
+      acquire(inFlightRelays, keys);
 
       inFlightRelays.releaseMined(100);
 
       expect(inFlightRelays.hasBroadcast()).to.be.false;
-      expect(() => inFlightRelays.acquire(keys)).to.throw();
+      expect(() => acquire(inFlightRelays, keys)).to.throw();
     });
   });
 });

@@ -61,6 +61,10 @@ export function getInFlightKeysOfRelayTransaction(data: string): string[] {
   return getInFlightKeys(envelopingRequest);
 }
 
+function describeKey(key: string): string {
+  return key.startsWith('claim:') ? 'swap' : 'smart wallet nonce';
+}
+
 export type InFlightRelay = {
   keys: string[];
   // The nonce of the worker transaction, once it is broadcast
@@ -76,17 +80,71 @@ export type InFlightRelay = {
 export class InFlightRelays {
   private readonly _relays = new Map<string, InFlightRelay>();
 
+  // How many relays have been released as confirmed
+  private _confirmations = 0;
+
+  // The keys released as confirmed while a check that started before was
+  // running, by the value of _confirmations right after their release
+  private readonly _confirmedAt = new Map<string, number>();
+
+  // The checks running, by the value of _confirmations when they started, and
+  // how many started at it
+  private readonly _checks = new Map<number, number>();
+
+  /**
+   * Starts the checks of a request, and returns what acquire needs to know
+   * whether they are stale. Each call needs an endCheck once the request is
+   * relayed or refused.
+   */
+  startCheck(): number {
+    const check = this._confirmations;
+    this._checks.set(check, (this._checks.get(check) ?? 0) + 1);
+
+    return check;
+  }
+
+  endCheck(check: number): void {
+    const running = (this._checks.get(check) ?? 0) - 1;
+    if (running > 0) {
+      this._checks.set(check, running);
+    } else {
+      this._checks.delete(check);
+    }
+    // a confirmation only makes stale the checks that started before it
+    const oldest = Math.min(...this._checks.keys());
+    this._confirmedAt.forEach((confirmedAt, key) => {
+      if (confirmedAt <= oldest) {
+        this._confirmedAt.delete(key);
+      }
+    });
+  }
+
   /**
    * Takes the keys of a request, or throws if a request in flight holds any
    * of them. It is synchronous, so two concurrent requests cannot both pass.
+   * It also throws if a request with any of the keys was confirmed after the
+   * checks of this one started: they ran against the chain from before, so
+   * they passed although the nonce or the swap is now used.
+   * @param keys The keys of the request.
+   * @param check What startCheck returned when its checks started.
    */
-  acquire(keys: string[]): InFlightRelay {
+  acquire(keys: string[], check: number): InFlightRelay {
     const busy = keys.find((key) => this._relays.has(key));
     if (busy) {
       throw new Error(
-        `Another request for the same ${
-          busy.startsWith('claim:') ? 'swap' : 'smart wallet nonce'
-        } is already being relayed; retry once it is mined`
+        `Another request for the same ${describeKey(
+          busy
+        )} is already being relayed; retry once it is mined`
+      );
+    }
+    const confirmed = keys.find(
+      (key) => (this._confirmedAt.get(key) ?? check) > check
+    );
+    if (confirmed) {
+      throw new Error(
+        `Another request for the same ${describeKey(
+          confirmed
+        )} was mined while this one was checked`
       );
     }
     const relay: InFlightRelay = { keys };
@@ -125,7 +183,16 @@ export class InFlightRelays {
   releaseMined(minedNonce: number): void {
     this._getBroadcast()
       .filter(({ nonce }) => nonce !== undefined && nonce < minedNonce)
-      .forEach((relay) => this.release(relay));
+      .forEach((relay) => {
+        this.release(relay);
+        this._confirmations++;
+        // only the checks running now can be stale because of it
+        if (this._checks.size) {
+          relay.keys.forEach((key) =>
+            this._confirmedAt.set(key, this._confirmations)
+          );
+        }
+      });
   }
 
   hasBroadcast(): boolean {
