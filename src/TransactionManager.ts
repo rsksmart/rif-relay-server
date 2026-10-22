@@ -38,6 +38,24 @@ export interface SendTransactionDetails {
 }
 
 /**
+ * A broadcast the node didn't answer. The node may have accepted the
+ * transaction, so it stays stored with its nonce, and the boost sends it again
+ * if it isn't mined; `error` is the failure of the broadcast.
+ */
+export class UnansweredBroadcastError extends Error {
+  readonly nonce: number;
+
+  readonly error: unknown;
+
+  constructor(nonce: number, error: unknown) {
+    super(error instanceof Error ? error.message : String(error));
+    this.name = 'UnansweredBroadcastError';
+    this.nonce = nonce;
+    this.error = error;
+  }
+}
+
+/**
  * Whether a broadcast failed because the node answered with a JSON-RPC error,
  * i.e. it refused the transaction. Any other failure, such as a timeout or a
  * lost connection, may come after the node accepted the transaction.
@@ -218,15 +236,15 @@ data         | 0x${transaction.data ?? ''}
       } catch (error) {
         if (isRefusedByNode(error)) {
           await this._rollBackRefusedBroadcast(storedTx, error);
-        } else {
-          // The node may have accepted it, so the nonce stays taken; if it
-          // did not, the boost broadcasts the transaction again
-          log.warn(
-            `Broadcast of transaction ${storedTx.txId} failed without an answer from the node, keeping it:`,
-            error instanceof Error ? error.message : error
-          );
+          throw error;
         }
-        throw error;
+        // The node may have accepted it, so the nonce stays taken; if it did
+        // not, the boost broadcasts the transaction again
+        log.warn(
+          `Broadcast of transaction ${storedTx.txId} failed without an answer from the node, keeping it:`,
+          error instanceof Error ? error.message : error
+        );
+        throw new UnansweredBroadcastError(nonce, error);
       }
 
       if (transaction.hash.toLowerCase() !== storedTx.txId.toLowerCase()) {

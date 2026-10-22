@@ -4,6 +4,7 @@ import {
   RelayServer,
   ServerDependencies,
   TxStoreManager,
+  UnansweredBroadcastError,
 } from '../../src';
 import sinon, { SinonSpy, SinonStub, createStubInstance } from 'sinon';
 import * as rifClient from '@rsksmart/rif-relay-client';
@@ -321,6 +322,24 @@ describe('RelayServer tests', function () {
       const request = createEnvelopingRequest();
       await relayServer.createRelayTransaction(request);
 
+      await expect(
+        relayServer.createRelayTransaction(request)
+      ).to.be.rejectedWith('already being relayed');
+
+      relayServer.inFlightRelays.releaseMined(8);
+      await expect(relayServer.createRelayTransaction(request)).to.be.fulfilled;
+    });
+
+    it('should hold a request whose broadcast got no answer until its transaction is mined', async function () {
+      const request = createEnvelopingRequest();
+      // the node may have the transaction, and the boost sends it again
+      sendTransaction
+        .onFirstCall()
+        .rejects(new UnansweredBroadcastError(7, new Error('timeout')));
+
+      await expect(
+        relayServer.createRelayTransaction(request)
+      ).to.be.rejectedWith('timeout');
       await expect(
         relayServer.createRelayTransaction(request)
       ).to.be.rejectedWith('already being relayed');

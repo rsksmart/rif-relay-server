@@ -13,6 +13,7 @@ import {
   SendTransactionDetails,
   SignedTransactionDetails,
   TransactionManager,
+  UnansweredBroadcastError,
 } from './TransactionManager';
 import { ServerAction } from './StoredTransaction';
 import type { TxStoreManager } from './TxStoreManager';
@@ -588,7 +589,13 @@ export class RelayServer extends EventEmitter {
     try {
       txDetails = await this._createRelayTransaction(envelopingTransaction);
     } catch (error) {
-      this.inFlightRelays.release(inFlightRelay);
+      if (error instanceof UnansweredBroadcastError) {
+        // The node may have the transaction, and the boost sends it again
+        // otherwise, so a retry must wait until that worker nonce is mined
+        inFlightRelay.nonce = error.nonce;
+      } else {
+        this.inFlightRelays.release(inFlightRelay);
+      }
       throw error;
     }
 

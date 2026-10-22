@@ -9,6 +9,7 @@ import {
   StoredTransaction,
   TransactionManager,
   TxStoreManager,
+  UnansweredBroadcastError,
   isRefusedByNode,
 } from '../../src';
 import * as serverUtils from '../../src/Utils';
@@ -188,8 +189,14 @@ describe('TransactionManager tests', function () {
       // the node may have accepted the transaction before the response was lost
       broadcast.rejects(lostResponse());
 
-      await expect(sendRelayTransaction()).to.be.rejectedWith('timeout');
+      const error: unknown = await sendRelayTransaction().catch(
+        (e: unknown) => e
+      );
 
+      // it tells the caller which nonce it keeps
+      expect(error).to.be.instanceOf(UnansweredBroadcastError);
+      expect((error as UnansweredBroadcastError).nonce).to.equal(NONCE);
+      expect((error as UnansweredBroadcastError).message).to.contain('timeout');
       expect(transactionManager.nonces[WORKER_ADDRESS]).to.equal(NONCE + 1);
       // eslint-disable-next-line @typescript-eslint/unbound-method -- a sinon stub, not a method call
       expect(txStoreManager.putTx).to.have.been.calledOnceWith(
