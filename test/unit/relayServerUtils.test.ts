@@ -715,6 +715,17 @@ describe('relayServerUtils tests', function () {
 
       expect(maxGasPrice.toString()).to.equal('200000000');
     });
+
+    it('should not let the floor lift the maximum near the node gas price cap', function () {
+      // the node gasPrice when the minimum gas price is 500,000 wei, whose
+      // cap of 80 times the minimum is 40,000,000 wei, below the floor
+      const maxGasPrice = getMaxRequestGasPrice('550000', {
+        maxRequestGasPriceFactor: 20,
+        maxRequestGasPriceFloor: '60000000',
+      });
+
+      expect(maxGasPrice.toString()).to.equal('27500000');
+    });
   });
 
   describe('Function queryVerifiers()', function () {

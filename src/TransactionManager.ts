@@ -37,6 +37,28 @@ export interface SendTransactionDetails {
   creationBlockNumber: number;
 }
 
+/**
+ * Whether a broadcast failed because the node answered with a JSON-RPC error,
+ * i.e. it refused the transaction. Any other failure, such as a timeout or a
+ * lost connection, may come after the node accepted the transaction.
+ */
+export function isRefusedByNode(error: unknown): boolean {
+  // ethers wraps the node's error, the one with a numeric JSON-RPC code, in
+  // errors of its own under `error`
+  let cause = error;
+  for (let depth = 0; depth < 4; depth++) {
+    if (!cause || typeof cause !== 'object') {
+      return false;
+    }
+    if (typeof (cause as { code?: unknown }).code === 'number') {
+      return true;
+    }
+    cause = (cause as { error?: unknown }).error;
+  }
+
+  return false;
+}
+
 export class TransactionManager {
   nonceMutex = new Mutex();
 
@@ -194,7 +216,16 @@ data         | 0x${transaction.data ?? ''}
           signedTransaction.signedTx
         );
       } catch (error) {
-        await this._discardRefusedTransaction(storedTx, error);
+        if (isRefusedByNode(error)) {
+          await this._discardRefusedTransaction(storedTx, error);
+        } else {
+          // The node may have accepted it, so the nonce stays taken; if it
+          // did not, the boost broadcasts the transaction again
+          log.warn(
+            `Broadcast of transaction ${storedTx.txId} failed without an answer from the node, keeping it:`,
+            error instanceof Error ? error.message : error
+          );
+        }
         throw error;
       }
 
@@ -213,9 +244,7 @@ data         | 0x${transaction.data ?? ''}
   /**
    * Forgets a transaction the node refused to broadcast and gives its nonce
    * back, so the next transaction of the signer takes it. Must be called
-   * under the nonce mutex. If the node did accept the transaction despite
-   * the error, pollNonce catches up with the node's pending nonce on the
-   * next send.
+   * under the nonce mutex.
    */
   async _discardRefusedTransaction(
     storedTx: StoredTransaction,
@@ -312,13 +341,23 @@ data         | 0x${transaction.data ?? ''}
     try {
       transaction = await provider.sendTransaction(signedTransaction.signedTx);
     } catch (error) {
-      // Keep tracking the transaction as it was last broadcast, so the next
-      // boost starts from a gas price the node has seen
-      log.error(
-        `Boosted transaction ${signedTransaction.txHash} was refused by the node, keeping ${tx.txId}:`,
-        error instanceof Error ? error.message : error
-      );
-      await this.txStoreManager.putTx(tx, true);
+      if (isRefusedByNode(error)) {
+        // Keep tracking the transaction as it was last broadcast, so the next
+        // boost starts from a gas price the node has seen
+        log.error(
+          `Boosted transaction ${signedTransaction.txHash} was refused by the node, keeping ${tx.txId}:`,
+          error instanceof Error ? error.message : error
+        );
+        await this.txStoreManager.putTx(tx, true);
+      } else {
+        // Either hash may be mined; the boost is kept since it is the one
+        // that mines if the node accepted it, and removeConfirmedTransactions
+        // clears it once the nonce is confirmed under the other hash
+        log.warn(
+          `Broadcast of boosted transaction ${signedTransaction.txHash} failed without an answer from the node, keeping it in place of ${tx.txId}:`,
+          error instanceof Error ? error.message : error
+        );
+      }
       throw error;
     }
     if (transaction.hash.toLowerCase() !== storedTx.txId.toLowerCase()) {
@@ -392,6 +431,28 @@ data         | 0x${transaction.data ?? ''}
     return nonce;
   }
 
+  /**
+   * Whether a transaction of the signer with the given nonce, under any hash,
+   * was mined at least confirmationsNeeded blocks ago
+   */
+  async _isNonceConfirmed(
+    signer: string,
+    nonce: number,
+    blockNumber: number
+  ): Promise<boolean> {
+    const confirmedBlock =
+      blockNumber - this.config.blockchain.confirmationsNeeded;
+    if (confirmedBlock < 0) {
+      return false;
+    }
+    const confirmedNonce = await getProvider().getTransactionCount(
+      signer,
+      confirmedBlock
+    );
+
+    return confirmedNonce > nonce;
+  }
+
   async removeConfirmedTransactions(blockNumber: number): Promise<void> {
     // Load unconfirmed transactions from store, and bail if there are none
     const sortedTxs = await this.txStoreManager.getAll();
@@ -414,6 +475,25 @@ data         | 0x${transaction.data ?? ''}
           transaction.txId
         );
         if (receipt == null) {
+          // A broadcast whose outcome was unknown may have left the store
+          // with a hash other than the one mined for its nonce
+          if (
+            transaction.nonce != null &&
+            (await this._isNonceConfirmed(
+              transaction.from,
+              transaction.nonce,
+              blockNumber
+            ))
+          ) {
+            log.debug(
+              `removing tx number ${transaction.nonce} sent by ${transaction.from}, confirmed under a hash other than ${transaction.txId}`
+            );
+            await this.txStoreManager.removeTxsUntilNonce(
+              transaction.from,
+              transaction.nonce
+            );
+            continue;
+          }
           log.warn(
             `warning: failed to fetch receipt for tx ${transaction.txId}`
           );

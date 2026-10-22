@@ -66,6 +66,17 @@ describe('ServerConfigParams tests', function () {
       );
     });
 
+    it('Should fail if maxRequestGasPriceFactor is above the node gas price cap margin', function () {
+      config.util.extendDeep(config, {
+        app: { disableSponsoredTx: false },
+        blockchain: { maxRequestGasPriceFactor: 51 },
+      });
+
+      expect(() => verifyServerConfiguration()).to.throw(
+        /"blockchain.maxRequestGasPriceFactor" must be less than or equal to 50/
+      );
+    });
+
     it('Should fail if maxRequestGasPriceFloor is negative', function () {
       config.util.extendDeep(config, {
         app: { disableSponsoredTx: false },

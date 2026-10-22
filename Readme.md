@@ -141,10 +141,11 @@ File [./config/default.json5](config/default.json5) contains all configuration p
     defaultGasLimit: 500000,
     maxGasPrice: 100000000000,
     // the highest gasPrice a request may set and a stale transaction is boosted to, as a multiple of the node's gasPrice;
-    // must stay well below the node's gas price cap (80 times the minimum gas price on RSK, about 73 times the node's gasPrice)
+    // at most 50, which keeps it below the node's gas price cap (80 times the minimum gas price on RSK, about 73 times the node's gasPrice)
     maxRequestGasPriceFactor: 20,
     // the maximum never drops below this absolute gasPrice (wei), so that clients using the rif-relay-client
-    // default gasPrice (0.06 gwei) keep being accepted when the node's gasPrice falls; must stay below the node's gas price cap
+    // default gasPrice (0.06 gwei) keep being accepted when the node's gasPrice falls; it never lifts the maximum above 50 times
+    // the node's gasPrice, so if the node's gasPrice falls below 1/50 of the floor, requests priced at the floor are rejected
     maxRequestGasPriceFloor: 60000000,
     estimateGasFactor: 1.2,
     initialBlockToScan: 1, // the first block to scan for events: at startup with startupStateSource "events", and for server activity when registrationBlockRate is set

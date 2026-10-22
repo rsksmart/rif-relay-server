@@ -1,5 +1,6 @@
 import { BigNumber, BigNumberish } from 'ethers';
 import { applyFactor } from '../Conversions';
+import { MAX_NODE_GAS_PRICE_FACTOR } from '../definitions/server.const';
 
 export type MaxRequestGasPriceConfig = {
   maxRequestGasPriceFactor: number;
@@ -15,6 +16,9 @@ export type MaxRequestGasPriceConfig = {
  * never be mined. The maximum therefore follows the node's gasPrice, with an
  * absolute floor so that clients using a fixed gasPrice (0.06 gwei by default
  * in rif-relay-client) keep being accepted when the node's gasPrice falls.
+ * The floor never lifts the maximum above MAX_NODE_GAS_PRICE_FACTOR times the
+ * node's gasPrice, so once the node's gasPrice falls far enough such a fixed
+ * gasPrice is rejected rather than sent above the cap.
  * @param nodeGasPrice the node's current gasPrice
  * @param config the blockchain configuration
  * @returns the maximum gasPrice, in wei
@@ -28,8 +32,11 @@ export function getMaxRequestGasPrice(
 ): BigNumber {
   const maxGasPrice = applyFactor(nodeGasPrice, maxRequestGasPriceFactor);
   const floor = BigNumber.from(maxRequestGasPriceFloor);
+  const ceiling = applyFactor(nodeGasPrice, MAX_NODE_GAS_PRICE_FACTOR);
 
-  return maxGasPrice.gt(floor) ? maxGasPrice : floor;
+  const flooredMaxGasPrice = maxGasPrice.gt(floor) ? maxGasPrice : floor;
+
+  return flooredMaxGasPrice.lt(ceiling) ? flooredMaxGasPrice : ceiling;
 }
 
 export default getMaxRequestGasPrice;

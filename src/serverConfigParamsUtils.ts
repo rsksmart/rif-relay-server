@@ -1,5 +1,6 @@
 import Joi, { CustomHelpers } from 'joi';
 import { utils, Wallet } from 'ethers';
+import { MAX_NODE_GAS_PRICE_FACTOR } from './definitions/server.const';
 
 const MAX_POSSIBLE_PORT_NUMBER = 65535;
 
@@ -115,7 +116,10 @@ const blockchainSchema = Joi.object({
   confirmationsNeeded: Joi.number().min(0).required(),
   retryGasPriceFactor: Joi.number().min(0).required(),
   maxGasPrice: Joi.number().min(0).unsafe().custom(isBigNumberish).required(),
-  maxRequestGasPriceFactor: Joi.number().min(1).required(),
+  maxRequestGasPriceFactor: Joi.number()
+    .min(1)
+    .max(MAX_NODE_GAS_PRICE_FACTOR)
+    .required(),
   maxRequestGasPriceFloor: Joi.number()
     .min(0)
     .unsafe()

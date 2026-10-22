@@ -2,18 +2,21 @@ import { expect, use } from 'chai';
 import chaiAsPromised from 'chai-as-promised';
 import sinon, { SinonStub, SinonStubbedInstance } from 'sinon';
 import sinonChai from 'sinon-chai';
-import { BigNumber, providers } from 'ethers';
+import { BigNumber, providers, utils } from 'ethers';
 import {
   KeyManager,
   ServerAction,
   StoredTransaction,
   TransactionManager,
   TxStoreManager,
+  isRefusedByNode,
 } from '../../src';
 import * as serverUtils from '../../src/Utils';
 
 use(sinonChai);
 use(chaiAsPromised);
+
+const logger = new utils.Logger('test');
 
 describe('TransactionManager tests', function () {
   const MANAGER_ADDRESS = '0x0000000000000000000000000000000000000001';
@@ -27,10 +30,34 @@ describe('TransactionManager tests', function () {
   // eth_gasPrice of a Rootstock testnet node
   const NODE_GAS_PRICE = '6215177';
 
+  // How ethers reports a JSON-RPC error answered by the node
+  function nodeRefusal(message: string) {
+    const rpcError = Object.assign(new Error(message), { code: -32010 });
+
+    return logger.makeError(
+      'processing response error',
+      utils.Logger.errors.SERVER_ERROR,
+      { error: rpcError }
+    );
+  }
+
+  // How ethers reports a request the node never answered
+  function lostResponse() {
+    return logger.makeError('timeout', utils.Logger.errors.TIMEOUT, {
+      timeout: 120000,
+    });
+  }
+
   let transactionManager: TransactionManager;
   let txStoreManager: SinonStubbedInstance<TxStoreManager>;
   let workersKeyManager: SinonStubbedInstance<KeyManager>;
   let broadcast: SinonStub;
+  let readProvider: {
+    getGasPrice: SinonStub;
+    getNetwork: SinonStub;
+    getTransactionCount: SinonStub;
+    getTransaction: SinonStub;
+  };
 
   beforeEach(function () {
     const managerKeyManager = sinon.createStubInstance(KeyManager);
@@ -49,11 +76,15 @@ describe('TransactionManager tests', function () {
     });
     txStoreManager = sinon.createStubInstance(TxStoreManager);
 
-    sinon.stub(serverUtils, 'getProvider').returns({
+    readProvider = {
       getGasPrice: sinon.stub().resolves(BigNumber.from(NODE_GAS_PRICE)),
       getNetwork: sinon.stub().resolves({ chainId: 31, name: 'rsk' }),
       getTransactionCount: sinon.stub().resolves(NONCE),
-    } as unknown as providers.Provider);
+      getTransaction: sinon.stub().resolves(null),
+    };
+    sinon
+      .stub(serverUtils, 'getProvider')
+      .returns(readProvider as unknown as providers.Provider);
     broadcast = sinon.stub();
     sinon.stub(serverUtils, 'getWriteProvider').returns({
       sendTransaction: broadcast,
@@ -116,10 +147,10 @@ describe('TransactionManager tests', function () {
     });
 
     it('should give the nonce back and forget the transaction when the node refuses it', async function () {
-      broadcast.rejects(new Error('gas price above cap'));
+      broadcast.rejects(nodeRefusal('gas price above cap'));
 
       await expect(sendRelayTransaction()).to.be.rejectedWith(
-        'gas price above cap'
+        'processing response error'
       );
 
       expect(transactionManager.nonces[WORKER_ADDRESS]).to.equal(NONCE);
@@ -130,7 +161,7 @@ describe('TransactionManager tests', function () {
     });
 
     it('should reuse the nonce of a refused transaction for the next one', async function () {
-      broadcast.onFirstCall().rejects(new Error('gas price above cap'));
+      broadcast.onFirstCall().rejects(nodeRefusal('gas price above cap'));
       broadcast.onSecondCall().resolves({ hash: TX_HASH });
 
       await expect(sendRelayTransaction()).to.be.rejected;
@@ -142,12 +173,39 @@ describe('TransactionManager tests', function () {
       expect(secondTx.nonce).to.equal(NONCE);
       expect(transactionManager.nonces[WORKER_ADDRESS]).to.equal(NONCE + 1);
     });
+
+    it('should keep the nonce and the transaction when the response to the broadcast is lost', async function () {
+      // the node may have accepted the transaction before the response was lost
+      broadcast.rejects(lostResponse());
+
+      await expect(sendRelayTransaction()).to.be.rejectedWith('timeout');
+
+      expect(transactionManager.nonces[WORKER_ADDRESS]).to.equal(NONCE + 1);
+      // eslint-disable-next-line @typescript-eslint/unbound-method -- a sinon stub, not a method call
+      expect(txStoreManager.putTx).to.have.been.calledOnceWith(
+        sinon.match({ txId: TX_HASH, nonce: NONCE }),
+        false
+      );
+      // eslint-disable-next-line @typescript-eslint/unbound-method -- a sinon stub, not a method call
+      expect(txStoreManager.removeTx).not.to.have.been.called;
+    });
+
+    it('should not reuse the nonce of a transaction whose broadcast response was lost', async function () {
+      broadcast.onFirstCall().rejects(lostResponse());
+      broadcast.onSecondCall().resolves({ hash: TX_HASH });
+
+      await expect(sendRelayTransaction()).to.be.rejected;
+      await expect(sendRelayTransaction()).to.be.fulfilled;
+
+      const [, secondTx] = workersKeyManager.signTransaction.secondCall.args;
+      expect(secondTx.nonce).to.equal(NONCE + 1);
+    });
   });
 
   describe('Function resendTransaction()', function () {
     it('should keep the transaction as last broadcast when the node refuses the boost', async function () {
       const storedTx = createStoredTx(BigNumber.from(100000000));
-      broadcast.rejects(new Error('gas price above cap'));
+      broadcast.rejects(nodeRefusal('gas price above cap'));
 
       await expect(
         transactionManager.resendTransaction(
@@ -156,7 +214,7 @@ describe('TransactionManager tests', function () {
           BigNumber.from(120000000),
           false
         )
-      ).to.be.rejectedWith('gas price above cap');
+      ).to.be.rejectedWith('processing response error');
 
       expect(txStoreManager.putTx.firstCall).to.have.been.calledWith(
         sinon.match({ txId: TX_HASH, attempts: 2 }),
@@ -166,6 +224,95 @@ describe('TransactionManager tests', function () {
         storedTx,
         true
       );
+    });
+
+    it('should keep the boosted transaction when the response to its broadcast is lost', async function () {
+      // the node may have accepted the boost before the response was lost
+      const storedTx = createStoredTx(BigNumber.from(100000000));
+      broadcast.rejects(lostResponse());
+
+      await expect(
+        transactionManager.resendTransaction(
+          storedTx,
+          10,
+          BigNumber.from(120000000),
+          false
+        )
+      ).to.be.rejectedWith('timeout');
+
+      // eslint-disable-next-line @typescript-eslint/unbound-method -- a sinon stub, not a method call
+      expect(txStoreManager.putTx).to.have.been.calledOnceWith(
+        sinon.match({ txId: TX_HASH, attempts: 2 }),
+        true
+      );
+    });
+  });
+
+  describe('Function removeConfirmedTransactions()', function () {
+    const BLOCK_NUMBER = 100;
+
+    beforeEach(function () {
+      // a boost whose broadcast response was lost and that never reached the
+      // node, while the transaction it replaces was mined
+      txStoreManager.getAll.resolves([
+        { ...createStoredTx(BigNumber.from(120000000)), txId: TX_HASH },
+      ]);
+      readProvider.getTransaction.resolves(null);
+    });
+
+    it('should forget a transaction whose nonce was confirmed under another hash', async function () {
+      readProvider.getTransactionCount.resolves(NONCE + 1);
+
+      await transactionManager.removeConfirmedTransactions(BLOCK_NUMBER);
+
+      expect(readProvider.getTransactionCount).to.have.been.calledOnceWith(
+        WORKER_ADDRESS,
+        BLOCK_NUMBER - transactionManager.config.blockchain.confirmationsNeeded
+      );
+      // eslint-disable-next-line @typescript-eslint/unbound-method -- a sinon stub, not a method call
+      expect(txStoreManager.removeTxsUntilNonce).to.have.been.calledOnceWith(
+        WORKER_ADDRESS,
+        NONCE
+      );
+    });
+
+    it('should keep a transaction whose nonce is not confirmed yet', async function () {
+      readProvider.getTransactionCount.resolves(NONCE);
+
+      await transactionManager.removeConfirmedTransactions(BLOCK_NUMBER);
+
+      // eslint-disable-next-line @typescript-eslint/unbound-method -- a sinon stub, not a method call
+      expect(txStoreManager.removeTxsUntilNonce).not.to.have.been.called;
+    });
+  });
+
+  describe('Function isRefusedByNode()', function () {
+    it('should tell a JSON-RPC error answered by the node', function () {
+      expect(isRefusedByNode(nodeRefusal('gas price above cap'))).to.be.true;
+    });
+
+    it('should tell a JSON-RPC error that ethers classified', function () {
+      const nonceExpired = logger.makeError(
+        'nonce has already been used',
+        utils.Logger.errors.NONCE_EXPIRED,
+        { error: nodeRefusal('nonce too low') }
+      );
+
+      expect(isRefusedByNode(nonceExpired)).to.be.true;
+    });
+
+    it('should not take a timeout for a refusal', function () {
+      expect(isRefusedByNode(lostResponse())).to.be.false;
+    });
+
+    it('should not take a lost connection for a refusal', function () {
+      const missingResponse = logger.makeError(
+        'missing response',
+        utils.Logger.errors.SERVER_ERROR,
+        { serverError: new Error('socket hang up') }
+      );
+
+      expect(isRefusedByNode(missingResponse)).to.be.false;
     });
   });
 

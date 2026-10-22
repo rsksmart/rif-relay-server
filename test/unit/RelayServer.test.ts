@@ -1,5 +1,6 @@
 import {
   KeyManager,
+  MAX_NODE_GAS_PRICE_FACTOR,
   RelayServer,
   ServerDependencies,
   TxStoreManager,
@@ -711,9 +712,12 @@ describe('RelayServer tests', function () {
         relayServer.config.blockchain;
 
       return BigNumber.from(
-        BigNumberJs.max(
-          BigNumberJs(NODE_GAS_PRICE).multipliedBy(maxRequestGasPriceFactor),
-          maxRequestGasPriceFloor.toString()
+        BigNumberJs.min(
+          BigNumberJs.max(
+            BigNumberJs(NODE_GAS_PRICE).multipliedBy(maxRequestGasPriceFactor),
+            maxRequestGasPriceFloor.toString()
+          ),
+          BigNumberJs(NODE_GAS_PRICE).multipliedBy(MAX_NODE_GAS_PRICE_FACTOR)
         ).toFixed(0)
       );
     }
@@ -761,6 +765,22 @@ describe('RelayServer tests', function () {
           createRequest(BigNumber.from(CLIENT_DEFAULT_GAS_PRICE))
         )
       ).to.be.fulfilled;
+    });
+
+    it('should reject the client default gasPrice when it is too close to the node gas price cap', async function () {
+      // the floor allows the client default, but it is above
+      // MAX_NODE_GAS_PRICE_FACTOR times this node gasPrice
+      relayServer.gasPrice = BigNumber.from(CLIENT_DEFAULT_GAS_PRICE)
+        .div(MAX_NODE_GAS_PRICE_FACTOR)
+        .sub(1);
+
+      await expect(
+        relayServer.validateInput(
+          createRequest(BigNumber.from(CLIENT_DEFAULT_GAS_PRICE))
+        )
+      ).to.be.rejectedWith(
+        /Unacceptable gasPrice: relayServer's maximum gasPrice:/
+      );
     });
 
     it('should reject a gasPrice lower than the node gasPrice', async function () {
