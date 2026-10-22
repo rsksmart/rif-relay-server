@@ -46,7 +46,11 @@ import {
   sleep,
 } from './Utils';
 import { AmountRequired } from './AmountRequired';
-import { InFlightRelays, getInFlightKeys } from './InFlightRelays';
+import {
+  InFlightRelays,
+  getInFlightKeys,
+  getInFlightKeysOfRelayTransaction,
+} from './InFlightRelays';
 import {
   RelayRequest,
   estimateRelayMaxPossibleGas,
@@ -876,6 +880,7 @@ networkId               | ${this.networkId}
 latestBlock             | ${latestBlock.number}
 latestBlock timestamp   | ${latestBlock.timestamp}
 `);
+    await this._restoreInFlightRelays();
     this._initialized = true;
 
     // Assume started server is not registered until _worker figures stuff out
@@ -903,6 +908,33 @@ latestBlock timestamp   | ${latestBlock.timestamp}
     }
 
     return await this._handleChanges(blockNumber);
+  }
+
+  /**
+   * Holds again the requests of the relay transactions the store kept from
+   * before a restart. They may still be mined, or sent again by the boost, so
+   * a copy of one has to wait as it did before the restart.
+   */
+  async _restoreInFlightRelays(): Promise<void> {
+    const storedTxs = await this.txStoreManager.getAllBySigner(
+      this.workerAddress
+    );
+    for (const { serverAction, data, nonce, txId } of storedTxs) {
+      if (serverAction !== ServerAction.RELAY_CALL || !data || nonce == null) {
+        continue;
+      }
+      try {
+        this.inFlightRelays.restore(
+          getInFlightKeysOfRelayTransaction(data),
+          nonce
+        );
+      } catch (error) {
+        log.warn(
+          `Could not read the request of stored relay transaction ${txId}, not holding it:`,
+          error instanceof Error ? error.message : error
+        );
+      }
+    }
   }
 
   async _releaseMinedRelays(): Promise<void> {

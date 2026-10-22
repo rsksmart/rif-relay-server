@@ -2,6 +2,7 @@ import {
   KeyManager,
   MAX_NODE_GAS_PRICE_FACTOR,
   RelayServer,
+  ServerAction,
   ServerDependencies,
   TxStoreManager,
   UnansweredBroadcastError,
@@ -344,6 +345,70 @@ describe('RelayServer tests', function () {
         relayServer.createRelayTransaction(request)
       ).to.be.rejectedWith('already being relayed');
 
+      relayServer.inFlightRelays.releaseMined(8);
+      await expect(relayServer.createRelayTransaction(request)).to.be.fulfilled;
+    });
+
+    it('should hold the requests of the relay transactions stored before a restart', async function () {
+      const request = createEnvelopingRequest();
+      const {
+        relayRequest: {
+          request: { from, nonce, to, data },
+          relayData: { callForwarder },
+        },
+      } = request;
+      const relayCall = RelayHub__factory.createInterface().encodeFunctionData(
+        'relayCall',
+        [
+          {
+            request: {
+              relayHub: constants.AddressZero,
+              from,
+              to,
+              tokenContract: constants.AddressZero,
+              value: 0,
+              gas: 0,
+              nonce,
+              tokenAmount: 0,
+              tokenGas: 0,
+              validUntilTime: 0,
+              data,
+            },
+            relayData: {
+              gasPrice: 0,
+              feesReceiver: constants.AddressZero,
+              callForwarder,
+              callVerifier: constants.AddressZero,
+            },
+          },
+          '0x',
+        ] as never
+      );
+      relayServer.txStoreManager = {
+        getAllBySigner: sinon.stub().resolves([
+          {
+            txId: '0x01',
+            serverAction: ServerAction.RELAY_CALL,
+            data: relayCall,
+            nonce: 7,
+          },
+          // not a relay, so it holds nothing
+          { txId: '0x02', serverAction: ServerAction.VALUE_TRANSFER, nonce: 8 },
+          // unreadable, so it is skipped
+          {
+            txId: '0x03',
+            serverAction: ServerAction.RELAY_CALL,
+            data: '0xdeadbeef',
+            nonce: 9,
+          },
+        ]),
+      } as unknown as TxStoreManager;
+
+      await relayServer._restoreInFlightRelays();
+
+      await expect(
+        relayServer.createRelayTransaction(request)
+      ).to.be.rejectedWith('already being relayed');
       relayServer.inFlightRelays.releaseMined(8);
       await expect(relayServer.createRelayTransaction(request)).to.be.fulfilled;
     });
@@ -1087,6 +1152,7 @@ describe('RelayServer tests', function () {
     let writeProvider: providers.Provider;
 
     beforeEach(function () {
+      (relayServer.txStoreManager.getAllBySigner as SinonStub).resolves([]);
       relayServer.config = {
         ...relayServer.config,
         blockchain: {

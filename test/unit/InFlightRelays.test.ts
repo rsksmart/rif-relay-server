@@ -1,6 +1,11 @@
 import { expect } from 'chai';
-import { Wallet, utils } from 'ethers';
-import { InFlightRelays, getInFlightKeys } from '../../src/InFlightRelays';
+import { Wallet, constants, utils } from 'ethers';
+import { RelayHub__factory } from '@rsksmart/rif-relay-contracts';
+import {
+  InFlightRelays,
+  getInFlightKeys,
+  getInFlightKeysOfRelayTransaction,
+} from '../../src/InFlightRelays';
 import type { EnvelopingRequest } from '../../src/definitions';
 
 const HTLC = '0x18123A31261a76c74C82ED2F8346002CaA78Ab39';
@@ -27,6 +32,44 @@ function createRequest({
     request: { from, nonce, to, data },
     relayData: { callForwarder },
   } as unknown as EnvelopingRequest;
+}
+
+// The worker transaction that relays a request: a call to RelayHub
+function encodeRelayTransaction(
+  { request, relayData }: EnvelopingRequest,
+  method: 'relayCall' | 'deployCall' = 'relayCall'
+): string {
+  const { from, nonce, to, data } = request;
+  const common = {
+    relayHub: constants.AddressZero,
+    from,
+    to,
+    tokenContract: constants.AddressZero,
+    value: 0,
+    nonce,
+    tokenAmount: 0,
+    tokenGas: 0,
+    validUntilTime: 0,
+    data,
+  };
+
+  const relayHub: utils.Interface = RelayHub__factory.createInterface();
+
+  return relayHub.encodeFunctionData(method, [
+    {
+      request:
+        method === 'relayCall'
+          ? { ...common, gas: 0 }
+          : { ...common, recoverer: constants.AddressZero, index: 0 },
+      relayData: {
+        gasPrice: 0,
+        feesReceiver: constants.AddressZero,
+        callForwarder: relayData.callForwarder,
+        callVerifier: constants.AddressZero,
+      },
+    },
+    '0x',
+  ]);
 }
 
 describe('InFlightRelays', function () {
@@ -104,6 +147,26 @@ describe('InFlightRelays', function () {
     });
   });
 
+  describe('getInFlightKeysOfRelayTransaction()', function () {
+    it('should read the keys of the request a relay transaction relays', function () {
+      const request = createRequest();
+
+      expect(
+        getInFlightKeysOfRelayTransaction(encodeRelayTransaction(request))
+      ).to.deep.equal(getInFlightKeys(request));
+    });
+
+    it('should read the keys of the request a deploy transaction relays', function () {
+      const request = createRequest({ data: '0x' });
+
+      expect(
+        getInFlightKeysOfRelayTransaction(
+          encodeRelayTransaction(request, 'deployCall')
+        )
+      ).to.deep.equal(getInFlightKeys(request));
+    });
+  });
+
   describe('acquire()', function () {
     let inFlightRelays: InFlightRelays;
 
@@ -156,6 +219,36 @@ describe('InFlightRelays', function () {
       inFlightRelays.release(inFlightRelays.acquire(keys));
 
       expect(() => inFlightRelays.acquire(keys)).not.to.throw();
+    });
+  });
+
+  describe('restore()', function () {
+    let inFlightRelays: InFlightRelays;
+
+    beforeEach(function () {
+      inFlightRelays = new InFlightRelays();
+    });
+
+    it('should hold a restored request until its worker transaction is mined', function () {
+      const keys = getInFlightKeys(createRequest());
+      inFlightRelays.restore(keys, 7);
+
+      expect(() => inFlightRelays.acquire(keys)).to.throw();
+
+      inFlightRelays.releaseMined(8);
+      expect(() => inFlightRelays.acquire(keys)).not.to.throw();
+    });
+
+    it('should keep a key two restored requests share with the later worker nonce', function () {
+      const [, claimKey = ''] = getInFlightKeys(createRequest());
+      inFlightRelays.restore([claimKey], 9);
+      inFlightRelays.restore([claimKey], 7);
+
+      inFlightRelays.releaseMined(8);
+      expect(() => inFlightRelays.acquire([claimKey])).to.throw('same swap');
+
+      inFlightRelays.releaseMined(10);
+      expect(() => inFlightRelays.acquire([claimKey])).not.to.throw();
     });
   });
 

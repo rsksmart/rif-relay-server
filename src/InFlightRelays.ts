@@ -1,5 +1,8 @@
 import { BigNumber, utils } from 'ethers';
+import { RelayHub__factory } from '@rsksmart/rif-relay-contracts';
 import type { EnvelopingRequest } from './definitions';
+
+const relayHubInterface = RelayHub__factory.createInterface();
 
 /**
  * Selectors of the swap claims the server relays, all of which take the
@@ -50,6 +53,18 @@ export function getInFlightKeys({
   return keys;
 }
 
+/**
+ * The keys of the request a worker transaction relays, read from its call
+ * to RelayHub.relayCall or deployCall.
+ * @param data The data of the worker transaction.
+ */
+export function getInFlightKeysOfRelayTransaction(data: string): string[] {
+  const [envelopingRequest] = relayHubInterface.parseTransaction({ data })
+    .args as unknown as [EnvelopingRequest];
+
+  return getInFlightKeys(envelopingRequest);
+}
+
 export type InFlightRelay = {
   keys: string[];
   // The nonce of the worker transaction, once it is broadcast
@@ -82,6 +97,21 @@ export class InFlightRelays {
     keys.forEach((key) => this._relays.set(key, relay));
 
     return relay;
+  }
+
+  /**
+   * Holds the keys of a relay already broadcast, such as one the store kept
+   * from before a restart, until its worker transaction is mined. When two
+   * share a key, the key stays with the later worker nonce.
+   */
+  restore(keys: string[], nonce: number): void {
+    const relay: InFlightRelay = { keys, nonce };
+    keys.forEach((key) => {
+      const holder = this._relays.get(key);
+      if (holder?.nonce === undefined || holder.nonce < nonce) {
+        this._relays.set(key, relay);
+      }
+    });
   }
 
   release(relay: InFlightRelay): void {
