@@ -33,7 +33,7 @@ This project works as a dependency as well as a stand-alone project.
 
 ### Pre-requisites
 
-- Node version 16.x
+- Node version 24.x (see `.nvmrc`)
 - RSKj Running Node.
   - **Note: To work properly with this server in Regtest, please use the RSKj configuration that can be found [here](https://github.com/rsksmart/rif-relay/blob/develop/docker/node.conf).**
 - [RIF Relay Contracts](https://github.com/rsksmart/rif-relay-contracts) deployed
