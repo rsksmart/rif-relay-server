@@ -45,6 +45,7 @@ import {
   sleep,
 } from './Utils';
 import { AmountRequired } from './AmountRequired';
+import { InFlightRelays, getInFlightKeys } from './InFlightRelays';
 import {
   RelayRequest,
   estimateRelayMaxPossibleGas,
@@ -162,6 +163,8 @@ export class RelayServer extends EventEmitter {
   networkId: number | undefined;
 
   trustedVerifiers: Set<string> = new Set<string>();
+
+  readonly inFlightRelays = new InFlightRelays();
 
   workerBalanceRequired: AmountRequired;
 
@@ -571,6 +574,34 @@ export class RelayServer extends EventEmitter {
     }
     this.validateInputTypes(envelopingTransaction);
 
+    const inFlightRelay = this.inFlightRelays.acquire(
+      getInFlightKeys(envelopingTransaction.relayRequest)
+    );
+    let txDetails: SignedTransactionDetails;
+    try {
+      txDetails = await this._createRelayTransaction(envelopingTransaction);
+    } catch (error) {
+      this.inFlightRelays.release(inFlightRelay);
+      throw error;
+    }
+
+    // Held until the worker transaction is mined, see _releaseMinedRelays
+    try {
+      inFlightRelay.nonce = utils.parseTransaction(txDetails.signedTx).nonce;
+    } catch (error) {
+      log.error(
+        `Could not read the nonce of relay transaction ${txDetails.txHash}, not holding its request:`,
+        error instanceof Error ? error.message : error
+      );
+      this.inFlightRelays.release(inFlightRelay);
+    }
+
+    return txDetails;
+  }
+
+  async _createRelayTransaction(
+    envelopingTransaction: HttpEnvelopingRequest
+  ): Promise<SignedTransactionDetails> {
     const {
       blockchain: { minAlertedDelayMS, maxAlertedDelayMS },
     } = this.config;
@@ -842,6 +873,7 @@ latestBlock timestamp   | ${latestBlock.timestamp}
     if (blockNumber <= this._lastScannedBlock) {
       throw new Error('Attempt to scan older block, aborting');
     }
+    await this._releaseMinedRelays();
     if (!this._shouldRefreshState(blockNumber)) {
       return [];
     }
@@ -855,6 +887,18 @@ latestBlock timestamp   | ${latestBlock.timestamp}
     }
 
     return await this._handleChanges(blockNumber);
+  }
+
+  async _releaseMinedRelays(): Promise<void> {
+    if (!this.inFlightRelays.hasBroadcast()) {
+      return;
+    }
+    // The write node is the one the worker transactions were broadcast to
+    const minedNonce = await getWriteProvider().getTransactionCount(
+      this.workerAddress,
+      'latest'
+    );
+    this.inFlightRelays.releaseMined(minedNonce);
   }
 
   async _refreshGasPrice(): Promise<void> {

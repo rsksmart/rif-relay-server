@@ -7,7 +7,7 @@ import {
 } from '../../src';
 import sinon, { SinonSpy, SinonStub, createStubInstance } from 'sinon';
 import * as rifClient from '@rsksmart/rif-relay-client';
-import { BigNumber, constants, providers, utils } from 'ethers';
+import { BigNumber, Wallet, constants, providers, utils } from 'ethers';
 import * as serverUtils from '../../src/Utils';
 import { ERC20__factory, ERC20, RelayHub } from '@rsksmart/rif-relay-contracts';
 import { expect, use } from 'chai';
@@ -142,6 +142,29 @@ describe('RelayServer tests', function () {
         .resolves(expectedTransactionDetails);
     });
 
+    function createEnvelopingRequest(
+      callForwarder = Wallet.createRandom().address
+    ): HttpEnvelopingRequest {
+      return {
+        metadata: {
+          relayHubAddress: '0x123abc',
+          relayMaxNonce: 1,
+        },
+        relayRequest: {
+          request: {
+            from: Wallet.createRandom().address,
+            nonce: '0',
+            to: Wallet.createRandom().address,
+            data: '0x',
+          },
+          relayData: {
+            gasPrice: GAS_PRICE,
+            callForwarder,
+          },
+        },
+      } as unknown as HttpEnvelopingRequest;
+    }
+
     afterEach(function () {
       sinon.restore();
     });
@@ -167,18 +190,9 @@ describe('RelayServer tests', function () {
       const expectedBlockNumber = 1;
       sinon.stub(provider, 'getBlockNumber').resolves(expectedBlockNumber);
       const onSpy = sinon.spy(relayServer, 'emit');
-      const signedTx = await relayServer.createRelayTransaction({
-        metadata: {
-          relayHubAddress: '0x123abc',
-          relayMaxNonce: 1,
-        },
-        relayRequest: {
-          request: {},
-          relayData: {
-            gasPrice: GAS_PRICE,
-          },
-        },
-      } as unknown as HttpEnvelopingRequest);
+      const signedTx = await relayServer.createRelayTransaction(
+        createEnvelopingRequest()
+      );
       expect(onSpy).to.have.been.calledWith(
         EVENT_REPLENISH_CHECK_REQUIRED,
         relayServer,
@@ -212,20 +226,125 @@ describe('RelayServer tests', function () {
         .stub(replenish, 'replenishStrategy')
         .rejects(new Error('Replenish failed'));
       sinon.stub(provider, 'getBlockNumber').resolves(1);
-      const signedTx = await relayServer.createRelayTransaction({
-        metadata: {
-          relayHubAddress: '0x123abc',
-          relayMaxNonce: 1,
-        },
-        relayRequest: {
-          request: {},
-          relayData: {
-            gasPrice: GAS_PRICE,
-          },
-        },
-      } as unknown as HttpEnvelopingRequest);
+      const signedTx = await relayServer.createRelayTransaction(
+        createEnvelopingRequest()
+      );
       expect(signedTx).to.be.eql(expectedTransactionDetails);
       expect(replenishStub).to.have.been.calledOnce;
+    });
+  });
+
+  describe('Function createRelayTransaction() with requests in flight', function () {
+    let relayServer: RelayServer;
+    let sendTransaction: SinonStub;
+    let signedTx: string;
+
+    function createEnvelopingRequest(): HttpEnvelopingRequest {
+      return {
+        metadata: { relayHubAddress: '0x123abc', relayMaxNonce: 1 },
+        relayRequest: {
+          request: {
+            from: Wallet.createRandom().address,
+            nonce: '0',
+            to: Wallet.createRandom().address,
+            data: '0x',
+          },
+          relayData: {
+            gasPrice: GAS_PRICE,
+            callForwarder: Wallet.createRandom().address,
+          },
+        },
+      } as unknown as HttpEnvelopingRequest;
+    }
+
+    beforeEach(async function () {
+      const stubKeyManager = {
+        getAddress: () => '0x123',
+      } as unknown as KeyManager;
+      relayServer = new RelayServer({
+        managerKeyManager: stubKeyManager,
+        workersKeyManager: stubKeyManager,
+        txStoreManager: {} as unknown as TxStoreManager,
+      });
+      sinon.stub(relayServer, 'isReady').returns(true);
+      sinon.stub(relayServer, 'validateInputTypes').returns();
+      sinon.stub(relayServer, 'validateInput').resolves();
+      sinon.stub(relayServer, 'validateMaxNonce').resolves();
+      sinon.stub(relayServer, 'validateRequestWithVerifier').resolves();
+      sinon
+        .stub(relayServerUtils, 'validateIfGasAmountIsAcceptable')
+        .resolves();
+      sinon.stub(relayServer, 'getMaxPossibleGas').resolves({
+        maxPossibleGas: BigNumber.from(1),
+        maxPossibleGasWithFee: BigNumber.from(1),
+      });
+      sinon
+        .stub(relayServerUtils, 'validateIfTokenAmountIsAcceptable')
+        .resolves();
+      sinon.stub(serverUtils, 'getRelayHub').returns({
+        populateTransaction: { relayCall: () => ({}) },
+      } as unknown as RelayHub);
+      sinon
+        .stub(relayServer, 'maxPossibleGasWithViewCall')
+        .resolves(BigNumber.from(1));
+      sinon.stub(provider, 'getBlockNumber').resolves(1);
+      sinon.stub(replenish, 'replenishStrategy').resolves([]);
+
+      signedTx = await Wallet.createRandom().signTransaction({
+        nonce: 7,
+        gasLimit: 21000,
+        gasPrice: 1,
+        chainId: 31,
+      });
+      sendTransaction = sinon
+        .stub(relayServer.transactionManager, 'sendTransaction')
+        .resolves({ txHash: utils.keccak256(signedTx), signedTx });
+    });
+
+    it('should refuse a concurrent copy of a request', async function () {
+      const request = createEnvelopingRequest();
+
+      const first = relayServer.createRelayTransaction(request);
+      await expect(
+        relayServer.createRelayTransaction(request)
+      ).to.be.rejectedWith('already being relayed');
+      await expect(first).to.be.fulfilled;
+      expect(sendTransaction).to.have.been.calledOnce;
+    });
+
+    it('should refuse a copy of a request until its transaction is mined', async function () {
+      const request = createEnvelopingRequest();
+      await relayServer.createRelayTransaction(request);
+
+      await expect(
+        relayServer.createRelayTransaction(request)
+      ).to.be.rejectedWith('already being relayed');
+
+      relayServer.inFlightRelays.releaseMined(8);
+      await expect(relayServer.createRelayTransaction(request)).to.be.fulfilled;
+    });
+
+    it('should accept a copy of a request that failed', async function () {
+      const request = createEnvelopingRequest();
+      sendTransaction.onFirstCall().rejects(new Error('node refused it'));
+
+      await expect(
+        relayServer.createRelayTransaction(request)
+      ).to.be.rejectedWith('node refused it');
+      await expect(relayServer.createRelayTransaction(request)).to.be.fulfilled;
+    });
+
+    it('should release the requests whose transaction is mined on each block', async function () {
+      await relayServer.createRelayTransaction(createEnvelopingRequest());
+      const getTransactionCount = sinon.stub().resolves(8);
+      sinon
+        .stub(serverUtils, 'getWriteProvider')
+        .returns({ getTransactionCount } as unknown as providers.Provider);
+
+      await relayServer._releaseMinedRelays();
+
+      expect(getTransactionCount).to.have.been.calledWith('0x123', 'latest');
+      expect(relayServer.inFlightRelays.hasBroadcast()).to.be.false;
     });
   });
 
