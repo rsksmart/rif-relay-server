@@ -58,6 +58,12 @@ describe('TransactionManager tests', function () {
     getTransactionCount: SinonStub;
     getTransaction: SinonStub;
   };
+  let writeProvider: {
+    sendTransaction: SinonStub;
+    getTransactionCount: SinonStub;
+    getTransaction: SinonStub;
+    getBalance: SinonStub;
+  };
 
   beforeEach(function () {
     const managerKeyManager = sinon.createStubInstance(KeyManager);
@@ -86,12 +92,16 @@ describe('TransactionManager tests', function () {
       .stub(serverUtils, 'getProvider')
       .returns(readProvider as unknown as providers.Provider);
     broadcast = sinon.stub();
-    sinon.stub(serverUtils, 'getWriteProvider').returns({
+    writeProvider = {
       sendTransaction: broadcast,
       getTransactionCount: sinon.stub().resolves(NONCE),
+      getTransaction: sinon.stub().resolves(null),
       // enough for any boost, so planBoost never lowers a value
       getBalance: sinon.stub().resolves(BigNumber.from(10).pow(18)),
-    } as unknown as providers.Provider);
+    };
+    sinon
+      .stub(serverUtils, 'getWriteProvider')
+      .returns(writeProvider as unknown as providers.Provider);
 
     transactionManager = new TransactionManager({
       managerKeyManager,
@@ -270,12 +280,13 @@ describe('TransactionManager tests', function () {
     });
 
     it('should keep the attempt of a transaction sent again unchanged when the node refuses it', async function () {
-      // sent again at its own price, it signs to the hash already stored
+      // sent again at its own price, it signs to the hash already stored; the
+      // node doesn't have it, so the refusal is a real one
       const storedTx = {
         ...createStoredTx(BigNumber.from(100000000)),
         txId: TX_HASH,
       };
-      broadcast.rejects(nodeRefusal('transaction already in pool'));
+      broadcast.rejects(nodeRefusal('insufficient funds'));
 
       await expect(
         transactionManager.resendTransaction(
@@ -291,6 +302,52 @@ describe('TransactionManager tests', function () {
       // eslint-disable-next-line @typescript-eslint/unbound-method -- a sinon stub, not a method call
       expect(txStoreManager.putTx).to.have.been.calledOnceWith(
         sinon.match({ txId: TX_HASH, attempts: 2, boostBlockNumber: 10 }),
+        true
+      );
+    });
+
+    it('should take a transaction sent again unchanged that the node already has as sent', async function () {
+      const storedTx = {
+        ...createStoredTx(BigNumber.from(100000000)),
+        txId: TX_HASH,
+      };
+      broadcast.rejects(nodeRefusal('transaction already in pool'));
+      writeProvider.getTransaction
+        .withArgs(TX_HASH)
+        .resolves({ hash: TX_HASH });
+
+      await expect(
+        transactionManager.resendTransaction(
+          storedTx,
+          10,
+          BigNumber.from(100000000),
+          true
+        )
+      ).to.be.fulfilled;
+
+      // eslint-disable-next-line @typescript-eslint/unbound-method -- a sinon stub, not a method call
+      expect(txStoreManager.putTx).to.have.been.calledOnceWith(
+        sinon.match({ txId: TX_HASH, attempts: 2, boostBlockNumber: 10 }),
+        true
+      );
+    });
+
+    it('should not take a transaction refused after a boost as sent although the node has the previous one', async function () {
+      const storedTx = createStoredTx(BigNumber.from(100000000));
+      broadcast.rejects(nodeRefusal('gas price above cap'));
+      writeProvider.getTransaction.resolves({ hash: OLD_TX_HASH });
+
+      await expect(
+        transactionManager.resendTransaction(
+          storedTx,
+          10,
+          BigNumber.from(120000000),
+          false
+        )
+      ).to.be.rejectedWith('processing response error');
+
+      expect(txStoreManager.putTx.lastCall).to.have.been.calledWith(
+        storedTx,
         true
       );
     });
@@ -543,6 +600,47 @@ describe('TransactionManager tests', function () {
           1 + pendingTransactionTimeoutBlocks
         );
       expect(onTime.size).to.equal(1);
+    });
+
+    it('should go on boosting when the node already has the oldest transaction sent again unchanged', async function () {
+      const { pendingTransactionTimeoutBlocks } =
+        transactionManager.config.blockchain;
+      const nodeMaxGasPrice = BigNumber.from(NODE_GAS_PRICE).mul(20);
+      const BOOST_HASH =
+        '0x3333333333333333333333333333333333333333333333333333333333333333';
+      // the oldest is at a price that can't be raised and still in the pool
+      const oldestTx = {
+        ...createStoredTx(BigNumber.from(NODE_GAS_PRICE).mul(30)),
+        txId: TX_HASH,
+      };
+      const cheaperTx = {
+        ...createStoredTx(BigNumber.from(NODE_GAS_PRICE)),
+        nonce: NONCE + 1,
+      };
+      txStoreManager.getAllBySigner.resolves([oldestTx, cheaperTx]);
+      workersKeyManager.signTransaction
+        .onSecondCall()
+        .resolves({ txHash: BOOST_HASH, signedTx: '0xboosted' });
+      broadcast
+        .onFirstCall()
+        .rejects(nodeRefusal('transaction already in pool'));
+      broadcast.onSecondCall().resolves({ hash: BOOST_HASH });
+      writeProvider.getTransaction
+        .withArgs(TX_HASH)
+        .resolves({ hash: TX_HASH });
+
+      const boosted =
+        await transactionManager.boostUnderpricedPendingTransactionsForSigner(
+          WORKER_ADDRESS,
+          1 + pendingTransactionTimeoutBlocks
+        );
+
+      expect(boosted.size).to.equal(2);
+      const [, boostedTx] = workersKeyManager.signTransaction.secondCall.args;
+      expect(boostedTx.nonce).to.equal(NONCE + 1);
+      expect(boostedTx.gasPrice?.toString()).to.equal(
+        nodeMaxGasPrice.toString()
+      );
     });
   });
 });

@@ -341,6 +341,22 @@ data         | 0x${transaction.data ?? ''}
     try {
       transaction = await provider.sendTransaction(signedTransaction.signedTx);
     } catch (error) {
+      const isSentAgainUnchanged =
+        signedTransaction.txHash.toLowerCase() === tx.txId.toLowerCase();
+      if (
+        isSentAgainUnchanged &&
+        isRefusedByNode(error) &&
+        (await this._isKnownByNode(signedTransaction.txHash))
+      ) {
+        // The node refuses a transaction it already has, e.g. one still in its
+        // pool at a price that can't be raised; it was sent, so the boost goes
+        // on with the next one and the attempt makes it wait for the timeout
+        log.debug(
+          `Transaction ${tx.txId} sent again unchanged is already known by the node`
+        );
+
+        return signedTransaction;
+      }
       if (isRefusedByNode(error)) {
         log.error(
           `Boosted transaction ${signedTransaction.txHash} was refused by the node, keeping ${tx.txId}:`,
@@ -350,7 +366,7 @@ data         | 0x${transaction.data ?? ''}
         // boost starts from a gas price the node has seen; a transaction sent
         // again unchanged keeps the attempt, so it waits for the next timeout
         // instead of being sent on every block
-        if (signedTransaction.txHash.toLowerCase() !== tx.txId.toLowerCase()) {
+        if (!isSentAgainUnchanged) {
           await this.txStoreManager.putTx(tx, true);
         }
       } else {
@@ -371,6 +387,23 @@ data         | 0x${transaction.data ?? ''}
     }
 
     return signedTransaction;
+  }
+
+  /**
+   * Whether the write node, the one transactions are broadcast to, has the
+   * transaction, pending or mined. A failed lookup counts as unknown.
+   */
+  async _isKnownByNode(txHash: string): Promise<boolean> {
+    try {
+      return (await getWriteProvider().getTransaction(txHash)) != null;
+    } catch (error) {
+      log.warn(
+        `Could not look up transaction ${txHash} on the node:`,
+        error instanceof Error ? error.message : error
+      );
+
+      return false;
+    }
   }
 
   /**
