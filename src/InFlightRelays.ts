@@ -1,4 +1,4 @@
-import { BigNumber } from 'ethers';
+import { BigNumber, utils } from 'ethers';
 import type { EnvelopingRequest } from './definitions';
 
 /**
@@ -25,12 +25,13 @@ export function getInFlightKeys({
   request,
   relayData,
 }: EnvelopingRequest): string[] {
-  // The nonce is a uint256 the client may send as "1", "01" or "0x01"; all
-  // of them sign the same request, so they must take the same key
+  // The client may spell the same request differently: a nonce as "1", "01"
+  // or "0x01", an address with or without 0x and in any case. All of them
+  // sign the same request, so they must take the same key
   const keys = [
-    `nonce:${relayData.callForwarder}:${request.from}:${BigNumber.from(
-      request.nonce
-    ).toString()}`.toLowerCase(),
+    `nonce:${utils.getAddress(relayData.callForwarder)}:${utils.getAddress(
+      request.from
+    )}:${BigNumber.from(request.nonce).toString()}`.toLowerCase(),
   ];
 
   const data = request.data.toString().toLowerCase();
@@ -39,7 +40,7 @@ export function getInFlightKeys({
     CLAIM_SELECTORS.has(data.substring(2, 10))
   ) {
     keys.push(
-      `claim:${request.to}:${data.substring(
+      `claim:${utils.getAddress(request.to)}:${data.substring(
         10,
         CLAIM_PREFIX_LENGTH
       )}`.toLowerCase()

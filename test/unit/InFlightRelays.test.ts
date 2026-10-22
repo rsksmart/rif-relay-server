@@ -51,6 +51,31 @@ describe('InFlightRelays', function () {
       expect(keyOf('0x00')).to.equal(keyOf('0'));
     });
 
+    it('should give every spelling of the same addresses the same keys', function () {
+      const callForwarder = Wallet.createRandom().address;
+      const from = Wallet.createRandom().address;
+      const keysOf = (forwarder: string, owner: string, to: string) =>
+        getInFlightKeys(
+          createRequest({ callForwarder: forwarder, from: owner, to })
+        );
+      const expected = keysOf(callForwarder, from, HTLC);
+
+      expect(
+        keysOf(
+          callForwarder.toLowerCase(),
+          from.substring(2),
+          HTLC.substring(2)
+        )
+      ).to.deep.equal(expected);
+      expect(
+        keysOf(
+          callForwarder.substring(2),
+          `0x${from.substring(2).toUpperCase()}`,
+          HTLC.toLowerCase()
+        )
+      ).to.deep.equal(expected);
+    });
+
     it('should key a claim by its swap too', function () {
       const keys = getInFlightKeys(createRequest());
 
