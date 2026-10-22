@@ -71,7 +71,7 @@ export type InFlightRelay = {
 
 /**
  * The relay requests the server is broadcasting or has broadcast and not yet
- * seen mined. Every copy of a request passes validation until the first one
+ * seen confirmed. Every copy of a request passes validation until the first one
  * is mined, and every copy after the first reverts at the worker's cost, so
  * a request is refused while another one with a key in common is in flight.
  */

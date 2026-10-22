@@ -198,7 +198,10 @@ describe('TransactionManager tests', function () {
 
       // it tells the caller which nonce it keeps
       expect(error).to.be.instanceOf(KeptTransactionError);
-      expect((error as KeptTransactionError).nonce).to.equal(NONCE);
+      expect((error as KeptTransactionError).transaction).to.include({
+        txHash: TX_HASH,
+        nonce: NONCE,
+      });
       expect((error as KeptTransactionError).message).to.equal(
         'timeout (TIMEOUT)'
       );
@@ -243,7 +246,10 @@ describe('TransactionManager tests', function () {
       );
 
       expect(error).to.be.instanceOf(KeptTransactionError);
-      expect((error as KeptTransactionError).nonce).to.equal(NONCE);
+      expect((error as KeptTransactionError).transaction).to.include({
+        txHash: TX_HASH,
+        nonce: NONCE,
+      });
       expect((error as KeptTransactionError).message).to.contain(
         'txhash mismatch'
       );
@@ -255,9 +261,12 @@ describe('TransactionManager tests', function () {
     it('should keep the stack of the failure in a kept transaction error', function () {
       const failure = new Error('socket hang up');
 
-      expect(new KeptTransactionError(1, failure).stack).to.contain(
-        `Caused by: ${failure.stack ?? ''}`
-      );
+      expect(
+        new KeptTransactionError(
+          { txHash: TX_HASH, signedTx: '0xsigned', nonce: 1 },
+          failure
+        ).stack
+      ).to.contain(`Caused by: ${failure.stack ?? ''}`);
     });
 
     it('should not reuse the nonce of a transaction whose broadcast response was lost', async function () {

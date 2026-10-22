@@ -45,19 +45,20 @@ export interface SendTransactionDetails {
  * A broadcast that failed after the transaction was stored, but whose
  * transaction may still be mined: the node didn't answer, or answered with
  * another hash. It stays stored with its nonce, and the boost sends it again
- * if it isn't mined. `error` is the failure.
+ * if it isn't mined. `transaction` is the stored transaction, `error` the
+ * failure.
  */
 export class KeptTransactionError extends Error {
-  readonly nonce: number;
+  readonly transaction: SentTransactionDetails;
 
   readonly error: unknown;
 
-  constructor(nonce: number, error: unknown) {
-    // the message a client gets; the full error, which can hold the request
-    // and the signed transaction, stays in `error` and the stack for the log
+  constructor(transaction: SentTransactionDetails, error: unknown) {
+    // the full error, which can hold the request and the signed transaction,
+    // stays in `error` and the stack for the log
     super(clientErrorMessage(error));
     this.name = 'KeptTransactionError';
-    this.nonce = nonce;
+    this.transaction = transaction;
     this.error = error;
     if (error instanceof Error && error.stack) {
       this.stack = `${this.stack ?? this.name}\nCaused by: ${error.stack}`;
@@ -254,13 +255,13 @@ data         | 0x${transaction.data ?? ''}
           `Broadcast of transaction ${storedTx.txId} failed without an answer from the node, keeping it:`,
           error instanceof Error ? error.message : error
         );
-        throw new KeptTransactionError(nonce, error);
+        throw new KeptTransactionError({ ...signedTransaction, nonce }, error);
       }
 
       if (transaction.hash.toLowerCase() !== storedTx.txId.toLowerCase()) {
         // the node took a transaction at this nonce, so it stays taken
         throw new KeptTransactionError(
-          nonce,
+          { ...signedTransaction, nonce },
           new Error(
             `txhash mismatch: from receipt: ${transaction.hash} from txstore:${storedTx.txId}`
           )

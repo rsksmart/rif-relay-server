@@ -332,16 +332,17 @@ describe('RelayServer tests', function () {
       await expect(relayServer.createRelayTransaction(request)).to.be.fulfilled;
     });
 
-    it('should hold a request whose broadcast got no answer until its transaction is mined', async function () {
+    it('should answer with a transaction kept after its broadcast got no answer, and hold its request', async function () {
       const request = createEnvelopingRequest();
+      const kept = { txHash: utils.keccak256(signedTx), signedTx, nonce: 7 };
       // the node may have the transaction, and the boost sends it again
       sendTransaction
         .onFirstCall()
-        .rejects(new KeptTransactionError(7, new Error('timeout')));
+        .rejects(new KeptTransactionError(kept, new Error('timeout')));
 
       await expect(
         relayServer.createRelayTransaction(request)
-      ).to.be.rejectedWith('timeout');
+      ).to.eventually.include({ txHash: kept.txHash, signedTx });
       await expect(
         relayServer.createRelayTransaction(request)
       ).to.be.rejectedWith('already being relayed');
@@ -434,18 +435,28 @@ describe('RelayServer tests', function () {
       expect(sendTransaction).to.have.been.calledOnce;
     });
 
-    it('should hold a request whose transaction was kept with another hash until it is mined', async function () {
+    it('should answer with a transaction kept under another hash, and hold its request', async function () {
       const request = createEnvelopingRequest();
+      const kept = { txHash: utils.keccak256(signedTx), signedTx, nonce: 7 };
       sendTransaction
         .onFirstCall()
-        .rejects(new KeptTransactionError(7, new Error('txhash mismatch')));
+        .rejects(new KeptTransactionError(kept, new Error('txhash mismatch')));
 
       await expect(
         relayServer.createRelayTransaction(request)
-      ).to.be.rejectedWith('txhash mismatch');
+      ).to.eventually.include({ txHash: kept.txHash });
       await expect(
         relayServer.createRelayTransaction(request)
       ).to.be.rejectedWith('already being relayed');
+    });
+
+    it('should start without holding the stored requests when the store cannot be read', async function () {
+      relayServer.txStoreManager = {
+        getAllBySigner: sinon.stub().rejects(new Error('corrupt store')),
+      } as unknown as TxStoreManager;
+
+      await expect(relayServer._restoreInFlightRelays()).to.be.fulfilled;
+      expect(relayServer.inFlightRelays.hasBroadcast()).to.be.false;
     });
 
     it('should accept a copy of a request that failed', async function () {
@@ -474,6 +485,8 @@ describe('RelayServer tests', function () {
       ).to.eql(expected);
     });
 
+    const BLOCK = 100;
+
     function stubMinedNonces(read: number, write: number) {
       // getProvider already returns the shared provider of these tests
       const readCount = sinon
@@ -487,22 +500,36 @@ describe('RelayServer tests', function () {
       return { readCount, writeCount };
     }
 
-    it('should release the requests whose transaction both nodes have mined on each block', async function () {
+    it('should release the requests whose transaction both nodes have confirmed', async function () {
       await relayServer.createRelayTransaction(createEnvelopingRequest());
       const { readCount, writeCount } = stubMinedNonces(8, 8);
+      const confirmedBlock =
+        BLOCK - relayServer.config.blockchain.confirmationsNeeded;
 
-      await relayServer._releaseMinedRelays(1);
+      await relayServer._releaseMinedRelays(BLOCK);
 
-      expect(readCount).to.have.been.calledWith('0x123', 'latest');
-      expect(writeCount).to.have.been.calledWith('0x123', 'latest');
+      expect(readCount).to.have.been.calledWith('0x123', confirmedBlock);
+      expect(writeCount).to.have.been.calledWith('0x123', confirmedBlock);
       expect(relayServer.inFlightRelays.hasBroadcast()).to.be.false;
     });
 
-    it('should hold a request while the read node has not seen its transaction mined', async function () {
+    it('should not read the nodes before there are enough blocks to confirm', async function () {
+      await relayServer.createRelayTransaction(createEnvelopingRequest());
+      const { readCount } = stubMinedNonces(8, 8);
+
+      await relayServer._releaseMinedRelays(
+        relayServer.config.blockchain.confirmationsNeeded - 1
+      );
+
+      expect(readCount).not.to.have.been.called;
+      expect(relayServer.inFlightRelays.hasBroadcast()).to.be.true;
+    });
+
+    it('should hold a request while the read node has not seen its transaction confirmed', async function () {
       await relayServer.createRelayTransaction(createEnvelopingRequest());
       stubMinedNonces(7, 8);
 
-      await relayServer._releaseMinedRelays(1);
+      await relayServer._releaseMinedRelays(BLOCK);
 
       expect(relayServer.inFlightRelays.hasBroadcast()).to.be.true;
     });
@@ -514,28 +541,28 @@ describe('RelayServer tests', function () {
         getTransactionCount: sinon.stub().rejects(new Error('node is down')),
       } as unknown as providers.Provider);
 
-      await expect(relayServer._releaseMinedRelays(1)).to.be.fulfilled;
+      await expect(relayServer._releaseMinedRelays(BLOCK)).to.be.fulfilled;
 
       expect(relayServer.inFlightRelays.hasBroadcast()).to.be.true;
     });
 
-    it('should read the mined nonces once per block', async function () {
+    it('should read the confirmed nonces once per block', async function () {
       await relayServer.createRelayTransaction(createEnvelopingRequest());
       const { readCount } = stubMinedNonces(7, 7);
 
-      await relayServer._releaseMinedRelays(1);
-      await relayServer._releaseMinedRelays(1);
+      await relayServer._releaseMinedRelays(BLOCK);
+      await relayServer._releaseMinedRelays(BLOCK);
       expect(readCount).to.have.been.calledOnce;
 
-      await relayServer._releaseMinedRelays(2);
+      await relayServer._releaseMinedRelays(BLOCK + 1);
       expect(readCount).to.have.been.calledTwice;
     });
 
-    it('should hold a request while the write node has not seen its transaction mined', async function () {
+    it('should hold a request while the write node has not seen its transaction confirmed', async function () {
       await relayServer.createRelayTransaction(createEnvelopingRequest());
       stubMinedNonces(8, 7);
 
-      await relayServer._releaseMinedRelays(1);
+      await relayServer._releaseMinedRelays(BLOCK);
 
       expect(relayServer.inFlightRelays.hasBroadcast()).to.be.true;
     });

@@ -16,7 +16,7 @@ import {
   SignedTransactionDetails,
   TransactionManager,
 } from './TransactionManager';
-import { ServerAction } from './StoredTransaction';
+import { ServerAction, StoredTransaction } from './StoredTransaction';
 import type { TxStoreManager } from './TxStoreManager';
 import {
   ServerDependencies,
@@ -524,10 +524,15 @@ export class RelayServer extends EventEmitter {
 
         return maxPossibleGas;
       }
-      gasLimitAttempt = applyFactor(
+      // maxPossibleGas is the limit the call was last tried with, which
+      // maxPossibleGasVerification may have raised already
+      const scheduled = applyFactor(
         gasLimit,
         1 + OUT_OF_GAS_DRY_RUN_FACTOR * 2 ** retry
       );
+      gasLimitAttempt = scheduled.gt(maxPossibleGas)
+        ? scheduled
+        : applyFactor(maxPossibleGas, 1 + OUT_OF_GAS_DRY_RUN_FACTOR);
     }
   }
 
@@ -699,16 +704,20 @@ export class RelayServer extends EventEmitter {
     try {
       txDetails = await this.transactionManager.sendTransaction(details);
     } catch (error) {
-      if (error instanceof KeptTransactionError) {
-        // The transaction may still be mined, and the boost sends it again
-        // otherwise, so a retry must wait until that worker nonce is mined
-        inFlightRelay.nonce = error.nonce;
-      } else {
+      if (!(error instanceof KeptTransactionError)) {
         this.inFlightRelays.release(inFlightRelay);
+        throw error;
       }
-      throw error;
+      // The transaction is kept: it may still be mined, and the boost sends
+      // it again otherwise. The client gets it as relayed, so it broadcasts it
+      // too and doesn't send the request again, to this server or another
+      log.warn(
+        `Relay transaction ${error.transaction.txHash} is kept although its broadcast failed:`,
+        error.message
+      );
+      txDetails = error.transaction;
     }
-    // Held until the worker transaction is mined, see _releaseMinedRelays
+    // Held until the worker transaction is confirmed, see _releaseMinedRelays
     inFlightRelay.nonce = txDetails.nonce;
     // after sending a transaction is a good time to check the worker's balance, and replenish it.
     this.emit(EVENT_REPLENISH_CHECK_REQUIRED, this, 0, currentBlock);
@@ -933,9 +942,18 @@ latestBlock timestamp   | ${latestBlock.timestamp}
    * a copy of one has to wait as it did before the restart.
    */
   async _restoreInFlightRelays(): Promise<void> {
-    const storedTxs = await this.txStoreManager.getAllBySigner(
-      this.workerAddress
-    );
+    let storedTxs: StoredTransaction[];
+    try {
+      storedTxs = await this.txStoreManager.getAllBySigner(this.workerAddress);
+    } catch (error) {
+      // the server still starts, without holding them
+      log.error(
+        'Could not read the stored relay transactions to hold their requests again:',
+        error instanceof Error ? error.message : error
+      );
+
+      return;
+    }
     for (const { serverAction, data, nonce, txId } of storedTxs) {
       if (serverAction !== ServerAction.RELAY_CALL || !data || nonce == null) {
         continue;
@@ -954,33 +972,43 @@ latestBlock timestamp   | ${latestBlock.timestamp}
     }
   }
 
+  /**
+   * Releases the requests whose worker transaction is confirmed: mined at
+   * least confirmationsNeeded blocks ago, as both nodes see it. The write node
+   * is the one it was broadcast to, and the read node the one the verifier
+   * and the dry run of a copy run against; the confirmations keep a copy from
+   * passing against a state from before the transaction, whether it ran just
+   * before the block or the block was then reorganised away.
+   */
   async _releaseMinedRelays(blockNumber: number): Promise<void> {
-    // The mined counts only change with a new block, but _worker runs again
-    // on the same block until the state is refreshed
+    const confirmedBlock =
+      blockNumber - this.config.blockchain.confirmationsNeeded;
+    // the confirmed counts only change with a new block, but _worker runs
+    // again on the same block until the state is refreshed
     if (
+      confirmedBlock < 0 ||
       blockNumber === this._lastReleaseBlock ||
       !this.inFlightRelays.hasBroadcast()
     ) {
       return;
     }
-    // A request is released once both nodes have its transaction mined: the
-    // write node is the one it was broadcast to, and the read node is the one
-    // the verifier and the dry run of a retry run against, so a retry checked
-    // against a read node that hasn't seen it would pass and then revert
     try {
-      const [readMinedNonce, writeMinedNonce] = await Promise.all([
-        getProvider().getTransactionCount(this.workerAddress, 'latest'),
-        getWriteProvider().getTransactionCount(this.workerAddress, 'latest'),
+      const [readConfirmedNonce, writeConfirmedNonce] = await Promise.all([
+        getProvider().getTransactionCount(this.workerAddress, confirmedBlock),
+        getWriteProvider().getTransactionCount(
+          this.workerAddress,
+          confirmedBlock
+        ),
       ]);
       this.inFlightRelays.releaseMined(
-        Math.min(readMinedNonce, writeMinedNonce)
+        Math.min(readConfirmedNonce, writeConfirmedNonce)
       );
       this._lastReleaseBlock = blockNumber;
     } catch (error) {
       // the requests stay held until a block whose counts can be read; a node
       // that can't be read must not stop the rest of the round
       log.warn(
-        'Could not read the mined nonce of the worker to release the requests in flight:',
+        'Could not read the confirmed nonce of the worker to release the requests in flight:',
         error instanceof Error ? error.message : error
       );
     }
