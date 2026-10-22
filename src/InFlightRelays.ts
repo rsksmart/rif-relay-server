@@ -1,8 +1,6 @@
 import { BigNumber, utils } from 'ethers';
-import { RelayHub__factory } from '@rsksmart/rif-relay-contracts';
 import type { EnvelopingRequest } from './definitions';
-
-const relayHubInterface = RelayHub__factory.createInterface();
+import { relayHubInterface } from './Utils';
 
 /**
  * Selectors of the swap claims the trusted verifiers accept, all of which take

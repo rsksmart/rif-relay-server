@@ -26,6 +26,9 @@ export const getRelayHub = (
   provider = getProvider()
 ): RelayHub => RelayHub__factory.connect(relayHubAddress, provider);
 
+// To encode and decode RelayHub calls without a contract instance
+export const relayHubInterface = RelayHub__factory.createInterface();
+
 export function isSameAddress(address1: string, address2: string): boolean {
   return getAddress(address1) === getAddress(address2);
 }

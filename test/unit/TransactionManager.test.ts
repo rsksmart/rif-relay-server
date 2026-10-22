@@ -32,8 +32,8 @@ describe('TransactionManager tests', function () {
   const NODE_GAS_PRICE = '6215177';
 
   // How ethers reports a JSON-RPC error answered by the node
-  function nodeRefusal(message: string) {
-    const rpcError = Object.assign(new Error(message), { code: -32010 });
+  function nodeRefusal(message: string, code = -32010) {
+    const rpcError = Object.assign(new Error(message), { code });
 
     return logger.makeError(
       'processing response error',
@@ -186,6 +186,42 @@ describe('TransactionManager tests', function () {
       expect(firstTx.nonce).to.equal(NONCE);
       expect(secondTx.nonce).to.equal(NONCE);
       expect(transactionManager.nonces[WORKER_ADDRESS]).to.equal(NONCE + 1);
+    });
+
+    it('should keep a transaction a gateway answered with an error but the node has', async function () {
+      // a gateway that forwarded the transaction and then timed out upstream
+      broadcast.rejects(nodeRefusal('upstream request timeout', -32603));
+      writeProvider.getTransaction
+        .withArgs(TX_HASH)
+        .resolves({ hash: TX_HASH, blockNumber: null });
+
+      const error: unknown = await sendRelayTransaction().catch(
+        (e: unknown) => e
+      );
+
+      expect(error).to.be.instanceOf(KeptTransactionError);
+      expect((error as KeptTransactionError).transaction).to.include({
+        txHash: TX_HASH,
+        nonce: NONCE,
+      });
+      expect(transactionManager.nonces[WORKER_ADDRESS]).to.equal(NONCE + 1);
+      // eslint-disable-next-line @typescript-eslint/unbound-method -- a sinon stub, not a method call
+      expect(txStoreManager.removeTx).not.to.have.been.called;
+    });
+
+    it('should give the nonce back when the node refuses a transaction it cannot be asked about', async function () {
+      broadcast.rejects(nodeRefusal('gas price above cap'));
+      writeProvider.getTransaction.rejects(lostResponse());
+
+      await expect(sendRelayTransaction()).to.be.rejectedWith(
+        'processing response error'
+      );
+
+      expect(transactionManager.nonces[WORKER_ADDRESS]).to.equal(NONCE);
+      // eslint-disable-next-line @typescript-eslint/unbound-method -- a sinon stub, not a method call
+      expect(txStoreManager.removeTx).to.have.been.calledOnceWith(
+        sinon.match({ txId: TX_HASH, nonce: NONCE })
+      );
     });
 
     it('should keep the nonce and the transaction when the response to the broadcast is lost', async function () {

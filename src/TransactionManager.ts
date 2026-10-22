@@ -69,7 +69,9 @@ export class KeptTransactionError extends Error {
 /**
  * Whether a broadcast failed because the node answered with a JSON-RPC error,
  * i.e. it refused the transaction. Any other failure, such as a timeout or a
- * lost connection, may come after the node accepted the transaction.
+ * lost connection, may come after the node accepted the transaction. A
+ * gateway in front of the node can answer with a JSON-RPC error too, so a
+ * refusal is only final once the node is known not to have the transaction.
  */
 export function isRefusedByNode(error: unknown): boolean {
   // ethers wraps the node's error, the one with a numeric JSON-RPC code, in
@@ -245,14 +247,20 @@ data         | 0x${transaction.data ?? ''}
           signedTransaction.signedTx
         );
       } catch (error) {
-        if (isRefusedByNode(error)) {
+        // A JSON-RPC error can also come from a gateway in front of the node,
+        // e.g. an upstream timeout after it forwarded the transaction, so it
+        // is a refusal only if the node doesn't have the transaction
+        if (
+          isRefusedByNode(error) &&
+          !(await this._getFromNode(signedTransaction.txHash))
+        ) {
           await this._rollBackRefusedBroadcast(storedTx, error);
           throw error;
         }
         // The node may have accepted it, so the nonce stays taken; if it did
         // not, the boost broadcasts the transaction again
         log.warn(
-          `Broadcast of transaction ${storedTx.txId} failed without an answer from the node, keeping it:`,
+          `Broadcast of transaction ${storedTx.txId} failed, but the node may have it, keeping it:`,
           error instanceof Error ? error.message : error
         );
         throw new KeptTransactionError({ ...signedTransaction, nonce }, error);
@@ -433,22 +441,30 @@ data         | 0x${transaction.data ?? ''}
   }
 
   /**
-   * Whether the write node, the one transactions are broadcast to, has the
-   * transaction in its pool, not yet mined. A failed lookup counts as not.
+   * The transaction as the write node, the one transactions are broadcast to,
+   * has it, pending or mined, or null if it doesn't. A failed lookup counts
+   * as not having it.
    */
-  async _isPendingOnNode(txHash: string): Promise<boolean> {
+  async _getFromNode(txHash: string): Promise<TransactionResponse | null> {
     try {
-      const transaction = await getWriteProvider().getTransaction(txHash);
-
-      return transaction != null && transaction.blockNumber == null;
+      return await getWriteProvider().getTransaction(txHash);
     } catch (error) {
       log.warn(
         `Could not look up transaction ${txHash} on the node:`,
         error instanceof Error ? error.message : error
       );
 
-      return false;
+      return null;
     }
+  }
+
+  /**
+   * Whether the write node has the transaction in its pool, not yet mined.
+   */
+  async _isPendingOnNode(txHash: string): Promise<boolean> {
+    const transaction = await this._getFromNode(txHash);
+
+    return transaction != null && transaction.blockNumber == null;
   }
 
   /**

@@ -1,6 +1,4 @@
-import { RelayHub__factory } from '@rsksmart/rif-relay-contracts';
-
-const relayHubInterface = RelayHub__factory.createInterface();
+import { relayHubInterface } from '../Utils';
 
 /**
  * Checks what RelayHub.relayCall returned in the dry run. A call that runs
