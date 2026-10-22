@@ -88,6 +88,17 @@ describe('ServerConfigParams tests', function () {
       );
     });
 
+    it('Should fail if maxRequestGasPriceFloor is written in gwei', function () {
+      config.util.extendDeep(config, {
+        app: { disableSponsoredTx: false },
+        blockchain: { maxRequestGasPriceFloor: 0.06 },
+      });
+
+      expect(() => verifyServerConfiguration()).to.throw(
+        /"blockchain.maxRequestGasPriceFloor"/
+      );
+    });
+
     it('Should pass if it is sponsored, even if none fee is configured', function () {
       config.util.extendDeep(config, { app: { disableSponsoredTx: false } });
 

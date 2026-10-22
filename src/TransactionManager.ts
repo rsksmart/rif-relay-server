@@ -217,7 +217,7 @@ data         | 0x${transaction.data ?? ''}
         );
       } catch (error) {
         if (isRefusedByNode(error)) {
-          await this._discardRefusedTransaction(storedTx, error);
+          await this._rollBackRefusedBroadcast(storedTx, error);
         } else {
           // The node may have accepted it, so the nonce stays taken; if it
           // did not, the boost broadcasts the transaction again
@@ -246,14 +246,14 @@ data         | 0x${transaction.data ?? ''}
    * back, so the next transaction of the signer takes it. Must be called
    * under the nonce mutex.
    */
-  async _discardRefusedTransaction(
+  async _rollBackRefusedBroadcast(
     storedTx: StoredTransaction,
     error: unknown
   ): Promise<void> {
     log.error(
       `Transaction ${storedTx.txId} with nonce ${
         storedTx.nonce ?? 'unnonce'
-      } from ${storedTx.from} was refused by the node, discarding it:`,
+      } from ${storedTx.from} was refused by the node, giving its nonce back:`,
       error instanceof Error ? error.message : error
     );
     this.nonces[storedTx.from]--;
@@ -342,13 +342,17 @@ data         | 0x${transaction.data ?? ''}
       transaction = await provider.sendTransaction(signedTransaction.signedTx);
     } catch (error) {
       if (isRefusedByNode(error)) {
-        // Keep tracking the transaction as it was last broadcast, so the next
-        // boost starts from a gas price the node has seen
         log.error(
           `Boosted transaction ${signedTransaction.txHash} was refused by the node, keeping ${tx.txId}:`,
           error instanceof Error ? error.message : error
         );
-        await this.txStoreManager.putTx(tx, true);
+        // Keep tracking the transaction as it was last broadcast, so the next
+        // boost starts from a gas price the node has seen; a transaction sent
+        // again unchanged keeps the attempt, so it waits for the next timeout
+        // instead of being sent on every block
+        if (signedTransaction.txHash.toLowerCase() !== tx.txId.toLowerCase()) {
+          await this.txStoreManager.putTx(tx, true);
+        }
       } else {
         // Either hash may be mined; the boost is kept since it is the one
         // that mines if the node accepted it, and removeConfirmedTransactions
@@ -589,7 +593,7 @@ data         | 0x${transaction.data ?? ''}
       // the write node accepts or refuses the replacements, so they have to fit
       // in the balance it sees
       const balance = await getWriteProvider().getBalance(signer);
-      for (const { transaction, value } of planBoost(
+      for (const { transaction, gasPrice, value } of planBoost(
         sortedTxs,
         balance,
         newGasPrice
@@ -606,7 +610,7 @@ data         | 0x${transaction.data ?? ''}
         const boostedTransactionDetails = await this.resendTransaction(
           transaction,
           currentBlockHeight,
-          newGasPrice,
+          gasPrice,
           isMaxGasPriceReached,
           value
         );

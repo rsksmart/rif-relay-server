@@ -35,6 +35,7 @@ describe('planBoost', function () {
     const [planned] = planBoost([transaction], BALANCE, NEW_GAS_PRICE);
 
     expect(planned?.transaction).to.be.equal(transaction);
+    expect(planned?.gasPrice.eq(NEW_GAS_PRICE)).to.be.true;
     expect(planned?.value.eq(value)).to.be.true;
   });
 
@@ -60,19 +61,36 @@ describe('planBoost', function () {
       .to.be.true;
   });
 
-  it('should not resend a transaction already at the new gas price, but count what it spends', function () {
-    const firstValue = utils.parseEther('0.0006');
+  it('should not resend a later transaction already at the new gas price, but count what it spends', function () {
+    const secondValue = utils.parseEther('0.0006');
     const transactions = [
-      pendingTx(0, { gasPrice: NEW_GAS_PRICE, value: firstValue }),
-      pendingTx(1, { value: utils.parseEther('0.0006') }),
+      pendingTx(0),
+      pendingTx(1, { gasPrice: NEW_GAS_PRICE, value: secondValue }),
+      pendingTx(2, { value: utils.parseEther('0.0006') }),
     ];
 
     const plan = planBoost(transactions, BALANCE, NEW_GAS_PRICE);
 
-    expect(plan).to.have.lengthOf(1);
-    expect(plan[0]?.transaction.nonce).to.be.equal(1);
-    expect(plan[0]?.value.eq(BALANCE.sub(NEW_FEE).sub(firstValue).sub(NEW_FEE)))
-      .to.be.true;
+    expect(plan.map(({ transaction }) => transaction.nonce)).to.be.deep.equal([
+      0, 2,
+    ]);
+    expect(
+      plan[1]?.value.eq(
+        BALANCE.sub(NEW_FEE).sub(NEW_FEE).sub(secondValue).sub(NEW_FEE)
+      )
+    ).to.be.true;
+  });
+
+  it('should send the oldest transaction again at its own price and value when its price cannot be raised', function () {
+    const ownGasPrice = NEW_GAS_PRICE.mul(2);
+    const value = BALANCE.sub(GAS_LIMIT.mul(ownGasPrice));
+    const transaction = pendingTx(0, { gasPrice: ownGasPrice, value });
+
+    const [planned] = planBoost([transaction], BALANCE, NEW_GAS_PRICE);
+
+    expect(planned?.transaction).to.be.equal(transaction);
+    expect(planned?.gasPrice.eq(ownGasPrice)).to.be.true;
+    expect(planned?.value.eq(value)).to.be.true;
   });
 
   it('should resend a transfer with value zero when the balance only covers the fee', function () {

@@ -104,13 +104,13 @@ describe('TransactionManager tests', function () {
     sinon.restore();
   });
 
-  function sendRelayTransaction() {
+  function sendRelayTransaction(gasPrice = BigNumber.from(NODE_GAS_PRICE)) {
     return transactionManager.sendTransaction({
       signer: WORKER_ADDRESS,
       serverAction: ServerAction.RELAY_CALL,
       destination: DESTINATION,
       gasLimit: BigNumber.from(100000),
-      gasPrice: BigNumber.from(NODE_GAS_PRICE),
+      gasPrice,
       creationBlockNumber: 1,
     });
   }
@@ -246,6 +246,54 @@ describe('TransactionManager tests', function () {
         true
       );
     });
+
+    it('should track the boosted transaction when the node accepts it', async function () {
+      const storedTx = createStoredTx(BigNumber.from(100000000));
+      broadcast.resolves({ hash: TX_HASH });
+
+      await expect(
+        transactionManager.resendTransaction(
+          storedTx,
+          10,
+          BigNumber.from(120000000),
+          false
+        )
+      ).to.be.fulfilled;
+
+      // eslint-disable-next-line @typescript-eslint/unbound-method -- a sinon stub, not a method call
+      expect(txStoreManager.putTx).to.have.been.calledOnceWith(
+        sinon.match({ txId: TX_HASH, attempts: 2, boostBlockNumber: 10 }),
+        true
+      );
+      const [boostedTx] = txStoreManager.putTx.firstCall.args;
+      expect(boostedTx.gasPrice?.toString()).to.equal('120000000');
+    });
+
+    it('should keep the attempt of a transaction sent again unchanged when the node refuses it', async function () {
+      // sent again at its own price, it signs to the hash already stored
+      const storedTx = {
+        ...createStoredTx(BigNumber.from(100000000)),
+        txId: TX_HASH,
+      };
+      broadcast.rejects(nodeRefusal('transaction already in pool'));
+
+      await expect(
+        transactionManager.resendTransaction(
+          storedTx,
+          10,
+          BigNumber.from(100000000),
+          true
+        )
+      ).to.be.rejectedWith('processing response error');
+
+      // the attempt stays, so the boost waits for the next timeout instead of
+      // sending it on every block
+      // eslint-disable-next-line @typescript-eslint/unbound-method -- a sinon stub, not a method call
+      expect(txStoreManager.putTx).to.have.been.calledOnceWith(
+        sinon.match({ txId: TX_HASH, attempts: 2, boostBlockNumber: 10 }),
+        true
+      );
+    });
   });
 
   describe('Function removeConfirmedTransactions()', function () {
@@ -280,6 +328,48 @@ describe('TransactionManager tests', function () {
       readProvider.getTransactionCount.resolves(NONCE);
 
       await transactionManager.removeConfirmedTransactions(BLOCK_NUMBER);
+
+      // eslint-disable-next-line @typescript-eslint/unbound-method -- a sinon stub, not a method call
+      expect(txStoreManager.removeTxsUntilNonce).not.to.have.been.called;
+    });
+
+    it('should forget a transaction with nonce 0 confirmed under another hash', async function () {
+      txStoreManager.getAll.resolves([
+        {
+          ...createStoredTx(BigNumber.from(120000000)),
+          txId: TX_HASH,
+          nonce: 0,
+        },
+      ]);
+      readProvider.getTransactionCount.resolves(1);
+
+      await transactionManager.removeConfirmedTransactions(BLOCK_NUMBER);
+
+      // eslint-disable-next-line @typescript-eslint/unbound-method -- a sinon stub, not a method call
+      expect(txStoreManager.removeTxsUntilNonce).to.have.been.calledOnceWith(
+        WORKER_ADDRESS,
+        0
+      );
+    });
+
+    it('should keep the transaction while the chain is shorter than the confirmations needed', async function () {
+      const { confirmationsNeeded } = transactionManager.config.blockchain;
+
+      await transactionManager.removeConfirmedTransactions(
+        confirmationsNeeded - 1
+      );
+
+      expect(readProvider.getTransactionCount).not.to.have.been.called;
+      // eslint-disable-next-line @typescript-eslint/unbound-method -- a sinon stub, not a method call
+      expect(txStoreManager.removeTxsUntilNonce).not.to.have.been.called;
+    });
+
+    it('should keep the transaction when the confirmed nonce cannot be read', async function () {
+      readProvider.getTransactionCount.rejects(lostResponse());
+
+      await expect(
+        transactionManager.removeConfirmedTransactions(BLOCK_NUMBER)
+      ).to.be.rejectedWith('timeout');
 
       // eslint-disable-next-line @typescript-eslint/unbound-method -- a sinon stub, not a method call
       expect(txStoreManager.removeTxsUntilNonce).not.to.have.been.called;
@@ -383,6 +473,76 @@ describe('TransactionManager tests', function () {
       expect(boostedTx.gasPrice?.toString()).to.equal(
         nodeMaxGasPrice.toString()
       );
+    });
+
+    it('should send again a transaction at the maximum whose first broadcast was lost', async function () {
+      const { pendingTransactionTimeoutBlocks } =
+        transactionManager.config.blockchain;
+      const nodeMaxGasPrice = BigNumber.from(NODE_GAS_PRICE).mul(20);
+      // the broadcast times out before reaching the node, so the transaction
+      // and its nonce stay taken although the node never saw it
+      broadcast.onFirstCall().rejects(lostResponse());
+      broadcast.onSecondCall().resolves({ hash: TX_HASH });
+      await expect(sendRelayTransaction(nodeMaxGasPrice)).to.be.rejectedWith(
+        'timeout'
+      );
+      const [storedTx] = txStoreManager.putTx.firstCall.args;
+      txStoreManager.getAllBySigner.resolves([storedTx]);
+
+      const boosted =
+        await transactionManager.boostUnderpricedPendingTransactionsForSigner(
+          WORKER_ADDRESS,
+          1 + pendingTransactionTimeoutBlocks
+        );
+
+      expect(boosted.size).to.equal(1);
+      expect(broadcast).to.have.been.calledTwice;
+      const [, resentTx] = workersKeyManager.signTransaction.secondCall.args;
+      expect(resentTx.nonce).to.equal(NONCE);
+      expect(resentTx.gasPrice?.toString()).to.equal(
+        nodeMaxGasPrice.toString()
+      );
+    });
+
+    it('should send again a stale transaction priced above the maximum at its own price', async function () {
+      const { pendingTransactionTimeoutBlocks } =
+        transactionManager.config.blockchain;
+      // priced when the node gasPrice was higher; a replacement cannot lower it
+      const storedGasPrice = BigNumber.from(NODE_GAS_PRICE).mul(30);
+      txStoreManager.getAllBySigner.resolves([createStoredTx(storedGasPrice)]);
+      broadcast.resolves({ hash: TX_HASH });
+
+      await transactionManager.boostUnderpricedPendingTransactionsForSigner(
+        WORKER_ADDRESS,
+        1 + pendingTransactionTimeoutBlocks
+      );
+
+      const [, resentTx] = workersKeyManager.signTransaction.firstCall.args;
+      expect(resentTx.gasPrice?.toString()).to.equal(storedGasPrice.toString());
+    });
+
+    it('should boost only once the oldest transaction has waited the pending timeout', async function () {
+      const { pendingTransactionTimeoutBlocks } =
+        transactionManager.config.blockchain;
+      txStoreManager.getAllBySigner.resolves([
+        createStoredTx(BigNumber.from(NODE_GAS_PRICE)),
+      ]);
+      broadcast.resolves({ hash: TX_HASH });
+
+      const early =
+        await transactionManager.boostUnderpricedPendingTransactionsForSigner(
+          WORKER_ADDRESS,
+          pendingTransactionTimeoutBlocks
+        );
+      expect(early.size).to.equal(0);
+      expect(broadcast).not.to.have.been.called;
+
+      const onTime =
+        await transactionManager.boostUnderpricedPendingTransactionsForSigner(
+          WORKER_ADDRESS,
+          1 + pendingTransactionTimeoutBlocks
+        );
+      expect(onTime.size).to.equal(1);
     });
   });
 });

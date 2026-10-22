@@ -726,6 +726,26 @@ describe('relayServerUtils tests', function () {
 
       expect(maxGasPrice.toString()).to.equal('27500000');
     });
+
+    it('should stay at 50 times the node gasPrice whatever the floor', function () {
+      for (const floor of ['1000000000', '100000000000']) {
+        const maxGasPrice = getMaxRequestGasPrice(NODE_GAS_PRICE, {
+          maxRequestGasPriceFactor: 20,
+          maxRequestGasPriceFloor: floor,
+        });
+
+        expect(maxGasPrice.toString()).to.equal('310758850');
+      }
+    });
+
+    it('should refuse the client default on a regtest node priced at 1 wei', function () {
+      const maxGasPrice = getMaxRequestGasPrice('1', {
+        maxRequestGasPriceFactor: 20,
+        maxRequestGasPriceFloor: '60000000',
+      });
+
+      expect(maxGasPrice.toString()).to.equal('50');
+    });
   });
 
   describe('Function queryVerifiers()', function () {
