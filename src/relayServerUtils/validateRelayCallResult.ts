@@ -1,0 +1,31 @@
+import { RelayHub__factory } from '@rsksmart/rif-relay-contracts';
+
+const relayHubInterface = RelayHub__factory.createInterface();
+
+/**
+ * Checks what RelayHub.relayCall returned in the dry run. A call that runs
+ * out of gas on Rootstock returns no data instead of an error, and a
+ * destination call that fails returns false: the first reverts once mined,
+ * and the second earns nothing when the request is sponsored, both at the
+ * worker's cost. deployCall returns nothing, so it cannot be checked this way.
+ * @param result The data the dry run of relayCall returned.
+ */
+export function validateRelayCallResult(result: string): void {
+  let destinationCallSuccess: boolean;
+  try {
+    [destinationCallSuccess] = relayHubInterface.decodeFunctionResult(
+      'relayCall',
+      result
+    ) as unknown as [boolean];
+  } catch {
+    throw new Error(
+      `The relay call returned no result in the dry run (as when it runs out of gas): ${result}`
+    );
+  }
+
+  if (!destinationCallSuccess) {
+    throw new Error('The destination call fails in the dry run');
+  }
+}
+
+export default validateRelayCallResult;

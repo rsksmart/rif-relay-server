@@ -9,7 +9,12 @@ import sinon, { SinonSpy, SinonStub, createStubInstance } from 'sinon';
 import * as rifClient from '@rsksmart/rif-relay-client';
 import { BigNumber, Wallet, constants, providers, utils } from 'ethers';
 import * as serverUtils from '../../src/Utils';
-import { ERC20__factory, ERC20, RelayHub } from '@rsksmart/rif-relay-contracts';
+import {
+  ERC20__factory,
+  ERC20,
+  RelayHub,
+  RelayHub__factory,
+} from '@rsksmart/rif-relay-contracts';
 import { expect, use } from 'chai';
 import * as Conversions from '../../src/Conversions';
 import { BigNumber as BigNumberJs } from 'bignumber.js';
@@ -334,6 +339,22 @@ describe('RelayServer tests', function () {
       await expect(relayServer.createRelayTransaction(request)).to.be.fulfilled;
     });
 
+    it('should dry run and broadcast with estimateGasFactor on top of the estimate', async function () {
+      (relayServer.getMaxPossibleGas as SinonStub).resolves({
+        maxPossibleGas: BigNumber.from(100000),
+        maxPossibleGasWithFee: BigNumber.from(100000),
+      });
+
+      await relayServer.createRelayTransaction(createEnvelopingRequest());
+
+      const expected = BigNumber.from(100000)
+        .mul(relayServer.config.blockchain.estimateGasFactor * 10)
+        .div(10);
+      expect(
+        (relayServer.maxPossibleGasWithViewCall as SinonStub).firstCall.args[2]
+      ).to.eql(expected);
+    });
+
     it('should release the requests whose transaction is mined on each block', async function () {
       await relayServer.createRelayTransaction(createEnvelopingRequest());
       const getTransactionCount = sinon.stub().resolves(8);
@@ -345,6 +366,83 @@ describe('RelayServer tests', function () {
 
       expect(getTransactionCount).to.have.been.calledWith('0x123', 'latest');
       expect(relayServer.inFlightRelays.hasBroadcast()).to.be.false;
+    });
+  });
+
+  describe('Function maxPossibleGasWithViewCall()', function () {
+    const GAS_LIMIT = 100000;
+    let transactionResult: string;
+
+    function createEnvelopingRequest(isDeploy = false): HttpEnvelopingRequest {
+      return {
+        metadata: { relayHubAddress: '0x123abc', relayMaxNonce: 1 },
+        relayRequest: {
+          request: isDeploy ? { index: '0' } : {},
+          relayData: { gasPrice: GAS_PRICE },
+        },
+      } as unknown as HttpEnvelopingRequest;
+    }
+
+    beforeEach(function () {
+      // the client's dry run is an eth_call through the provider it is given
+      rifClient.setProvider(provider);
+      sinon
+        .stub(provider, 'call')
+        .callsFake(() => Promise.resolve(transactionResult));
+    });
+
+    it('should return the gas limit of a relay call that succeeds', async function () {
+      transactionResult =
+        RelayHub__factory.createInterface().encodeFunctionResult('relayCall', [
+          true,
+        ]);
+
+      await expect(
+        relayServer.maxPossibleGasWithViewCall(
+          {},
+          createEnvelopingRequest(),
+          BigNumber.from(GAS_LIMIT)
+        )
+      ).to.eventually.eql(BigNumber.from(GAS_LIMIT));
+    });
+
+    it('should reject a relay call that returns no data', async function () {
+      transactionResult = '0x';
+
+      await expect(
+        relayServer.maxPossibleGasWithViewCall(
+          {},
+          createEnvelopingRequest(),
+          BigNumber.from(GAS_LIMIT)
+        )
+      ).to.be.rejectedWith('returned no result in the dry run');
+    });
+
+    it('should reject a relay call whose destination call fails', async function () {
+      transactionResult =
+        RelayHub__factory.createInterface().encodeFunctionResult('relayCall', [
+          false,
+        ]);
+
+      await expect(
+        relayServer.maxPossibleGasWithViewCall(
+          {},
+          createEnvelopingRequest(),
+          BigNumber.from(GAS_LIMIT)
+        )
+      ).to.be.rejectedWith('The destination call fails in the dry run');
+    });
+
+    it('should accept a deploy call, which returns no data', async function () {
+      transactionResult = '0x';
+
+      await expect(
+        relayServer.maxPossibleGasWithViewCall(
+          {},
+          createEnvelopingRequest(true),
+          BigNumber.from(GAS_LIMIT)
+        )
+      ).to.eventually.eql(BigNumber.from(GAS_LIMIT));
     });
   });
 

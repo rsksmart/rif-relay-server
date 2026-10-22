@@ -147,7 +147,7 @@ File [./config/default.json5](config/default.json5) contains all configuration p
     // default gasPrice (0.06 gwei) keep being accepted when the node's gasPrice falls; it never lifts the maximum above 50 times
     // the node's gasPrice, so if the node's gasPrice falls below 1/50 of the floor, requests priced at the floor are rejected
     maxRequestGasPriceFloor: 60000000,
-    estimateGasFactor: 1.2,
+    estimateGasFactor: 1.2, // headroom on gas estimates: the server's own transactions, and the dry run and gas limit of relayed transactions
     initialBlockToScan: 1, // the first block to scan for events: at startup with startupStateSource "events", and for server activity when registrationBlockRate is set
     startupStateSource: "events", // how the server learns its registration state at startup: "events" replays the hub events since initialBlockToScan, "chain" reads it from the RelayHub
     maxBlockRange: 1000,   // the maximum amount of blocks to include while requesting events

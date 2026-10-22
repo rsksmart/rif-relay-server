@@ -68,7 +68,9 @@ import {
   queryVerifiers,
   getAcceptedTokensFromVerifier,
   getAcceptedContractsFromVerifier,
+  validateRelayCallResult,
 } from './relayServerUtils';
+import { applyFactor } from './Conversions';
 import { getPastEventsForHub } from './getPastEventsForHub';
 import type { ManagerEvent, PastEventOptions } from './definitions';
 import {
@@ -484,12 +486,17 @@ export class RelayServer extends EventEmitter {
 
     log.debug('RelayServer - attempting to relay transaction');
 
-    const { maxPossibleGas } = await maxPossibleGasVerification(
-      transaction,
-      gasPrice,
-      gasLimit,
-      this.workerAddress
-    );
+    const { maxPossibleGas, transactionResult } =
+      await maxPossibleGasVerification(
+        transaction,
+        gasPrice,
+        gasLimit,
+        this.workerAddress
+      );
+
+    if (!isDeployRequest(envelopingRequest.relayRequest)) {
+      validateRelayCallResult(transactionResult);
+    }
 
     return maxPossibleGas;
   }
@@ -645,11 +652,13 @@ export class RelayServer extends EventEmitter {
           signature
         );
 
-    // Call relayCall as a view function to see if we'll get paid for relaying this tx
+    // Call relayCall as a view function to see if we'll get paid for relaying this tx.
+    // The estimate on Rootstock is the gas used plus the 2300 stipend, with no
+    // headroom, so the dry run and the broadcast get estimateGasFactor on top
     const maxPossibleGasWithViewCall = await this.maxPossibleGasWithViewCall(
       method,
       envelopingTransaction,
-      maxPossibleGas
+      applyFactor(maxPossibleGas, this.config.blockchain.estimateGasFactor)
     );
 
     log.debug(

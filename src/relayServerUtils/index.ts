@@ -9,6 +9,7 @@ import queryVerifiers from './queryVerifiers';
 import validateExpirationTime from './validateExpirationTime';
 import validateIfGasAmountIsAcceptable from './validateIfGasAmountIsAcceptable';
 import validateIfTokenAmountIsAcceptable from './validateIfTokenAmountIsAcceptable';
+import validateRelayCallResult from './validateRelayCallResult';
 
 export {
   validateIfGasAmountIsAcceptable,
@@ -23,4 +24,5 @@ export {
   getAcceptedContractsFromVerifier,
   getAcceptedTokensFromVerifier,
   getMaxRequestGasPrice,
+  validateRelayCallResult,
 };
