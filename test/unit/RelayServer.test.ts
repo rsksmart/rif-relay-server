@@ -5,7 +5,7 @@ import {
   ServerAction,
   ServerDependencies,
   TxStoreManager,
-  UnansweredBroadcastError,
+  KeptTransactionError,
 } from '../../src';
 import sinon, { SinonSpy, SinonStub, createStubInstance } from 'sinon';
 import * as rifClient from '@rsksmart/rif-relay-client';
@@ -106,6 +106,7 @@ describe('RelayServer tests', function () {
     const expectedTransactionDetails = {
       signedTx: '0x789zxc',
       txHash: '0x567zxc',
+      nonce: 0,
     };
 
     beforeEach(function () {
@@ -305,7 +306,7 @@ describe('RelayServer tests', function () {
       });
       sendTransaction = sinon
         .stub(relayServer.transactionManager, 'sendTransaction')
-        .resolves({ txHash: utils.keccak256(signedTx), signedTx });
+        .resolves({ txHash: utils.keccak256(signedTx), signedTx, nonce: 7 });
     });
 
     it('should refuse a concurrent copy of a request', async function () {
@@ -336,7 +337,7 @@ describe('RelayServer tests', function () {
       // the node may have the transaction, and the boost sends it again
       sendTransaction
         .onFirstCall()
-        .rejects(new UnansweredBroadcastError(7, new Error('timeout')));
+        .rejects(new KeptTransactionError(7, new Error('timeout')));
 
       await expect(
         relayServer.createRelayTransaction(request)
@@ -413,6 +414,40 @@ describe('RelayServer tests', function () {
       await expect(relayServer.createRelayTransaction(request)).to.be.fulfilled;
     });
 
+    it('should not hold the keys of a request while it is checked', async function () {
+      const request = createEnvelopingRequest();
+      // the first copy is still being checked, e.g. a forged one
+      let failFirstCheck: (error: Error) => void = () => undefined;
+      (relayServer.validateRequestWithVerifier as SinonStub)
+        .onFirstCall()
+        .returns(
+          new Promise((_resolve, reject) => {
+            failFirstCheck = reject;
+          })
+        );
+
+      const first = relayServer.createRelayTransaction(request);
+      await expect(relayServer.createRelayTransaction(request)).to.be.fulfilled;
+
+      failFirstCheck(new Error('invalid signature'));
+      await expect(first).to.be.rejectedWith('invalid signature');
+      expect(sendTransaction).to.have.been.calledOnce;
+    });
+
+    it('should hold a request whose transaction was kept with another hash until it is mined', async function () {
+      const request = createEnvelopingRequest();
+      sendTransaction
+        .onFirstCall()
+        .rejects(new KeptTransactionError(7, new Error('txhash mismatch')));
+
+      await expect(
+        relayServer.createRelayTransaction(request)
+      ).to.be.rejectedWith('txhash mismatch');
+      await expect(
+        relayServer.createRelayTransaction(request)
+      ).to.be.rejectedWith('already being relayed');
+    });
+
     it('should accept a copy of a request that failed', async function () {
       const request = createEnvelopingRequest();
       sendTransaction.onFirstCall().rejects(new Error('node refused it'));
@@ -456,7 +491,7 @@ describe('RelayServer tests', function () {
       await relayServer.createRelayTransaction(createEnvelopingRequest());
       const { readCount, writeCount } = stubMinedNonces(8, 8);
 
-      await relayServer._releaseMinedRelays();
+      await relayServer._releaseMinedRelays(1);
 
       expect(readCount).to.have.been.calledWith('0x123', 'latest');
       expect(writeCount).to.have.been.calledWith('0x123', 'latest');
@@ -467,16 +502,40 @@ describe('RelayServer tests', function () {
       await relayServer.createRelayTransaction(createEnvelopingRequest());
       stubMinedNonces(7, 8);
 
-      await relayServer._releaseMinedRelays();
+      await relayServer._releaseMinedRelays(1);
 
       expect(relayServer.inFlightRelays.hasBroadcast()).to.be.true;
+    });
+
+    it('should keep the requests held and go on when a node cannot be read', async function () {
+      await relayServer.createRelayTransaction(createEnvelopingRequest());
+      sinon.stub(provider, 'getTransactionCount').resolves(8);
+      sinon.stub(serverUtils, 'getWriteProvider').returns({
+        getTransactionCount: sinon.stub().rejects(new Error('node is down')),
+      } as unknown as providers.Provider);
+
+      await expect(relayServer._releaseMinedRelays(1)).to.be.fulfilled;
+
+      expect(relayServer.inFlightRelays.hasBroadcast()).to.be.true;
+    });
+
+    it('should read the mined nonces once per block', async function () {
+      await relayServer.createRelayTransaction(createEnvelopingRequest());
+      const { readCount } = stubMinedNonces(7, 7);
+
+      await relayServer._releaseMinedRelays(1);
+      await relayServer._releaseMinedRelays(1);
+      expect(readCount).to.have.been.calledOnce;
+
+      await relayServer._releaseMinedRelays(2);
+      expect(readCount).to.have.been.calledTwice;
     });
 
     it('should hold a request while the write node has not seen its transaction mined', async function () {
       await relayServer.createRelayTransaction(createEnvelopingRequest());
       stubMinedNonces(8, 7);
 
-      await relayServer._releaseMinedRelays();
+      await relayServer._releaseMinedRelays(1);
 
       expect(relayServer.inFlightRelays.hasBroadcast()).to.be.true;
     });
@@ -519,7 +578,7 @@ describe('RelayServer tests', function () {
       ).to.eventually.eql(BigNumber.from(GAS_LIMIT));
     });
 
-    it('should reject a relay call that returns no data', async function () {
+    it('should reject a relay call that returns no data with every gas limit', async function () {
       transactionResult = '0x';
 
       await expect(
@@ -529,6 +588,32 @@ describe('RelayServer tests', function () {
           BigNumber.from(GAS_LIMIT)
         )
       ).to.be.rejectedWith('returned no result in the dry run');
+      // the first limit and four larger ones
+      expect((provider.call as SinonStub).callCount).to.equal(5);
+    });
+
+    it('should retry with more gas a relay call that runs out of gas', async function () {
+      const success = RelayHub__factory.createInterface().encodeFunctionResult(
+        'relayCall',
+        [true]
+      );
+      // on Rootstock an eth_call that runs out of gas returns no data
+      (provider.call as SinonStub).callsFake(
+        (transaction: { gasLimit: BigNumber }) =>
+          Promise.resolve(
+            BigNumber.from(transaction.gasLimit).gte(GAS_LIMIT * 1.25)
+              ? success
+              : '0x'
+          )
+      );
+
+      await expect(
+        relayServer.maxPossibleGasWithViewCall(
+          {},
+          createEnvelopingRequest(),
+          BigNumber.from(GAS_LIMIT)
+        )
+      ).to.eventually.eql(BigNumber.from(GAS_LIMIT * 1.25));
     });
 
     it('should reject a relay call whose destination call fails', async function () {

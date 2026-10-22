@@ -123,9 +123,7 @@ describe('InFlightRelays', function () {
       const keys = getInFlightKeys(createRequest());
 
       expect(keys).to.have.lengthOf(2);
-      expect(keys[1]).to.equal(
-        `claim:${HTLC}:${PREIMAGE.substring(2)}`.toLowerCase()
-      );
+      expect(keys[1]).to.equal(`claim:${PREIMAGE.substring(2)}`.toLowerCase());
     });
 
     it('should give two claims of the same swap the same claim key', function () {
@@ -133,6 +131,32 @@ describe('InFlightRelays', function () {
       const [, second] = getInFlightKeys(createRequest());
 
       expect(first).to.equal(second);
+    });
+
+    it('should give a claim of the same swap through the coordinator the same claim key', function () {
+      const coordinator = new utils.Interface([
+        'function redeemAndExecute(bytes32 preimage, uint256 amount, address sender, uint256 timelock, (address target, uint256 value, bytes callData)[] calls, address sweepToken, uint256 minAmountOut, address destination, uint8 v, bytes32 r, bytes32 s)',
+      ]);
+      const data = coordinator.encodeFunctionData('redeemAndExecute', [
+        PREIMAGE,
+        1,
+        Wallet.createRandom().address,
+        1,
+        [],
+        constants.AddressZero,
+        0,
+        constants.AddressZero,
+        27,
+        constants.HashZero,
+        constants.HashZero,
+      ]);
+      const [, direct] = getInFlightKeys(createRequest());
+      const [, throughCoordinator] = getInFlightKeys(
+        createRequest({ to: Wallet.createRandom().address, data })
+      );
+
+      expect(data.substring(2, 10)).to.equal('81838615');
+      expect(throughCoordinator).to.equal(direct);
     });
 
     it('should not key a call that is not a claim by its first argument', function () {

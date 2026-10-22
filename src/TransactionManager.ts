@@ -26,6 +26,10 @@ export interface SignedTransactionDetails {
   signedTx: string;
 }
 
+export type SentTransactionDetails = SignedTransactionDetails & {
+  nonce: number;
+};
+
 export interface SendTransactionDetails {
   signer: string;
   serverAction: ServerAction;
@@ -38,22 +42,26 @@ export interface SendTransactionDetails {
 }
 
 /**
- * A broadcast the node didn't answer. The node may have accepted the
- * transaction, so it stays stored with its nonce, and the boost sends it again
- * if it isn't mined; `error` is the failure of the broadcast.
+ * A broadcast that failed after the transaction was stored, but whose
+ * transaction may still be mined: the node didn't answer, or answered with
+ * another hash. It stays stored with its nonce, and the boost sends it again
+ * if it isn't mined. `error` is the failure.
  */
-export class UnansweredBroadcastError extends Error {
+export class KeptTransactionError extends Error {
   readonly nonce: number;
 
   readonly error: unknown;
 
   constructor(nonce: number, error: unknown) {
     // the message a client gets; the full error, which can hold the request
-    // and the signed transaction, stays in `error` for the log
+    // and the signed transaction, stays in `error` and the stack for the log
     super(clientErrorMessage(error));
-    this.name = 'UnansweredBroadcastError';
+    this.name = 'KeptTransactionError';
     this.nonce = nonce;
     this.error = error;
+    if (error instanceof Error && error.stack) {
+      this.stack = `${this.stack ?? this.name}\nCaused by: ${error.stack}`;
+    }
   }
 }
 
@@ -186,7 +194,7 @@ data         | 0x${transaction.data ?? ''}
     gasPrice,
     creationBlockNumber,
     serverAction,
-  }: SendTransactionDetails): Promise<SignedTransactionDetails> {
+  }: SendTransactionDetails): Promise<SentTransactionDetails> {
     const provider = getProvider();
 
     const providerGasPrice = await provider.getGasPrice();
@@ -246,16 +254,20 @@ data         | 0x${transaction.data ?? ''}
           `Broadcast of transaction ${storedTx.txId} failed without an answer from the node, keeping it:`,
           error instanceof Error ? error.message : error
         );
-        throw new UnansweredBroadcastError(nonce, error);
+        throw new KeptTransactionError(nonce, error);
       }
 
       if (transaction.hash.toLowerCase() !== storedTx.txId.toLowerCase()) {
-        throw new Error(
-          `txhash mismatch: from receipt: ${transaction.hash} from txstore:${storedTx.txId}`
+        // the node took a transaction at this nonce, so it stays taken
+        throw new KeptTransactionError(
+          nonce,
+          new Error(
+            `txhash mismatch: from receipt: ${transaction.hash} from txstore:${storedTx.txId}`
+          )
         );
       }
 
-      return signedTransaction;
+      return { ...signedTransaction, nonce };
     } finally {
       releaseMutex();
     }
@@ -645,10 +657,23 @@ data         | 0x${transaction.data ?? ''}
     // The transactions are broadcast to the write node, which can be ahead of
     // a lagging read node; a mined transaction re-signed and broadcast again
     // is refused as a nonce too low, so the higher of the two counts is used
-    const nonce = Math.max(
-      await provider.getTransactionCount(signer),
-      await getWriteProvider().getTransactionCount(signer)
-    );
+    let nonce: number;
+    try {
+      const [readNonce, writeNonce] = await Promise.all([
+        provider.getTransactionCount(signer),
+        getWriteProvider().getTransactionCount(signer),
+      ]);
+      nonce = Math.max(readNonce, writeNonce);
+    } catch (error) {
+      // without both counts a mined transaction could be re-signed; the
+      // boost waits for the next block instead of failing the whole round
+      log.warn(
+        `${signer} : could not read the mined nonce from both nodes, not boosting:`,
+        error instanceof Error ? error.message : error
+      );
+
+      return boostedTransactions;
+    }
     const oldestPendingTx = sortedTxs[0];
     if (oldestPendingTx) {
       if (

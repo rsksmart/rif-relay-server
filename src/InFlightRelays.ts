@@ -5,13 +5,15 @@ import type { EnvelopingRequest } from './definitions';
 const relayHubInterface = RelayHub__factory.createInterface();
 
 /**
- * Selectors of the swap claims the server relays, all of which take the
- * swap's preimage as their first argument. Two requests that claim the same
- * swap compete for it: only the first one mined can succeed.
+ * Selectors of the swap claims the trusted verifiers accept, all of which take
+ * the swap's preimage as their first argument. Two requests that claim the
+ * same swap compete for it, whichever contract they go through: only the
+ * first one mined can succeed.
  */
 const CLAIM_SELECTORS = new Set([
   'd592e483', // Lendaswap HTLCNative redeem(bytes32,uint256,address,uint256)
   '24499b44', // Lendaswap HTLCNative redeemBySig(bytes32,uint256,address,uint256,address,address,uint256,bytes32,uint8,bytes32,bytes32)
+  '81838615', // Lendaswap HTLCNativeCoordinator redeemAndExecute(bytes32,uint256,address,uint256,(address,uint256,bytes)[],address,uint256,address,uint8,bytes32,bytes32)
   'c3c37fbc', // Boltz EtherSwap claim(bytes32,uint256,address,uint256)
   'cd413efa', // Boltz EtherSwap claim(bytes32,uint256,address,address,uint256)
 ]);
@@ -22,7 +24,8 @@ const CLAIM_PREFIX_LENGTH = 2 + 8 + 64;
 /**
  * The keys a relay request competes on: the nonce of the smart wallet (or of
  * the factory for its owner, on a deploy), which only one transaction can
- * use, and the swap it claims, if any, which only one transaction can claim.
+ * use, and the swap it claims, if any, by its preimage, which only one
+ * transaction can claim.
  */
 export function getInFlightKeys({
   request,
@@ -42,12 +45,7 @@ export function getInFlightKeys({
     data.length >= CLAIM_PREFIX_LENGTH &&
     CLAIM_SELECTORS.has(data.substring(2, 10))
   ) {
-    keys.push(
-      `claim:${utils.getAddress(request.to)}:${data.substring(
-        10,
-        CLAIM_PREFIX_LENGTH
-      )}`.toLowerCase()
-    );
+    keys.push(`claim:${data.substring(10, CLAIM_PREFIX_LENGTH)}`);
   }
 
   return keys;
@@ -72,7 +70,7 @@ export type InFlightRelay = {
 };
 
 /**
- * The relay requests the server is validating or has broadcast and not yet
+ * The relay requests the server is broadcasting or has broadcast and not yet
  * seen mined. Every copy of a request passes validation until the first one
  * is mined, and every copy after the first reverts at the worker's cost, so
  * a request is refused while another one with a key in common is in flight.

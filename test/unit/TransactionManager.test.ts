@@ -9,7 +9,7 @@ import {
   StoredTransaction,
   TransactionManager,
   TxStoreManager,
-  UnansweredBroadcastError,
+  KeptTransactionError,
   isRefusedByNode,
 } from '../../src';
 import * as serverUtils from '../../src/Utils';
@@ -145,7 +145,10 @@ describe('TransactionManager tests', function () {
     it('should take the next nonce and keep the transaction when the node accepts it', async function () {
       broadcast.resolves({ hash: TX_HASH });
 
-      await expect(sendRelayTransaction()).to.be.fulfilled;
+      await expect(sendRelayTransaction()).to.eventually.include({
+        txHash: TX_HASH,
+        nonce: NONCE,
+      });
 
       expect(transactionManager.nonces[WORKER_ADDRESS]).to.equal(NONCE + 1);
       // eslint-disable-next-line @typescript-eslint/unbound-method -- a sinon stub, not a method call
@@ -194,9 +197,9 @@ describe('TransactionManager tests', function () {
       );
 
       // it tells the caller which nonce it keeps
-      expect(error).to.be.instanceOf(UnansweredBroadcastError);
-      expect((error as UnansweredBroadcastError).nonce).to.equal(NONCE);
-      expect((error as UnansweredBroadcastError).message).to.equal(
+      expect(error).to.be.instanceOf(KeptTransactionError);
+      expect((error as KeptTransactionError).nonce).to.equal(NONCE);
+      expect((error as KeptTransactionError).message).to.equal(
         'timeout (TIMEOUT)'
       );
       expect(transactionManager.nonces[WORKER_ADDRESS]).to.equal(NONCE + 1);
@@ -229,7 +232,32 @@ describe('TransactionManager tests', function () {
       expect(serverUtils.clientErrorMessage(error)).to.equal(
         'missing response (SERVER_ERROR)'
       );
-      expect((error as UnansweredBroadcastError).error).to.equal(lost);
+      expect((error as KeptTransactionError).error).to.equal(lost);
+    });
+
+    it('should keep a transaction the node took under another hash, and say which nonce', async function () {
+      broadcast.resolves({ hash: OLD_TX_HASH });
+
+      const error: unknown = await sendRelayTransaction().catch(
+        (e: unknown) => e
+      );
+
+      expect(error).to.be.instanceOf(KeptTransactionError);
+      expect((error as KeptTransactionError).nonce).to.equal(NONCE);
+      expect((error as KeptTransactionError).message).to.contain(
+        'txhash mismatch'
+      );
+      expect(transactionManager.nonces[WORKER_ADDRESS]).to.equal(NONCE + 1);
+      // eslint-disable-next-line @typescript-eslint/unbound-method -- a sinon stub, not a method call
+      expect(txStoreManager.removeTx).not.to.have.been.called;
+    });
+
+    it('should keep the stack of the failure in a kept transaction error', function () {
+      const failure = new Error('socket hang up');
+
+      expect(new KeptTransactionError(1, failure).stack).to.contain(
+        `Caused by: ${failure.stack ?? ''}`
+      );
     });
 
     it('should not reuse the nonce of a transaction whose broadcast response was lost', async function () {
@@ -635,6 +663,24 @@ describe('TransactionManager tests', function () {
 
       const [, resentTx] = workersKeyManager.signTransaction.firstCall.args;
       expect(resentTx.gasPrice?.toString()).to.equal(storedGasPrice.toString());
+    });
+
+    it('should not boost, nor fail, when a node cannot be read', async function () {
+      const { pendingTransactionTimeoutBlocks } =
+        transactionManager.config.blockchain;
+      txStoreManager.getAllBySigner.resolves([
+        createStoredTx(BigNumber.from(NODE_GAS_PRICE)),
+      ]);
+      writeProvider.getTransactionCount.rejects(new Error('node is down'));
+
+      const boosted =
+        await transactionManager.boostUnderpricedPendingTransactionsForSigner(
+          WORKER_ADDRESS,
+          1 + pendingTransactionTimeoutBlocks
+        );
+
+      expect(boosted.size).to.equal(0);
+      expect(broadcast).not.to.have.been.called;
     });
 
     it('should boost only once the oldest transaction has waited the pending timeout', async function () {

@@ -4,10 +4,11 @@ const relayHubInterface = RelayHub__factory.createInterface();
 
 /**
  * Checks what RelayHub.relayCall returned in the dry run. A call that runs
- * out of gas on Rootstock returns no data instead of an error, and a
- * destination call that fails returns false: the first reverts once mined,
- * and the second earns nothing when the request is sponsored, both at the
- * worker's cost. deployCall returns nothing, so it cannot be checked this way.
+ * out of gas on Rootstock returns no data instead of an error, and reverts
+ * once mined at the worker's cost. A destination call that fails returns
+ * false: a sponsored request then earns the worker nothing, and a paid one
+ * charges its user a fee for a call that does nothing, so both are refused.
+ * deployCall returns nothing, so it cannot be checked this way.
  * @param result The data the dry run of relayCall returned.
  */
 export function validateRelayCallResult(result: string): void {
