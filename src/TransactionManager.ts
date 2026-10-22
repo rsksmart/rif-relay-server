@@ -580,6 +580,25 @@ data         | 0x${transaction.data ?? ''}
     signer: string,
     currentBlockHeight: number
   ): Promise<Map<string, SignedTransactionDetails>> {
+    // The boost runs under the nonce mutex, from reading the store to its last
+    // broadcast, so it never replaces a transaction whose first broadcast is
+    // still in flight: if the node then refused that broadcast, its nonce would
+    // be given back while the store kept the boost under the same nonce
+    const releaseMutex = await this.nonceMutex.acquire();
+    try {
+      return await this._boostUnderpricedPendingTransactionsForSigner(
+        signer,
+        currentBlockHeight
+      );
+    } finally {
+      releaseMutex();
+    }
+  }
+
+  async _boostUnderpricedPendingTransactionsForSigner(
+    signer: string,
+    currentBlockHeight: number
+  ): Promise<Map<string, SignedTransactionDetails>> {
     const boostedTransactions = new Map<string, SignedTransactionDetails>();
 
     // Load unconfirmed transactions from store again

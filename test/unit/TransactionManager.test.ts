@@ -642,5 +642,45 @@ describe('TransactionManager tests', function () {
         nodeMaxGasPrice.toString()
       );
     });
+
+    it('should wait for a broadcast in flight before reading the transactions to boost', async function () {
+      const { pendingTransactionTimeoutBlocks } =
+        transactionManager.config.blockchain;
+      // the first broadcast hangs until the test refuses it
+      let refuseBroadcast: (error: Error) => void = () => undefined;
+      broadcast.onFirstCall().returns(
+        new Promise((_resolve, reject) => {
+          refuseBroadcast = reject;
+        })
+      );
+      txStoreManager.getAllBySigner.resolves([]);
+      const flush = () => new Promise((resolve) => setImmediate(resolve));
+
+      const sending = sendRelayTransaction();
+      while (!broadcast.called) {
+        await flush();
+      }
+      const boosting =
+        transactionManager.boostUnderpricedPendingTransactionsForSigner(
+          WORKER_ADDRESS,
+          1 + pendingTransactionTimeoutBlocks
+        );
+      await flush();
+
+      // eslint-disable-next-line @typescript-eslint/unbound-method -- a sinon stub, not a method call
+      expect(txStoreManager.getAllBySigner).not.to.have.been.called;
+
+      refuseBroadcast(nodeRefusal('gas price above cap'));
+      await expect(sending).to.be.rejected;
+      await expect(boosting).to.be.fulfilled;
+
+      // the boost reads the store only after the refusal gave the nonce back
+      expect(
+        txStoreManager.removeTx.firstCall.calledBefore(
+          txStoreManager.getAllBySigner.firstCall
+        )
+      ).to.be.true;
+      expect(transactionManager.nonces[WORKER_ADDRESS]).to.equal(NONCE);
+    });
   });
 });
