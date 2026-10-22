@@ -339,6 +339,26 @@ describe('TransactionManager tests', function () {
       );
     });
 
+    it('should not take a transaction sent again unchanged as sent when the node has mined it', async function () {
+      const storedTx = {
+        ...createStoredTx(BigNumber.from(100000000)),
+        txId: TX_HASH,
+      };
+      broadcast.rejects(nodeRefusal('transaction already known'));
+      writeProvider.getTransaction
+        .withArgs(TX_HASH)
+        .resolves({ hash: TX_HASH, blockNumber: 50 });
+
+      await expect(
+        transactionManager.resendTransaction(
+          storedTx,
+          10,
+          BigNumber.from(100000000),
+          true
+        )
+      ).to.be.rejectedWith('processing response error');
+    });
+
     it('should not take a transaction refused after a boost as sent although the node has the previous one', async function () {
       const storedTx = createStoredTx(BigNumber.from(100000000));
       broadcast.rejects(nodeRefusal('gas price above cap'));
@@ -641,6 +661,38 @@ describe('TransactionManager tests', function () {
         );
 
       expect(nextBlock.size).to.equal(0);
+      expect(broadcast).to.have.been.calledOnce;
+    });
+
+    it('should stop the boost when the oldest transaction sent again unchanged has been mined', async function () {
+      const { pendingTransactionTimeoutBlocks } =
+        transactionManager.config.blockchain;
+      // mined, but the store hasn't caught up: it is at a price that can't be
+      // raised and a value transfer waits behind it
+      const minedTx = {
+        ...createStoredTx(BigNumber.from(NODE_GAS_PRICE).mul(30)),
+        txId: TX_HASH,
+      };
+      const transferTx = {
+        ...createStoredTx(BigNumber.from(NODE_GAS_PRICE)),
+        serverAction: ServerAction.VALUE_TRANSFER,
+        nonce: NONCE + 1,
+        value: BigNumber.from(10).pow(15),
+      };
+      txStoreManager.getAllBySigner.resolves([minedTx, transferTx]);
+      broadcast.rejects(nodeRefusal('transaction already known'));
+      writeProvider.getTransaction
+        .withArgs(TX_HASH)
+        .resolves({ hash: TX_HASH, blockNumber: 50 });
+
+      await expect(
+        transactionManager.boostUnderpricedPendingTransactionsForSigner(
+          WORKER_ADDRESS,
+          1 + pendingTransactionTimeoutBlocks
+        )
+      ).to.be.rejectedWith('processing response error');
+
+      // the transfer is not sent with a value planned against a stale balance
       expect(broadcast).to.have.been.calledOnce;
     });
 

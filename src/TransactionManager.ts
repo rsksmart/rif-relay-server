@@ -346,13 +346,16 @@ data         | 0x${transaction.data ?? ''}
       if (
         isSentAgainUnchanged &&
         isRefusedByNode(error) &&
-        (await this._isKnownByNode(signedTransaction.txHash))
+        (await this._isPendingOnNode(signedTransaction.txHash))
       ) {
-        // The node refuses a transaction it already has, e.g. one still in its
-        // pool at a price that can't be raised; it was sent, so the boost goes
-        // on with the next one and the attempt makes it wait for the timeout
+        // The node refuses a transaction it already has in its pool, e.g. one
+        // at a price that can't be raised; it was sent, so the boost goes on
+        // with the next one and the attempt makes it wait for the timeout. A
+        // transaction the node has mined is not taken as sent: the store is
+        // behind, and the later transactions would be planned against a
+        // balance that already paid for it, so the refusal stops the boost
         log.debug(
-          `Transaction ${tx.txId} sent again unchanged is already known by the node`
+          `Transaction ${tx.txId} sent again unchanged is already pending on the node`
         );
 
         return signedTransaction;
@@ -398,11 +401,13 @@ data         | 0x${transaction.data ?? ''}
 
   /**
    * Whether the write node, the one transactions are broadcast to, has the
-   * transaction, pending or mined. A failed lookup counts as unknown.
+   * transaction in its pool, not yet mined. A failed lookup counts as not.
    */
-  async _isKnownByNode(txHash: string): Promise<boolean> {
+  async _isPendingOnNode(txHash: string): Promise<boolean> {
     try {
-      return (await getWriteProvider().getTransaction(txHash)) != null;
+      const transaction = await getWriteProvider().getTransaction(txHash);
+
+      return transaction != null && transaction.blockNumber == null;
     } catch (error) {
       log.warn(
         `Could not look up transaction ${txHash} on the node:`,
