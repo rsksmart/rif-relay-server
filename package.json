@@ -75,8 +75,8 @@
     "package.json": "npx sort-package-json"
   },
   "dependencies": {
-    "@rsksmart/rif-relay-client": "github:rsksmart/rif-relay-client#v2.3.1",
-    "@rsksmart/rif-relay-contracts": "github:rsksmart/rif-relay-contracts#v2.2.0-beta.0",
+    "@rsksmart/rif-relay-client": "github:rsksmart/rif-relay-client#v2.3.2",
+    "@rsksmart/rif-relay-contracts": "github:rsksmart/rif-relay-contracts#v2.2.1-beta.0",
     "@seald-io/nedb": "^4.1.2",
     "async-mutex": "^0.4.0",
     "async-retry": "^1.3.3",
