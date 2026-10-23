@@ -26,7 +26,7 @@ export interface SignedTransactionDetails {
   signedTx: string;
 }
 
-export type SentTransactionDetails = SignedTransactionDetails & {
+export type SignedTransactionWithNonce = SignedTransactionDetails & {
   nonce: number;
 };
 
@@ -49,11 +49,11 @@ export interface SendTransactionDetails {
  * failure.
  */
 export class KeptTransactionError extends Error {
-  readonly transaction: SentTransactionDetails;
+  readonly transaction: SignedTransactionWithNonce;
 
   readonly error: unknown;
 
-  constructor(transaction: SentTransactionDetails, error: unknown) {
+  constructor(transaction: SignedTransactionWithNonce, error: unknown) {
     // the full error, which can hold the request and the signed transaction,
     // stays in `error` and the stack for the log
     super(clientErrorMessage(error));
@@ -197,7 +197,7 @@ data         | 0x${transaction.data ?? ''}
     gasPrice,
     creationBlockNumber,
     serverAction,
-  }: SendTransactionDetails): Promise<SentTransactionDetails> {
+  }: SendTransactionDetails): Promise<SignedTransactionWithNonce> {
     const provider = getProvider();
 
     const providerGasPrice = await provider.getGasPrice();
@@ -252,7 +252,7 @@ data         | 0x${transaction.data ?? ''}
         // is a refusal only if the node doesn't have the transaction
         if (
           isRefusedByNode(error) &&
-          !(await this._getFromNode(signedTransaction.txHash))
+          !(await this._getFromWriteNode(signedTransaction.txHash))
         ) {
           await this._rollBackRefusedBroadcast(storedTx, error);
           throw error;
@@ -445,12 +445,12 @@ data         | 0x${transaction.data ?? ''}
    * has it, pending or mined, or null if it doesn't. A failed lookup counts
    * as not having it.
    */
-  async _getFromNode(txHash: string): Promise<TransactionResponse | null> {
+  async _getFromWriteNode(txHash: string): Promise<TransactionResponse | null> {
     try {
       return await getWriteProvider().getTransaction(txHash);
     } catch (error) {
       log.warn(
-        `Could not look up transaction ${txHash} on the node:`,
+        `Could not look up transaction ${txHash} on the write node:`,
         error instanceof Error ? error.message : error
       );
 
@@ -462,7 +462,7 @@ data         | 0x${transaction.data ?? ''}
    * Whether the write node has the transaction in its pool, not yet mined.
    */
   async _isPendingOnNode(txHash: string): Promise<boolean> {
-    const transaction = await this._getFromNode(txHash);
+    const transaction = await this._getFromWriteNode(txHash);
 
     return transaction != null && transaction.blockNumber == null;
   }

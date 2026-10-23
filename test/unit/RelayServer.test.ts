@@ -320,7 +320,7 @@ describe('RelayServer tests', function () {
       expect(sendTransaction).to.have.been.calledOnce;
     });
 
-    it('should refuse a copy of a request until its transaction is mined', async function () {
+    it('should refuse a copy of a request until its transaction is confirmed', async function () {
       const request = createEnvelopingRequest();
       await relayServer.createRelayTransaction(request);
 
@@ -328,7 +328,7 @@ describe('RelayServer tests', function () {
         relayServer.createRelayTransaction(request)
       ).to.be.rejectedWith('already being relayed');
 
-      relayServer.inFlightRelays.releaseMined(8);
+      relayServer.inFlightRelays.releaseConfirmed(8);
       await expect(relayServer.createRelayTransaction(request)).to.be.fulfilled;
     });
 
@@ -347,7 +347,7 @@ describe('RelayServer tests', function () {
         relayServer.createRelayTransaction(request)
       ).to.be.rejectedWith('already being relayed');
 
-      relayServer.inFlightRelays.releaseMined(8);
+      relayServer.inFlightRelays.releaseConfirmed(8);
       await expect(relayServer.createRelayTransaction(request)).to.be.fulfilled;
     });
 
@@ -411,7 +411,9 @@ describe('RelayServer tests', function () {
       await expect(
         relayServer.createRelayTransaction(request)
       ).to.be.rejectedWith('already being relayed');
-      relayServer.inFlightRelays.releaseMined(8);
+      relayServer.inFlightRelays.releaseConfirmed(8);
+      // the transfer and the unreadable relay held nothing
+      expect(relayServer.inFlightRelays.hasBroadcast()).to.be.false;
       await expect(relayServer.createRelayTransaction(request)).to.be.fulfilled;
     });
 
@@ -449,13 +451,41 @@ describe('RelayServer tests', function () {
 
       const first = relayServer.createRelayTransaction(request);
       await expect(relayServer.createRelayTransaction(request)).to.be.fulfilled;
-      relayServer.inFlightRelays.releaseMined(8);
+      relayServer.inFlightRelays.releaseConfirmed(8);
 
       passFirstCheck();
       await expect(first).to.be.rejectedWith(
         'was mined while this one was checked'
       );
       expect(sendTransaction).to.have.been.calledOnce;
+    });
+
+    it('should end the checks of a copy that fails them', async function () {
+      (relayServer.validateRequestWithVerifier as SinonStub).rejects(
+        new Error('invalid signature')
+      );
+
+      await expect(
+        relayServer.createRelayTransaction(createEnvelopingRequest())
+      ).to.be.rejectedWith('invalid signature');
+
+      // a check left running would keep every later confirmation
+      const { _checks: checks } = relayServer.inFlightRelays as unknown as {
+        _checks: Map<number, number>;
+      };
+      expect(checks.size).to.equal(0);
+    });
+
+    it('should refuse a malformed request with its own checks, before reading its keys', async function () {
+      const request = createEnvelopingRequest();
+      request.relayRequest.request.from = '0x12';
+      (relayServer.validateInput as SinonStub).rejects(
+        new Error('invalid from')
+      );
+
+      await expect(
+        relayServer.createRelayTransaction(request)
+      ).to.be.rejectedWith('invalid from');
     });
 
     it('should answer with a transaction kept under another hash, and hold its request', async function () {
@@ -508,6 +538,20 @@ describe('RelayServer tests', function () {
       ).to.eql(expected);
     });
 
+    it('should check the fee on the estimate, not on the gas limit', async function () {
+      (relayServer.getMaxPossibleGas as SinonStub).resolves({
+        maxPossibleGas: BigNumber.from(100000),
+        maxPossibleGasWithFee: BigNumber.from(110000),
+      });
+
+      await relayServer.createRelayTransaction(createEnvelopingRequest());
+
+      expect(
+        (relayServerUtils.validateIfTokenAmountIsAcceptable as SinonStub)
+          .firstCall.args[0]
+      ).to.eql(BigNumber.from(110000));
+    });
+
     const BLOCK = 100;
 
     function stubMinedNonces(read: number, write: number) {
@@ -529,7 +573,7 @@ describe('RelayServer tests', function () {
       const confirmedBlock =
         BLOCK - relayServer.config.blockchain.confirmationsNeeded;
 
-      await relayServer._releaseMinedRelays(BLOCK);
+      await relayServer._releaseConfirmedRelays(BLOCK);
 
       expect(readCount).to.have.been.calledWith('0x123', confirmedBlock);
       expect(writeCount).to.have.been.calledWith('0x123', confirmedBlock);
@@ -540,7 +584,7 @@ describe('RelayServer tests', function () {
       await relayServer.createRelayTransaction(createEnvelopingRequest());
       const { readCount } = stubMinedNonces(8, 8);
 
-      await relayServer._releaseMinedRelays(
+      await relayServer._releaseConfirmedRelays(
         relayServer.config.blockchain.confirmationsNeeded - 1
       );
 
@@ -552,7 +596,7 @@ describe('RelayServer tests', function () {
       await relayServer.createRelayTransaction(createEnvelopingRequest());
       stubMinedNonces(7, 8);
 
-      await relayServer._releaseMinedRelays(BLOCK);
+      await relayServer._releaseConfirmedRelays(BLOCK);
 
       expect(relayServer.inFlightRelays.hasBroadcast()).to.be.true;
     });
@@ -564,7 +608,7 @@ describe('RelayServer tests', function () {
         getTransactionCount: sinon.stub().rejects(new Error('node is down')),
       } as unknown as providers.Provider);
 
-      await expect(relayServer._releaseMinedRelays(BLOCK)).to.be.fulfilled;
+      await expect(relayServer._releaseConfirmedRelays(BLOCK)).to.be.fulfilled;
 
       expect(relayServer.inFlightRelays.hasBroadcast()).to.be.true;
     });
@@ -573,11 +617,11 @@ describe('RelayServer tests', function () {
       await relayServer.createRelayTransaction(createEnvelopingRequest());
       const { readCount } = stubMinedNonces(7, 7);
 
-      await relayServer._releaseMinedRelays(BLOCK);
-      await relayServer._releaseMinedRelays(BLOCK);
+      await relayServer._releaseConfirmedRelays(BLOCK);
+      await relayServer._releaseConfirmedRelays(BLOCK);
       expect(readCount).to.have.been.calledOnce;
 
-      await relayServer._releaseMinedRelays(BLOCK + 1);
+      await relayServer._releaseConfirmedRelays(BLOCK + 1);
       expect(readCount).to.have.been.calledTwice;
     });
 
@@ -585,7 +629,7 @@ describe('RelayServer tests', function () {
       await relayServer.createRelayTransaction(createEnvelopingRequest());
       stubMinedNonces(8, 7);
 
-      await relayServer._releaseMinedRelays(BLOCK);
+      await relayServer._releaseConfirmedRelays(BLOCK);
 
       expect(relayServer.inFlightRelays.hasBroadcast()).to.be.true;
     });
@@ -679,6 +723,20 @@ describe('RelayServer tests', function () {
           BigNumber.from(GAS_LIMIT)
         )
       ).to.be.rejectedWith('The destination call fails in the dry run');
+    });
+
+    it('should reject at once a relay call that returns data other than true or false', async function () {
+      transactionResult = '0x1234';
+
+      await expect(
+        relayServer.maxPossibleGasWithViewCall(
+          {},
+          createEnvelopingRequest(),
+          BigNumber.from(GAS_LIMIT)
+        )
+      ).to.be.rejectedWith('returned no result in the dry run');
+      // not out of gas, so not retried
+      expect((provider.call as SinonStub).callCount).to.equal(1);
     });
 
     it('should accept a deploy call, which returns no data', async function () {

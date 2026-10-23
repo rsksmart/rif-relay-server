@@ -130,7 +130,7 @@ const blockchainSchema = Joi.object({
     .unsafe()
     .custom(isBigNumberish)
     .required(),
-  estimateGasFactor: Joi.number().min(0).required(),
+  estimateGasFactor: Joi.number().min(1).required(),
   initialBlockToScan: Joi.number().min(1).required(),
   startupStateSource: Joi.string().valid('chain', 'events').required(),
   maxBlockRange: Joi.number().min(1).required(),

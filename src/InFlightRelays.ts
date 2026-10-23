@@ -177,12 +177,12 @@ export class InFlightRelays {
   }
 
   /**
-   * Releases the requests whose worker transaction is mined, given the
-   * worker's mined nonce (the count of its mined transactions).
+   * Releases the requests whose worker transaction is confirmed, given the
+   * count of the worker's confirmed transactions.
    */
-  releaseMined(minedNonce: number): void {
+  releaseConfirmed(confirmedCount: number): void {
     this._getBroadcast()
-      .filter(({ nonce }) => nonce !== undefined && nonce < minedNonce)
+      .filter(({ nonce }) => nonce !== undefined && nonce < confirmedCount)
       .forEach((relay) => {
         this.release(relay);
         this._confirmations++;

@@ -12,7 +12,7 @@ import { RegistrationManager } from './RegistrationManager';
 import {
   SendTransactionDetails,
   KeptTransactionError,
-  SentTransactionDetails,
+  SignedTransactionWithNonce,
   SignedTransactionDetails,
   TransactionManager,
 } from './TransactionManager';
@@ -633,7 +633,6 @@ export class RelayServer extends EventEmitter {
     const {
       blockchain: { minAlertedDelayMS, maxAlertedDelayMS },
     } = this.config;
-    const inFlightKeys = getInFlightKeys(envelopingTransaction.relayRequest);
 
     if (this._alerted) {
       log.error('Alerted state: slowing down traffic');
@@ -708,8 +707,11 @@ export class RelayServer extends EventEmitter {
     // keys of another. They are taken synchronously, so of two copies that
     // passed together only the first is broadcast, and a copy whose checks
     // started before the first was confirmed is refused
-    const inFlightRelay = this.inFlightRelays.acquire(inFlightKeys, check);
-    let txDetails: SentTransactionDetails;
+    const inFlightRelay = this.inFlightRelays.acquire(
+      getInFlightKeys(envelopingTransaction.relayRequest),
+      check
+    );
+    let txDetails: SignedTransactionWithNonce;
     try {
       txDetails = await this.transactionManager.sendTransaction(details);
     } catch (error) {
@@ -726,7 +728,7 @@ export class RelayServer extends EventEmitter {
       );
       txDetails = error.transaction;
     }
-    // Held until the worker transaction is confirmed, see _releaseMinedRelays
+    // Held until the worker transaction is confirmed, see _releaseConfirmedRelays
     inFlightRelay.nonce = txDetails.nonce;
     // after sending a transaction is a good time to check the worker's balance, and replenish it.
     this.emit(EVENT_REPLENISH_CHECK_REQUIRED, this, 0, currentBlock);
@@ -929,7 +931,7 @@ latestBlock timestamp   | ${latestBlock.timestamp}
     if (blockNumber <= this._lastScannedBlock) {
       throw new Error('Attempt to scan older block, aborting');
     }
-    await this._releaseMinedRelays(blockNumber);
+    await this._releaseConfirmedRelays(blockNumber);
     if (!this._shouldRefreshState(blockNumber)) {
       return [];
     }
@@ -989,7 +991,7 @@ latestBlock timestamp   | ${latestBlock.timestamp}
    * passing against a state from before the transaction, whether it ran just
    * before the block or the block was then reorganised away.
    */
-  async _releaseMinedRelays(blockNumber: number): Promise<void> {
+  async _releaseConfirmedRelays(blockNumber: number): Promise<void> {
     const confirmedBlock =
       blockNumber - this.config.blockchain.confirmationsNeeded;
     // the confirmed counts only change with a new block, but _worker runs
@@ -1009,7 +1011,7 @@ latestBlock timestamp   | ${latestBlock.timestamp}
           confirmedBlock
         ),
       ]);
-      this.inFlightRelays.releaseMined(
+      this.inFlightRelays.releaseConfirmed(
         Math.min(readConfirmedNonce, writeConfirmedNonce)
       );
       this._lastReleaseBlock = blockNumber;
