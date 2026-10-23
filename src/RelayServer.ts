@@ -59,6 +59,7 @@ import {
 } from '@rsksmart/rif-relay-client';
 import {
   validateIfGasAmountIsAcceptable,
+  getMaxRequestGasPrice,
   validateIfTokenAmountIsAcceptable,
   convertGasToTokenAndNative,
   calculateFee,
@@ -308,11 +309,31 @@ export class RelayServer extends EventEmitter {
       throw new Error(`Wrong fees receiver address: ${feesReceiver}\n`);
     }
 
+    // The node's gasPrice is read on every block scan, so until the first one
+    // the server cannot tell whether a request is acceptably priced
+    if (this.gasPrice.isZero()) {
+      throw new Error(
+        "Unacceptable gasPrice: relayServer's gasPrice is not initialized yet"
+      );
+    }
+
     const gasPrice = relayRequest.relayData.gasPrice;
-    // Check that the gasPrice is initialized & acceptable
     if (this.gasPrice.gt(gasPrice)) {
       throw new Error(
         `Unacceptable gasPrice: relayServer's gasPrice:${this.gasPrice.toString()} request's gasPrice: ${gasPrice.toString()}`
+      );
+    }
+
+    // A request priced above the node's gas price cap would pass every other
+    // check, and the worker nonce it takes would never be mined and would
+    // hold every later relay; see getMaxRequestGasPrice
+    const maxGasPrice = getMaxRequestGasPrice(
+      this.gasPrice,
+      this.config.blockchain
+    );
+    if (maxGasPrice.lt(gasPrice)) {
+      throw new Error(
+        `Unacceptable gasPrice: relayServer's maximum gasPrice:${maxGasPrice.toString()} request's gasPrice: ${gasPrice.toString()}`
       );
     }
 

@@ -3,6 +3,7 @@ import { TRANSFER_FROM_HASH, TRANSFER_HASH } from './constants';
 import convertGasToTokenAndNative from './convertGasToTokenAndNative';
 import getAcceptedContractsFromVerifier from './getAcceptedContractsFromVerifier';
 import getAcceptedTokensFromVerifier from './getAcceptedTokensFromVerifier';
+import getMaxRequestGasPrice from './getMaxRequestGasPrice';
 import isSponsorshipAllowed from './isSponsorshipAllowed';
 import queryVerifiers from './queryVerifiers';
 import validateExpirationTime from './validateExpirationTime';
@@ -21,4 +22,5 @@ export {
   queryVerifiers,
   getAcceptedContractsFromVerifier,
   getAcceptedTokensFromVerifier,
+  getMaxRequestGasPrice,
 };

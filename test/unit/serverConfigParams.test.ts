@@ -55,6 +55,50 @@ describe('ServerConfigParams tests', function () {
       );
     });
 
+    it('Should fail if maxRequestGasPriceFactor is lower than 1', function () {
+      config.util.extendDeep(config, {
+        app: { disableSponsoredTx: false },
+        blockchain: { maxRequestGasPriceFactor: 0.5 },
+      });
+
+      expect(() => verifyServerConfiguration()).to.throw(
+        /"blockchain.maxRequestGasPriceFactor" must be greater than or equal to 1/
+      );
+    });
+
+    it('Should fail if maxRequestGasPriceFactor is above the node gas price cap margin', function () {
+      config.util.extendDeep(config, {
+        app: { disableSponsoredTx: false },
+        blockchain: { maxRequestGasPriceFactor: 51 },
+      });
+
+      expect(() => verifyServerConfiguration()).to.throw(
+        /"blockchain.maxRequestGasPriceFactor" must be less than or equal to 50/
+      );
+    });
+
+    it('Should fail if maxRequestGasPriceFloor is negative', function () {
+      config.util.extendDeep(config, {
+        app: { disableSponsoredTx: false },
+        blockchain: { maxRequestGasPriceFloor: -1 },
+      });
+
+      expect(() => verifyServerConfiguration()).to.throw(
+        /"blockchain.maxRequestGasPriceFloor" must be greater than or equal to 0/
+      );
+    });
+
+    it('Should fail if maxRequestGasPriceFloor is written in gwei', function () {
+      config.util.extendDeep(config, {
+        app: { disableSponsoredTx: false },
+        blockchain: { maxRequestGasPriceFloor: 0.06 },
+      });
+
+      expect(() => verifyServerConfiguration()).to.throw(
+        /"blockchain.maxRequestGasPriceFloor"/
+      );
+    });
+
     it('Should pass if it is sponsored, even if none fee is configured', function () {
       config.util.extendDeep(config, { app: { disableSponsoredTx: false } });
 

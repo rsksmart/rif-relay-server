@@ -15,6 +15,7 @@ import {
   TRANSFER_HASH,
   TRANSFER_FROM_HASH,
   validateExpirationTime,
+  getMaxRequestGasPrice,
 } from '../../src/relayServerUtils';
 import { toPrecision } from '../../src/Conversions';
 import chaiAsPromised from 'chai-as-promised';
@@ -680,6 +681,70 @@ describe('relayServerUtils tests', function () {
         expect(getAcceptedContracts).to.be.calledOnce;
         expect(contracts).to.be.empty;
       });
+    });
+  });
+
+  describe('Function getMaxRequestGasPrice()', function () {
+    // eth_gasPrice of a Rootstock testnet node
+    const NODE_GAS_PRICE = '6215177';
+
+    it('should scale the node gasPrice by the factor', function () {
+      const maxGasPrice = getMaxRequestGasPrice(NODE_GAS_PRICE, {
+        maxRequestGasPriceFactor: 20,
+        maxRequestGasPriceFloor: 0,
+      });
+
+      expect(maxGasPrice.toString()).to.equal('124303540');
+    });
+
+    it('should scale the node gasPrice by a fractional factor', function () {
+      const maxGasPrice = getMaxRequestGasPrice(NODE_GAS_PRICE, {
+        maxRequestGasPriceFactor: 1.5,
+        maxRequestGasPriceFloor: 0,
+      });
+
+      // 9322765.5 rounded to the nearest wei
+      expect(maxGasPrice.toString()).to.equal('9322766');
+    });
+
+    it('should not drop below the floor', function () {
+      const maxGasPrice = getMaxRequestGasPrice(NODE_GAS_PRICE, {
+        maxRequestGasPriceFactor: 20,
+        maxRequestGasPriceFloor: '200000000',
+      });
+
+      expect(maxGasPrice.toString()).to.equal('200000000');
+    });
+
+    it('should not let the floor lift the maximum near the node gas price cap', function () {
+      // the node gasPrice when the minimum gas price is 500,000 wei, whose
+      // cap of 80 times the minimum is 40,000,000 wei, below the floor
+      const maxGasPrice = getMaxRequestGasPrice('550000', {
+        maxRequestGasPriceFactor: 20,
+        maxRequestGasPriceFloor: '60000000',
+      });
+
+      expect(maxGasPrice.toString()).to.equal('27500000');
+    });
+
+    it('should stay at 50 times the node gasPrice whatever the floor', function () {
+      for (const floor of ['1000000000', '100000000000']) {
+        const maxGasPrice = getMaxRequestGasPrice(NODE_GAS_PRICE, {
+          maxRequestGasPriceFactor: 20,
+          maxRequestGasPriceFloor: floor,
+        });
+
+        expect(maxGasPrice.toString()).to.equal('310758850');
+      }
+    });
+
+    it('should refuse the client default on a regtest node priced at 1 wei', function () {
+      const maxGasPrice = getMaxRequestGasPrice('1', {
+        maxRequestGasPriceFactor: 20,
+        maxRequestGasPriceFloor: '60000000',
+      });
+
+      expect(maxGasPrice.toString()).to.equal('50');
     });
   });
 

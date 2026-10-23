@@ -3,6 +3,8 @@ import { ServerAction, StoredTransaction } from './StoredTransaction';
 
 export type PlannedBoost = {
   transaction: StoredTransaction;
+  // the gas price to resend the transaction at
+  gasPrice: BigNumber;
   // the value to resend the transaction with
   value: BigNumber;
 };
@@ -20,8 +22,11 @@ const canLowerValue = ({ serverAction }: StoredTransaction) =>
   serverAction === ServerAction.VALUE_TRANSFER;
 
 /**
- * Picks the pending transactions to resend at the new gas price, and the value
- * to resend each one with.
+ * Picks the pending transactions to send again, and the gas price and value to
+ * send each one with. Every transaction priced below the new gas price is
+ * boosted to it. The oldest one is sent again even when its price can't be
+ * raised, since its broadcast may never have reached the node; at its own
+ * price and value it signs to the same hash.
  *
  * None of the transactions is mined, so the balance has to pay for all of
  * them in nonce order. A transfer of the whole balance (e.g. a withdrawal) is
@@ -31,7 +36,7 @@ const canLowerValue = ({ serverAction }: StoredTransaction) =>
  * @param pendingTxs The signer's pending transactions, sorted by nonce.
  * @param balance The signer's balance.
  * @param newGasPrice The gas price to resend the underpriced transactions at.
- * @returns The underpriced transactions, in nonce order, with their values.
+ * @returns The transactions to send again, in nonce order.
  */
 export function planBoost(
   pendingTxs: StoredTransaction[],
@@ -39,13 +44,14 @@ export function planBoost(
   newGasPrice: BigNumber
 ): PlannedBoost[] {
   const plan: PlannedBoost[] = [];
+  const [oldestTx] = pendingTxs;
   let available = balance;
 
   for (const transaction of pendingTxs) {
     const isUnderpriced = transaction.gasPrice?.lt(newGasPrice) ?? false;
     const gasPrice = isUnderpriced
       ? newGasPrice
-      : transaction.gasPrice ?? constants.Zero;
+      : transaction.gasPrice ?? newGasPrice;
     const fee = (transaction.gasLimit ?? constants.Zero).mul(gasPrice);
     const storedValue = transaction.value ?? constants.Zero;
     const value =
@@ -54,8 +60,8 @@ export function planBoost(
         : storedValue;
 
     available = subOrZero(available, fee.add(value));
-    if (isUnderpriced) {
-      plan.push({ transaction, value });
+    if (isUnderpriced || transaction === oldestTx) {
+      plan.push({ transaction, gasPrice, value });
     }
   }
 

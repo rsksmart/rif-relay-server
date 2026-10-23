@@ -298,3 +298,26 @@ describe('Conversions', () => {
   });
 });
  */
+
+import { expect } from 'chai';
+import { applyFactor } from '../../src/Conversions';
+
+describe('Conversions', function () {
+  describe('applyFactor', function () {
+    it('should multiply by an integer factor', function () {
+      expect(applyFactor(100000, 20).toString()).to.equal('2000000');
+    });
+
+    it('should multiply by a fractional factor, rounding to the nearest unit', function () {
+      expect(applyFactor(100001, 1.5).toString()).to.equal('150002');
+    });
+
+    it('should accept the factor as a string', function () {
+      expect(applyFactor(100000, '1.2').toString()).to.equal('120000');
+    });
+
+    it('should return zero for a zero value', function () {
+      expect(applyFactor(0, 1.2).isZero()).to.be.true;
+    });
+  });
+});

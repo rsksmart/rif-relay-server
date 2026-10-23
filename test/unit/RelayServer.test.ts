@@ -1,5 +1,6 @@
 import {
   KeyManager,
+  MAX_NODE_GAS_PRICE_FACTOR,
   RelayServer,
   ServerDependencies,
   TxStoreManager,
@@ -34,6 +35,8 @@ describe('RelayServer tests', function () {
   const TOKEN_X_RATE = '0.5';
   const GAS_PRICE = 10000;
   const FAKE_FEE_AMOUNT = 10000;
+  // eth_gasPrice of a Rootstock testnet node, 1.1 times the minimum gas price
+  const NODE_GAS_PRICE = '6215177';
 
   let relayServer: RelayServer;
   let provider: providers.Provider;
@@ -673,6 +676,144 @@ describe('RelayServer tests', function () {
         'TransactionRelayed',
         'TransactionRelayedButRevertedByRecipient',
       ]);
+    });
+  });
+
+  describe('Function validateInput()', function () {
+    const WORKER_ADDRESS = '0x74105590d404df3f384a099c2e55135281ca6b40';
+    // rif-relay-client default gasPrice, 0.06 gwei
+    const CLIENT_DEFAULT_GAS_PRICE = 60000000;
+
+    let relayServer: RelayServer;
+
+    function createRequest(gasPrice: BigNumber): HttpEnvelopingRequest {
+      return {
+        metadata: {
+          relayHubAddress: relayServer.config.contracts.relayHubAddress,
+          signature: '0x1234',
+          relayMaxNonce: 1,
+        },
+        relayRequest: {
+          request: {
+            validUntilTime:
+              Math.round(Date.now() / 1000) +
+              2 * relayServer.config.app.requestMinValidSeconds,
+          },
+          relayData: {
+            gasPrice,
+            feesReceiver: WORKER_ADDRESS,
+          },
+        },
+      } as unknown as HttpEnvelopingRequest;
+    }
+
+    function getMaxGasPrice() {
+      const { maxRequestGasPriceFactor, maxRequestGasPriceFloor } =
+        relayServer.config.blockchain;
+
+      return BigNumber.from(
+        BigNumberJs.min(
+          BigNumberJs.max(
+            BigNumberJs(NODE_GAS_PRICE).multipliedBy(maxRequestGasPriceFactor),
+            maxRequestGasPriceFloor.toString()
+          ),
+          BigNumberJs(NODE_GAS_PRICE).multipliedBy(MAX_NODE_GAS_PRICE_FACTOR)
+        ).toFixed(0)
+      );
+    }
+
+    beforeEach(function () {
+      const stubKeyManager = {
+        getAddress: () => WORKER_ADDRESS,
+      } as unknown as KeyManager;
+      relayServer = new RelayServer({
+        managerKeyManager: stubKeyManager,
+        workersKeyManager: stubKeyManager,
+        txStoreManager: {} as unknown as TxStoreManager,
+      });
+      relayServer.gasPrice = BigNumber.from(NODE_GAS_PRICE);
+    });
+
+    it('should accept the node gasPrice', async function () {
+      await expect(
+        relayServer.validateInput(createRequest(BigNumber.from(NODE_GAS_PRICE)))
+      ).to.be.fulfilled;
+    });
+
+    it('should accept the client default gasPrice', async function () {
+      // about 10 times the testnet node gasPrice
+      await expect(
+        relayServer.validateInput(
+          createRequest(BigNumber.from(CLIENT_DEFAULT_GAS_PRICE))
+        )
+      ).to.be.fulfilled;
+    });
+
+    it('should accept the maximum gasPrice', async function () {
+      await expect(relayServer.validateInput(createRequest(getMaxGasPrice())))
+        .to.be.fulfilled;
+    });
+
+    it('should keep accepting the client default gasPrice when the node gasPrice falls', async function () {
+      // the factor alone would allow only half the client default
+      relayServer.gasPrice = BigNumber.from(CLIENT_DEFAULT_GAS_PRICE).div(
+        2 * relayServer.config.blockchain.maxRequestGasPriceFactor
+      );
+
+      await expect(
+        relayServer.validateInput(
+          createRequest(BigNumber.from(CLIENT_DEFAULT_GAS_PRICE))
+        )
+      ).to.be.fulfilled;
+    });
+
+    it('should reject the client default gasPrice when it is too close to the node gas price cap', async function () {
+      // the floor allows the client default, but it is above
+      // MAX_NODE_GAS_PRICE_FACTOR times this node gasPrice
+      relayServer.gasPrice = BigNumber.from(CLIENT_DEFAULT_GAS_PRICE)
+        .div(MAX_NODE_GAS_PRICE_FACTOR)
+        .sub(1);
+
+      await expect(
+        relayServer.validateInput(
+          createRequest(BigNumber.from(CLIENT_DEFAULT_GAS_PRICE))
+        )
+      ).to.be.rejectedWith(
+        /Unacceptable gasPrice: relayServer's maximum gasPrice:/
+      );
+    });
+
+    it('should reject a gasPrice lower than the node gasPrice', async function () {
+      await expect(
+        relayServer.validateInput(
+          createRequest(BigNumber.from(NODE_GAS_PRICE).sub(1))
+        )
+      ).to.be.rejectedWith(/Unacceptable gasPrice: relayServer's gasPrice:/);
+    });
+
+    it('should reject a gasPrice above the maximum', async function () {
+      await expect(
+        relayServer.validateInput(createRequest(getMaxGasPrice().add(1)))
+      ).to.be.rejectedWith(
+        /Unacceptable gasPrice: relayServer's maximum gasPrice:/
+      );
+    });
+
+    it('should keep the maximum below the node gas price cap', function () {
+      // RSK rejects a transaction priced above 80 times the minimum gas price
+      const minimumGasPrice = BigNumber.from(NODE_GAS_PRICE).mul(10).div(11);
+
+      expect(getMaxGasPrice().lt(minimumGasPrice.mul(80))).to.be.true;
+    });
+
+    it('should reject every request until the node gasPrice is known', async function () {
+      relayServer.gasPrice = constants.Zero;
+
+      await expect(
+        relayServer.validateInput(createRequest(BigNumber.from(NODE_GAS_PRICE)))
+      ).to.be.rejectedWith(
+        "Unacceptable gasPrice: relayServer's gasPrice is not initialized"
+      );
     });
   });
 

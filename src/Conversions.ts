@@ -162,3 +162,18 @@ const isInvalidNumber = (value: BigNumberJs): boolean => {
 
   return false;
 };
+
+/**
+ * Multiplies a value by a configured factor, e.g. a gas estimate by
+ * estimateGasFactor or a gas price by retryGasPriceFactor
+ * @param value the amount to scale, in its smallest unit (gas, wei)
+ * @param factor the multiplier, which may be fractional
+ * @returns the scaled amount rounded to the nearest whole unit
+ */
+export const applyFactor = (
+  value: BigNumberish,
+  factor: BigNumberishJs
+): BigNumber =>
+  BigNumber.from(
+    BigNumberJs(value.toString()).multipliedBy(factor.toString()).toFixed(0)
+  );
