@@ -710,13 +710,81 @@ describe('TransactionManager tests', function () {
       expect(resentTx.gasPrice?.toString()).to.equal(storedGasPrice.toString());
     });
 
-    it('should not boost, nor fail, when a node cannot be read', async function () {
+    it('should not boost, nor fail, when the write node cannot be read', async function () {
       const { pendingTransactionTimeoutBlocks } =
         transactionManager.config.blockchain;
       txStoreManager.getAllBySigner.resolves([
         createStoredTx(BigNumber.from(NODE_GAS_PRICE)),
       ]);
       writeProvider.getTransactionCount.rejects(new Error('node is down'));
+
+      const boosted =
+        await transactionManager.boostUnderpricedPendingTransactionsForSigner(
+          WORKER_ADDRESS,
+          1 + pendingTransactionTimeoutBlocks
+        );
+
+      expect(boosted.size).to.equal(0);
+      expect(broadcast).not.to.have.been.called;
+    });
+
+    // Boosts, after the pending timeout, a stale transaction stored at nonce
+    // when the read and write nodes count the given mined transactions
+    async function boostAtCounts(nonce: number, read: number, write: number) {
+      const { pendingTransactionTimeoutBlocks } =
+        transactionManager.config.blockchain;
+      txStoreManager.getAllBySigner.resolves([
+        { ...createStoredTx(BigNumber.from(NODE_GAS_PRICE)), nonce },
+      ]);
+      readProvider.getTransactionCount.resolves(read);
+      writeProvider.getTransactionCount.resolves(write);
+      broadcast.resolves({ hash: TX_HASH });
+
+      return transactionManager.boostUnderpricedPendingTransactionsForSigner(
+        WORKER_ADDRESS,
+        1 + pendingTransactionTimeoutBlocks
+      );
+    }
+
+    it('should not boost a transaction the write node has mined while the read node lags', async function () {
+      const boosted = await boostAtCounts(NONCE, NONCE, NONCE + 1);
+
+      expect(boosted.size).to.equal(0);
+      expect(workersKeyManager.signTransaction.callCount).to.equal(0);
+      expect(broadcast).not.to.have.been.called;
+    });
+
+    it('should not boost a transaction the read node has mined while the write node lags', async function () {
+      const boosted = await boostAtCounts(NONCE, NONCE + 1, NONCE);
+
+      expect(boosted.size).to.equal(0);
+      expect(workersKeyManager.signTransaction.callCount).to.equal(0);
+      expect(broadcast).not.to.have.been.called;
+    });
+
+    it('should not boost a mined transaction with nonce 0', async function () {
+      const boosted = await boostAtCounts(0, 1, 1);
+
+      expect(boosted.size).to.equal(0);
+      expect(workersKeyManager.signTransaction.callCount).to.equal(0);
+      expect(broadcast).not.to.have.been.called;
+    });
+
+    it('should boost a stale transaction with nonce 0 that neither node has mined', async function () {
+      const boosted = await boostAtCounts(0, 0, 0);
+
+      expect(boosted.size).to.equal(1);
+      const [, resentTx] = workersKeyManager.signTransaction.firstCall.args;
+      expect(resentTx.nonce).to.equal(0);
+    });
+
+    it('should not boost, nor fail, when the read node cannot be read', async function () {
+      const { pendingTransactionTimeoutBlocks } =
+        transactionManager.config.blockchain;
+      txStoreManager.getAllBySigner.resolves([
+        createStoredTx(BigNumber.from(NODE_GAS_PRICE)),
+      ]);
+      readProvider.getTransactionCount.rejects(new Error('node is down'));
 
       const boosted =
         await transactionManager.boostUnderpricedPendingTransactionsForSigner(
