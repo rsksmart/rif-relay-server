@@ -13,6 +13,8 @@ import {
   isRefusedByNode,
 } from '../../src';
 import * as serverUtils from '../../src/Utils';
+import { RelayHub__factory } from '@rsksmart/rif-relay-contracts';
+import { constants } from 'ethers';
 
 use(sinonChai);
 use(chaiAsPromised);
@@ -124,6 +126,42 @@ describe('TransactionManager tests', function () {
       gasPrice,
       creationBlockNumber: 1,
     });
+  }
+
+  // The data of a worker transaction relaying a request signed at a gas price
+  function relayCallData(signedGasPrice: BigNumber, isDeploy = false): string {
+    const request = {
+      relayHub: constants.AddressZero,
+      from: WORKER_ADDRESS,
+      to: DESTINATION,
+      tokenContract: constants.AddressZero,
+      value: 0,
+      nonce: 0,
+      tokenAmount: 0,
+      tokenGas: 0,
+      validUntilTime: 0,
+      data: '0x',
+    };
+    const relayData = {
+      gasPrice: signedGasPrice,
+      feesReceiver: constants.AddressZero,
+      callForwarder: DESTINATION,
+      callVerifier: constants.AddressZero,
+    };
+    const relayHub = RelayHub__factory.createInterface();
+
+    return isDeploy
+      ? relayHub.encodeFunctionData('deployCall', [
+          {
+            request: { ...request, recoverer: constants.AddressZero, index: 0 },
+            relayData,
+          },
+          '0x',
+        ] as never)
+      : relayHub.encodeFunctionData('relayCall', [
+          { request: { ...request, gas: 0 }, relayData },
+          '0x',
+        ] as never);
   }
 
   function createStoredTx(gasPrice: BigNumber): StoredTransaction {
@@ -754,14 +792,16 @@ describe('TransactionManager tests', function () {
       expect(resentTx.gasPrice?.toString()).to.equal(storedGasPrice.toString());
     });
 
-    it('should send again a stale transaction priced above the maximum at the maximum when the node does not have it', async function () {
+    // The oldest transaction, priced above the maximum, which the node
+    // doesn't have; it is stale on the block the boost runs at
+    async function boostAboveMaximumNotOnNode(
+      fields: Partial<StoredTransaction>
+    ) {
       const { pendingTransactionTimeoutBlocks } =
         transactionManager.config.blockchain;
-      // refused, or never received: sent again unchanged it would be refused
-      // on every timeout, and the node takes any price for an empty nonce
       const nodeMaxGasPrice = BigNumber.from(NODE_GAS_PRICE).mul(20);
       txStoreManager.getAllBySigner.resolves([
-        createStoredTx(nodeMaxGasPrice.mul(2)),
+        { ...createStoredTx(nodeMaxGasPrice.mul(2)), ...fields },
       ]);
       writeProvider.getTransaction.withArgs(OLD_TX_HASH).resolves(null);
       broadcast.resolves({ hash: TX_HASH });
@@ -771,13 +811,70 @@ describe('TransactionManager tests', function () {
           WORKER_ADDRESS,
           1 + pendingTransactionTimeoutBlocks
         );
+      const [, resentTx] = workersKeyManager.signTransaction.firstCall.args;
+
+      return { boosted, resentTx, nodeMaxGasPrice };
+    }
+
+    it('should send again a stale transfer priced above the maximum at the maximum when the node does not have it', async function () {
+      // refused, or never received: sent again unchanged it would be refused
+      // on every timeout, and the node takes any price for an empty nonce
+      const { boosted, resentTx, nodeMaxGasPrice } =
+        await boostAboveMaximumNotOnNode({
+          serverAction: ServerAction.VALUE_TRANSFER,
+        });
 
       expect(boosted.size).to.equal(1);
-      const [, resentTx] = workersKeyManager.signTransaction.firstCall.args;
       expect(resentTx.gasPrice?.toString()).to.equal(
         nodeMaxGasPrice.toString()
       );
       expect(resentTx.nonce).to.equal(NONCE);
+    });
+
+    it('should send again a stale relay at the maximum when its request was signed below it', async function () {
+      const nodeMaxGasPrice = BigNumber.from(NODE_GAS_PRICE).mul(20);
+      const { resentTx } = await boostAboveMaximumNotOnNode({
+        data: relayCallData(nodeMaxGasPrice.div(2)),
+      });
+
+      expect(resentTx.gasPrice?.toString()).to.equal(
+        nodeMaxGasPrice.toString()
+      );
+    });
+
+    it('should not lower a stale relay below the gas price its request was signed at', async function () {
+      // RelayHub reverts a relay priced below its request ("Invalid gas
+      // price"), so it waits for the node's gas price to rise
+      const nodeMaxGasPrice = BigNumber.from(NODE_GAS_PRICE).mul(20);
+      const { resentTx } = await boostAboveMaximumNotOnNode({
+        data: relayCallData(nodeMaxGasPrice.mul(2)),
+      });
+
+      expect(resentTx.gasPrice?.toString()).to.equal(
+        nodeMaxGasPrice.mul(2).toString()
+      );
+    });
+
+    it('should not lower a stale deploy below the gas price its request was signed at', async function () {
+      const nodeMaxGasPrice = BigNumber.from(NODE_GAS_PRICE).mul(20);
+      const { resentTx } = await boostAboveMaximumNotOnNode({
+        data: relayCallData(nodeMaxGasPrice.mul(2), true),
+      });
+
+      expect(resentTx.gasPrice?.toString()).to.equal(
+        nodeMaxGasPrice.mul(2).toString()
+      );
+    });
+
+    it('should not lower a stale relay whose request cannot be read', async function () {
+      const nodeMaxGasPrice = BigNumber.from(NODE_GAS_PRICE).mul(20);
+      const { resentTx } = await boostAboveMaximumNotOnNode({
+        data: '0xdeadbeef',
+      });
+
+      expect(resentTx.gasPrice?.toString()).to.equal(
+        nodeMaxGasPrice.mul(2).toString()
+      );
     });
 
     it('should send again a stale transaction priced above the maximum at its own price when the node cannot be asked', async function () {

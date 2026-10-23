@@ -16,7 +16,13 @@ import {
   StoredTransaction,
   StoredTransactionMetadata,
 } from './StoredTransaction';
-import { clientErrorMessage, getProvider, getWriteProvider } from './Utils';
+import {
+  clientErrorMessage,
+  getProvider,
+  getWriteProvider,
+  relayHubInterface,
+} from './Utils';
+import type { EnvelopingRequest } from './definitions';
 import { planBoost } from './planBoost';
 import { applyFactor } from './Conversions';
 import { getMaxRequestGasPrice } from './relayServerUtils';
@@ -482,6 +488,24 @@ data         | 0x${transaction.data ?? ''}
   }
 
   /**
+   * The lowest gas price a stored transaction can be sent at: for one that
+   * relays a request, the gas price signed in the request, since RelayHub
+   * requires the transaction's to reach it ("Invalid gas price") and a relay
+   * below it is mined only to revert; any other transaction can be sent at
+   * any price. Throws if the relayed request can't be read.
+   */
+  _getSignedGasPrice(tx: StoredTransaction): BigNumber {
+    if (tx.serverAction !== ServerAction.RELAY_CALL) {
+      return constants.Zero;
+    }
+    const [{ relayData }] = relayHubInterface.parseTransaction({
+      data: tx.data ?? '0x',
+    }).args as unknown as [EnvelopingRequest];
+
+    return BigNumber.from(relayData.gasPrice);
+  }
+
+  /**
    * The highest gas price a stale transaction is boosted to: the configured
    * maxGasPrice, so we are not burning all our balance in gas fees, or the
    * highest price the node accepts if that is lower; see getMaxRequestGasPrice
@@ -678,6 +702,47 @@ data         | 0x${transaction.data ?? ''}
     );
   }
 
+  /**
+   * The price to send again a stale transaction the node doesn't have at, or
+   * undefined to send it unchanged: a relay can't go below the gas price its
+   * request was signed at, so one signed above what the node accepts waits
+   * for the node's gas price to rise.
+   * @param tx The stale transaction, priced above what the node accepts.
+   * @param acceptedGasPrice The highest gas price the node accepts.
+   */
+  _resolveLowerGasPrice(
+    tx: StoredTransaction,
+    acceptedGasPrice: BigNumber
+  ): BigNumber | undefined {
+    let signedGasPrice: BigNumber;
+    try {
+      signedGasPrice = this._getSignedGasPrice(tx);
+    } catch (error) {
+      log.warn(
+        `${tx.from} : the node doesn't have transaction ${tx.txId}, priced above what it accepts, and its request can't be read; sending it again unchanged:`,
+        error instanceof Error ? error.message : error
+      );
+
+      return undefined;
+    }
+    if (signedGasPrice.gt(acceptedGasPrice)) {
+      log.warn(
+        `${tx.from} : the node doesn't have transaction ${
+          tx.txId
+        }, which relays a request signed at gas price ${signedGasPrice.toString()}, above the ${acceptedGasPrice.toString()} it accepts; waiting for the node's gas price to rise`
+      );
+
+      return undefined;
+    }
+    log.warn(
+      `${tx.from} : the node doesn't have transaction ${
+        tx.txId
+      }, priced above what it accepts; sending it again at ${acceptedGasPrice.toString()}`
+    );
+
+    return acceptedGasPrice;
+  }
+
   async _boostUnderpricedPendingTransactionsForSigner(
     signer: string,
     sortedTxs: StoredTransaction[],
@@ -757,12 +822,10 @@ data         | 0x${transaction.data ?? ''}
         oldestPendingTx.gasPrice?.gt(newGasPrice) &&
         (await this._getFromWriteNode(oldestPendingTx.txId)) === null
       ) {
-        log.warn(
-          `${signer} : the node doesn't have transaction ${
-            oldestPendingTx.txId
-          }, priced above what it accepts; sending it again at ${newGasPrice.toString()}`
+        lowerOldestTo = this._resolveLowerGasPrice(
+          oldestPendingTx,
+          newGasPrice
         );
-        lowerOldestTo = newGasPrice;
       }
 
       // the write node accepts or refuses the replacements, so they have to fit
