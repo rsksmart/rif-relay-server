@@ -122,7 +122,7 @@ File [./config/default.json5](config/default.json5) contains all configuration p
   blockchain: {
     rskNodeUrl: "http://127.0.0.1:4444", //  RSK node endpoint URL, where the RSK node is located.
     // rskNodeWriteUrl: "https://public-node.rsk.co", // Optional. RSK node endpoint URL used to broadcast transactions and read the pending nonce. Defaults to rskNodeUrl.
-    rskNodeWriteTimeoutMS: 30000, // how long a call to rskNodeWriteUrl may take before it fails as a timeout, which keeps the transaction and its nonce; broadcasts hold every relay until they are answered
+    rskNodeWriteTimeoutMS: 30000, // how long a broadcast or another call to the write node (rskNodeWriteUrl, or rskNodeUrl without it) may take before it fails as a timeout, which keeps the transaction and its nonce; broadcasts hold every relay until they are answered
     gasPriceFactor: 1,
     alertedBlockDelay: 0,
     minAlertedDelayMS: 0,

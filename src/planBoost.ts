@@ -36,12 +36,15 @@ const canLowerValue = ({ serverAction }: StoredTransaction) =>
  * @param pendingTxs The signer's pending transactions, sorted by nonce.
  * @param balance The signer's balance.
  * @param newGasPrice The gas price to resend the underpriced transactions at.
+ * @param lowerOldestTo The gas price to send the oldest transaction at when
+ * its own is higher: a node that doesn't have it takes any price it accepts.
  * @returns The transactions to send again, in nonce order.
  */
 export function planBoost(
   pendingTxs: StoredTransaction[],
   balance: BigNumber,
-  newGasPrice: BigNumber
+  newGasPrice: BigNumber,
+  lowerOldestTo?: BigNumber
 ): PlannedBoost[] {
   const plan: PlannedBoost[] = [];
   const [oldestTx] = pendingTxs;
@@ -49,9 +52,11 @@ export function planBoost(
 
   for (const transaction of pendingTxs) {
     const isUnderpriced = transaction.gasPrice?.lt(newGasPrice) ?? false;
-    const gasPrice = isUnderpriced
-      ? newGasPrice
-      : transaction.gasPrice ?? newGasPrice;
+    const ownGasPrice = transaction.gasPrice ?? newGasPrice;
+    let gasPrice = isUnderpriced ? newGasPrice : ownGasPrice;
+    if (transaction === oldestTx && lowerOldestTo?.lt(gasPrice)) {
+      gasPrice = lowerOldestTo;
+    }
     const fee = (transaction.gasLimit ?? constants.Zero).mul(gasPrice);
     const storedValue = transaction.value ?? constants.Zero;
     const value =

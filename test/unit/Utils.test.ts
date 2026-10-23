@@ -1,8 +1,11 @@
 import { expect } from 'chai';
+import config from 'config';
 import { providers } from 'ethers';
 import { SinonStub, stub } from 'sinon';
 import {
   clientErrorMessage,
+  getProvider,
+  getWriteProvider,
   RedactingJsonRpcProvider,
   redactUrl,
   redactUrlIn,
@@ -140,6 +143,62 @@ describe('Utils', function () {
       );
       expect(rejection.url).to.equal('https://rpc.example.com/***');
       expect(rejection.code).to.equal('SERVER_ERROR');
+    });
+  });
+
+  describe('getWriteProvider', function () {
+    const TIMEOUT = 1234;
+    let originalConfig: object;
+
+    before(function () {
+      originalConfig = config.util.toObject(config) as object;
+    });
+
+    afterEach(function () {
+      config.util.extendDeep(config, originalConfig);
+    });
+
+    function configureNodes(rskNodeUrl: string, rskNodeWriteUrl: string) {
+      config.util.extendDeep(config, {
+        blockchain: {
+          rskNodeUrl,
+          rskNodeWriteUrl,
+          rskNodeWriteTimeoutMS: TIMEOUT,
+        },
+      });
+    }
+
+    it('should time out after rskNodeWriteTimeoutMS, unlike the read provider', function () {
+      configureNodes('http://127.0.0.1:1/read', 'http://127.0.0.1:1/write');
+
+      const read = getProvider() as providers.JsonRpcProvider;
+      const write = getWriteProvider() as providers.JsonRpcProvider;
+
+      expect(read.connection.timeout).to.be.undefined;
+      expect(write.connection.timeout).to.equal(TIMEOUT);
+      expect(getWriteProvider()).to.equal(write);
+    });
+
+    it('should time out although it shares the URL of the read provider', function () {
+      configureNodes('http://127.0.0.1:1/shared', 'http://127.0.0.1:1/shared');
+
+      const read = getProvider() as providers.JsonRpcProvider;
+      const write = getWriteProvider() as providers.JsonRpcProvider;
+
+      expect(write).not.to.equal(read);
+      expect(read.connection.timeout).to.be.undefined;
+      expect(write.connection.timeout).to.equal(TIMEOUT);
+    });
+
+    it('should time out when no write URL is set, on the URL of the read provider', function () {
+      configureNodes('http://127.0.0.1:1/only', '');
+
+      const read = getProvider() as providers.JsonRpcProvider;
+      const write = getWriteProvider() as providers.JsonRpcProvider;
+
+      expect(write.connection.url).to.equal(read.connection.url);
+      expect(read.connection.timeout).to.be.undefined;
+      expect(write.connection.timeout).to.equal(TIMEOUT);
     });
   });
 

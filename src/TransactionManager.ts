@@ -746,13 +746,33 @@ data         | 0x${transaction.data ?? ''}
         nodeGasPrice
       );
 
+      // Priced above what the node accepts now, the oldest transaction can
+      // only be sent again unchanged, which only a node that has it in its
+      // pool takes. A node that doesn't have it (it refused it, or never
+      // received it) would refuse it on every timeout, and its nonce would
+      // hold every later one, so it is sent again at the highest price the
+      // node accepts: lower, which the node takes for a nonce it has nothing for
+      let lowerOldestTo: BigNumber | undefined;
+      if (
+        oldestPendingTx.gasPrice?.gt(newGasPrice) &&
+        (await this._getFromWriteNode(oldestPendingTx.txId)) === null
+      ) {
+        log.warn(
+          `${signer} : the node doesn't have transaction ${
+            oldestPendingTx.txId
+          }, priced above what it accepts; sending it again at ${newGasPrice.toString()}`
+        );
+        lowerOldestTo = newGasPrice;
+      }
+
       // the write node accepts or refuses the replacements, so they have to fit
       // in the balance it sees
       const balance = await getWriteProvider().getBalance(signer);
       for (const { transaction, gasPrice, value } of planBoost(
         sortedTxs,
         balance,
-        newGasPrice
+        newGasPrice,
+        lowerOldestTo
       )) {
         const storedValue = transaction.value ?? constants.Zero;
         if (value.lt(storedValue)) {

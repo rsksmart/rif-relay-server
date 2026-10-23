@@ -132,16 +132,19 @@ export class RedactingJsonRpcProvider extends providers.StaticJsonRpcProvider {
   }
 }
 
+// By URL and timeout: the read and the write provider may share a URL and
+// still differ in their timeout
 const providersByUrl = new Map<string, providers.Provider>();
 
 function getProviderForUrl(url: string, timeout?: number): providers.Provider {
-  let provider = providersByUrl.get(url);
+  const key = `${timeout ?? ''} ${url}`;
+  let provider = providersByUrl.get(key);
   if (!provider) {
     // The chain id never changes for a running server, so we avoid the extra eth_chainId call per request
     provider = /^https?:/i.test(url)
       ? new RedactingJsonRpcProvider({ url, timeout })
       : getDefaultProvider(url);
-    providersByUrl.set(url, provider);
+    providersByUrl.set(key, provider);
   }
 
   return provider;
@@ -158,11 +161,11 @@ export function getProvider(): providers.Provider {
 
 /**
  * Provider used for broadcasting signed transactions and reading the pending nonce of the server accounts.
- * It falls back to the read provider when `blockchain.rskNodeWriteUrl` is not set.
- * Its calls fail as a timeout after `blockchain.rskNodeWriteTimeoutMS`, which
- * keeps the transaction and its nonce: broadcasts run under the nonce mutex,
- * so a call the node never answers would otherwise hold every relay for
- * ethers' default of two minutes.
+ * It uses the URL of the read provider when `blockchain.rskNodeWriteUrl` is not set.
+ * Either way its calls fail as a timeout after `blockchain.rskNodeWriteTimeoutMS`,
+ * which keeps the transaction and its nonce: broadcasts run under the nonce
+ * mutex, so a call the node never answers would otherwise hold every relay
+ * for ethers' default of two minutes.
  */
 export function getWriteProvider(): providers.Provider {
   const writeUrlKey = `${CONFIG_BLOCKCHAIN}.${CONFIG_RSK_WRITE_URL}`;
@@ -170,12 +173,10 @@ export function getWriteProvider(): providers.Provider {
     ? config.get<string | undefined>(writeUrlKey)
     : undefined;
 
-  return writeUrl
-    ? getProviderForUrl(
-        writeUrl,
-        config.get<number>(`${CONFIG_BLOCKCHAIN}.${CONFIG_RSK_WRITE_TIMEOUT}`)
-      )
-    : getProvider();
+  return getProviderForUrl(
+    writeUrl || config.get<string>(`${CONFIG_BLOCKCHAIN}.${CONFIG_RSK_URL}`),
+    config.get<number>(`${CONFIG_BLOCKCHAIN}.${CONFIG_RSK_WRITE_TIMEOUT}`)
+  );
 }
 
 /**

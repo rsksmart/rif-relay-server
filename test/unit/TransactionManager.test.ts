@@ -733,12 +733,59 @@ describe('TransactionManager tests', function () {
       );
     });
 
-    it('should send again a stale transaction priced above the maximum at its own price', async function () {
+    it('should send again a stale transaction priced above the maximum at its own price while the node has it', async function () {
       const { pendingTransactionTimeoutBlocks } =
         transactionManager.config.blockchain;
-      // priced when the node gasPrice was higher; a replacement cannot lower it
+      // priced when the node gasPrice was higher; a replacement in the pool
+      // cannot lower it
       const storedGasPrice = BigNumber.from(NODE_GAS_PRICE).mul(30);
       txStoreManager.getAllBySigner.resolves([createStoredTx(storedGasPrice)]);
+      writeProvider.getTransaction
+        .withArgs(OLD_TX_HASH)
+        .resolves({ hash: OLD_TX_HASH, blockNumber: null });
+      broadcast.resolves({ hash: TX_HASH });
+
+      await transactionManager.boostUnderpricedPendingTransactionsForSigner(
+        WORKER_ADDRESS,
+        1 + pendingTransactionTimeoutBlocks
+      );
+
+      const [, resentTx] = workersKeyManager.signTransaction.firstCall.args;
+      expect(resentTx.gasPrice?.toString()).to.equal(storedGasPrice.toString());
+    });
+
+    it('should send again a stale transaction priced above the maximum at the maximum when the node does not have it', async function () {
+      const { pendingTransactionTimeoutBlocks } =
+        transactionManager.config.blockchain;
+      // refused, or never received: sent again unchanged it would be refused
+      // on every timeout, and the node takes any price for an empty nonce
+      const nodeMaxGasPrice = BigNumber.from(NODE_GAS_PRICE).mul(20);
+      txStoreManager.getAllBySigner.resolves([
+        createStoredTx(nodeMaxGasPrice.mul(2)),
+      ]);
+      writeProvider.getTransaction.withArgs(OLD_TX_HASH).resolves(null);
+      broadcast.resolves({ hash: TX_HASH });
+
+      const boosted =
+        await transactionManager.boostUnderpricedPendingTransactionsForSigner(
+          WORKER_ADDRESS,
+          1 + pendingTransactionTimeoutBlocks
+        );
+
+      expect(boosted.size).to.equal(1);
+      const [, resentTx] = workersKeyManager.signTransaction.firstCall.args;
+      expect(resentTx.gasPrice?.toString()).to.equal(
+        nodeMaxGasPrice.toString()
+      );
+      expect(resentTx.nonce).to.equal(NONCE);
+    });
+
+    it('should send again a stale transaction priced above the maximum at its own price when the node cannot be asked', async function () {
+      const { pendingTransactionTimeoutBlocks } =
+        transactionManager.config.blockchain;
+      const storedGasPrice = BigNumber.from(NODE_GAS_PRICE).mul(30);
+      txStoreManager.getAllBySigner.resolves([createStoredTx(storedGasPrice)]);
+      writeProvider.getTransaction.rejects(lostResponse());
       broadcast.resolves({ hash: TX_HASH });
 
       await transactionManager.boostUnderpricedPendingTransactionsForSigner(
