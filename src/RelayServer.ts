@@ -11,10 +11,12 @@ import { replenishStrategy } from './ReplenishFunction';
 import { RegistrationManager } from './RegistrationManager';
 import {
   SendTransactionDetails,
+  KeptTransactionError,
+  SignedTransactionWithNonce,
   SignedTransactionDetails,
   TransactionManager,
 } from './TransactionManager';
-import { ServerAction } from './StoredTransaction';
+import { ServerAction, StoredTransaction } from './StoredTransaction';
 import type { TxStoreManager } from './TxStoreManager';
 import {
   ServerDependencies,
@@ -33,6 +35,7 @@ import {
 } from 'ethers';
 import ow from 'ow';
 import {
+  clientErrorMessage,
   deployTransactionRequestShape,
   getLatestEventData,
   getProvider,
@@ -46,11 +49,15 @@ import {
 } from './Utils';
 import { AmountRequired } from './AmountRequired';
 import {
+  InFlightRelays,
+  getInFlightKeys,
+  getInFlightKeysOfRelayTransaction,
+} from './InFlightRelays';
+import {
   RelayRequest,
   estimateRelayMaxPossibleGas,
   isDeployRequest,
   isDeployTransaction,
-  maxPossibleGasVerification,
   setProvider,
   standardMaxPossibleGasEstimation,
   estimateRelayMaxPossibleGasNoSignature,
@@ -67,7 +74,9 @@ import {
   queryVerifiers,
   getAcceptedTokensFromVerifier,
   getAcceptedContractsFromVerifier,
+  validateRelayCallResult,
 } from './relayServerUtils';
+import { applyFactor } from './Conversions';
 import { getPastEventsForHub } from './getPastEventsForHub';
 import type { ManagerEvent, PastEventOptions } from './definitions';
 import {
@@ -118,8 +127,17 @@ const ACTIVITY_EVENTS: ManagerEvent[] = [
   'TransactionRelayedButRevertedByRecipient',
 ];
 
+// A dry run that runs out of gas is tried again with more, up to this many
+// times, each time with the first gas limit raised by the factor doubled
+const DRY_RUN_RETRIES = 4;
+const DRY_RUN_GAS_FACTOR = 0.25;
+// The error of a dry run that runs out of gas before the destination call
+const OUT_OF_GAS_ERROR = 'Not enough gas left';
+
 export class RelayServer extends EventEmitter {
   private _lastScannedBlock = 0;
+
+  private _lastReleaseBlock = 0;
 
   private _lastRefreshBlock = 0;
 
@@ -162,6 +180,8 @@ export class RelayServer extends EventEmitter {
   networkId: number | undefined;
 
   trustedVerifiers: Set<string> = new Set<string>();
+
+  readonly inFlightRelays = new InFlightRelays();
 
   workerBalanceRequired: AmountRequired;
 
@@ -481,14 +501,52 @@ export class RelayServer extends EventEmitter {
 
     log.debug('RelayServer - attempting to relay transaction');
 
-    const { maxPossibleGas } = await maxPossibleGasVerification(
-      transaction,
-      gasPrice,
-      gasLimit,
-      this.workerAddress
-    );
+    const isDeploy = isDeployRequest(envelopingRequest.relayRequest);
+    const provider = getProvider();
+    // The dry run of the client's maxPossibleGasVerification, with one more
+    // out-of-gas signal: on Rootstock a call that runs out of gas can return
+    // no data instead of the 'Not enough gas left' error, and both are tried
+    // again with more gas before the result is judged
+    let maxPossibleGas = gasLimit;
+    for (let retry = 0; ; retry++) {
+      const isLastAttempt = retry === DRY_RUN_RETRIES;
+      let transactionResult = '0x';
+      let ranOutOfGas = false;
+      try {
+        log.debug(`Dry run with gasLimit: ${maxPossibleGas.toString()}`);
+        transactionResult = await provider.call(
+          {
+            ...transaction,
+            from: this.workerAddress,
+            gasPrice,
+            gasLimit: maxPossibleGas,
+          },
+          'pending'
+        );
+      } catch (error) {
+        if (
+          isLastAttempt ||
+          !(error instanceof Error && error.message.includes(OUT_OF_GAS_ERROR))
+        ) {
+          throw error;
+        }
+        ranOutOfGas = true;
+      }
+      // deployCall returns nothing, so its result can't be checked
+      if (isDeploy && !ranOutOfGas) {
+        return maxPossibleGas;
+      }
+      // on the last attempt an empty result is judged as it is, which fails
+      if ((!ranOutOfGas && !isDataEmpty(transactionResult)) || isLastAttempt) {
+        validateRelayCallResult(transactionResult);
 
-    return maxPossibleGas;
+        return maxPossibleGas;
+      }
+      maxPossibleGas = applyFactor(
+        gasLimit,
+        1 + DRY_RUN_GAS_FACTOR * 2 ** retry
+      );
+    }
   }
 
   async estimateMaxPossibleGas(
@@ -571,6 +629,20 @@ export class RelayServer extends EventEmitter {
     }
     this.validateInputTypes(envelopingTransaction);
 
+    // The checks run against the chain as it is when they start, see
+    // InFlightRelays.acquire
+    const check = this.inFlightRelays.startCheck();
+    try {
+      return await this._createRelayTransaction(envelopingTransaction, check);
+    } finally {
+      this.inFlightRelays.endCheck(check);
+    }
+  }
+
+  async _createRelayTransaction(
+    envelopingTransaction: HttpEnvelopingRequest,
+    check: number
+  ): Promise<SignedTransactionDetails> {
     const {
       blockchain: { minAlertedDelayMS, maxAlertedDelayMS },
     } = this.config;
@@ -614,11 +686,13 @@ export class RelayServer extends EventEmitter {
           signature
         );
 
-    // Call relayCall as a view function to see if we'll get paid for relaying this tx
+    // Call relayCall as a view function to see if we'll get paid for relaying this tx.
+    // The estimate on Rootstock is the gas used plus the 2300 stipend, with no
+    // headroom, so the dry run and the broadcast get estimateGasFactor on top
     const maxPossibleGasWithViewCall = await this.maxPossibleGasWithViewCall(
       method,
       envelopingTransaction,
-      maxPossibleGas
+      applyFactor(maxPossibleGas, this.config.blockchain.estimateGasFactor)
     );
 
     log.debug(
@@ -641,7 +715,34 @@ export class RelayServer extends EventEmitter {
       creationBlockNumber: currentBlock,
       gasPrice: BigNumber.from(gasPrice.toString()),
     };
-    const txDetails = await this.transactionManager.sendTransaction(details);
+    // The keys are taken only once the request has passed every check and the
+    // dry run, so one that fails them, such as a forged copy, never holds the
+    // keys of another. They are taken synchronously, so of two copies that
+    // passed together only the first is broadcast, and a copy whose checks
+    // started before the first was confirmed is refused
+    const inFlightRelay = this.inFlightRelays.acquire(
+      getInFlightKeys(envelopingTransaction.relayRequest),
+      check
+    );
+    let txDetails: SignedTransactionWithNonce;
+    try {
+      txDetails = await this.transactionManager.sendTransaction(details);
+    } catch (error) {
+      if (!(error instanceof KeptTransactionError)) {
+        this.inFlightRelays.release(inFlightRelay);
+        throw error;
+      }
+      // The transaction is kept: it may still be mined, and the boost sends
+      // it again otherwise. The client gets it as relayed, so it broadcasts it
+      // too and doesn't send the request again, to this server or another
+      log.warn(
+        `Relay transaction ${error.transaction.txHash} is kept although its broadcast failed:`,
+        error.message
+      );
+      txDetails = error.transaction;
+    }
+    // Held until the worker transaction is confirmed, see _releaseConfirmedRelays
+    inFlightRelay.nonce = txDetails.nonce;
     // after sending a transaction is a good time to check the worker's balance, and replenish it.
     this.emit(EVENT_REPLENISH_CHECK_REQUIRED, this, 0, currentBlock);
 
@@ -829,6 +930,7 @@ networkId               | ${this.networkId}
 latestBlock             | ${latestBlock.number}
 latestBlock timestamp   | ${latestBlock.timestamp}
 `);
+    await this._restoreInFlightRelays();
     this._initialized = true;
 
     // Assume started server is not registered until _worker figures stuff out
@@ -842,6 +944,7 @@ latestBlock timestamp   | ${latestBlock.timestamp}
     if (blockNumber <= this._lastScannedBlock) {
       throw new Error('Attempt to scan older block, aborting');
     }
+    await this._releaseConfirmedRelays(blockNumber);
     if (!this._shouldRefreshState(blockNumber)) {
       return [];
     }
@@ -855,6 +958,84 @@ latestBlock timestamp   | ${latestBlock.timestamp}
     }
 
     return await this._handleChanges(blockNumber);
+  }
+
+  /**
+   * Holds again the requests of the relay transactions the store kept from
+   * before a restart. They may still be mined, or sent again by the boost, so
+   * a copy of one has to wait as it did before the restart.
+   */
+  async _restoreInFlightRelays(): Promise<void> {
+    let storedTxs: StoredTransaction[];
+    try {
+      storedTxs = await this.txStoreManager.getAllBySigner(this.workerAddress);
+    } catch (error) {
+      // the server still starts, without holding them
+      log.error(
+        'Could not read the stored relay transactions to hold their requests again:',
+        clientErrorMessage(error)
+      );
+
+      return;
+    }
+    for (const { serverAction, data, nonce, txId } of storedTxs) {
+      if (serverAction !== ServerAction.RELAY_CALL || !data || nonce == null) {
+        continue;
+      }
+      try {
+        this.inFlightRelays.restore(
+          getInFlightKeysOfRelayTransaction(data),
+          nonce
+        );
+      } catch (error) {
+        log.warn(
+          `Could not read the request of stored relay transaction ${txId}, not holding it:`,
+          clientErrorMessage(error)
+        );
+      }
+    }
+  }
+
+  /**
+   * Releases the requests whose worker transaction is confirmed: mined at
+   * least confirmationsNeeded blocks ago, as both nodes see it. The write node
+   * is the one it was broadcast to, and the read node the one the verifier
+   * and the dry run of a copy run against; the confirmations keep a copy from
+   * passing against a state from before the transaction, whether it ran just
+   * before the block or the block was then reorganised away.
+   */
+  async _releaseConfirmedRelays(blockNumber: number): Promise<void> {
+    const confirmedBlock =
+      blockNumber - this.config.blockchain.confirmationsNeeded;
+    // the confirmed counts only change with a new block, but _worker runs
+    // again on the same block until the state is refreshed
+    if (
+      confirmedBlock < 0 ||
+      blockNumber === this._lastReleaseBlock ||
+      !this.inFlightRelays.hasBroadcast()
+    ) {
+      return;
+    }
+    try {
+      const [readConfirmedNonce, writeConfirmedNonce] = await Promise.all([
+        getProvider().getTransactionCount(this.workerAddress, confirmedBlock),
+        getWriteProvider().getTransactionCount(
+          this.workerAddress,
+          confirmedBlock
+        ),
+      ]);
+      this.inFlightRelays.releaseConfirmed(
+        Math.min(readConfirmedNonce, writeConfirmedNonce)
+      );
+      this._lastReleaseBlock = blockNumber;
+    } catch (error) {
+      // the requests stay held until a block whose counts can be read; a node
+      // that can't be read must not stop the rest of the round
+      log.warn(
+        'Could not read the confirmed nonce of the worker to release the requests in flight:',
+        clientErrorMessage(error)
+      );
+    }
   }
 
   async _refreshGasPrice(): Promise<void> {

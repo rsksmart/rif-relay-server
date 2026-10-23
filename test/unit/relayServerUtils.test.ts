@@ -3,6 +3,7 @@ import { BigNumber, constants } from 'ethers';
 import {
   ERC20__factory,
   ERC20,
+  RelayHub__factory,
   TokenHandler__factory,
   DestinationContractHandler__factory,
   DestinationContractHandler,
@@ -745,6 +746,31 @@ describe('relayServerUtils tests', function () {
       });
 
       expect(maxGasPrice.toString()).to.equal('50');
+    });
+  });
+
+  describe('Function validateRelayCallResult()', function () {
+    const encodeResult = (destinationCallSuccess: boolean) =>
+      RelayHub__factory.createInterface().encodeFunctionResult('relayCall', [
+        destinationCallSuccess,
+      ]);
+
+    it('should accept a relay call whose destination call succeeds', function () {
+      expect(() =>
+        relayServerUtils.validateRelayCallResult(encodeResult(true))
+      ).not.to.throw();
+    });
+
+    it('should reject a relay call that returns no data, as when it runs out of gas', function () {
+      expect(() => relayServerUtils.validateRelayCallResult('0x')).to.throw(
+        'returned no result in the dry run'
+      );
+    });
+
+    it('should reject a relay call whose destination call fails', function () {
+      expect(() =>
+        relayServerUtils.validateRelayCallResult(encodeResult(false))
+      ).to.throw('The destination call fails in the dry run');
     });
   });
 

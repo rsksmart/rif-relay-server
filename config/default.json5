@@ -60,6 +60,7 @@
   blockchain: {
     rskNodeUrl: "http://127.0.0.1:4444", //  RSK node endpoint URL, where the RSK node is located.
     // rskNodeWriteUrl: "https://public-node.rsk.co", // Optional. RSK node endpoint URL used to broadcast transactions and read the pending nonce. Defaults to rskNodeUrl.
+    rskNodeWriteTimeoutMS: 30000, // how long a broadcast or another call to the write node (rskNodeWriteUrl, or rskNodeUrl without it) may take before it fails as a timeout, which keeps the transaction and its nonce; broadcasts hold every relay until they are answered
     gasPriceFactor: 1,
     alertedBlockDelay: 0,
     minAlertedDelayMS: 0,
@@ -75,7 +76,7 @@
     pendingTransactionTimeoutBlocks: 30, // around 5 minutes with 10 seconds block times.
     successfulRoundsForReady: 3, // successful mined blocks to become ready after exception.
     confirmationsNeeded: 12,
-    retryGasPriceFactor: 1.2, // gas price factor used to calculate the gas on the server, you can leave it as 1
+    retryGasPriceFactor: 1.2, // the gas price of a stale transaction is raised by this factor on each boost; it must be above 1, or the boost would send the transaction again unchanged
     defaultGasLimit: 500000,
     maxGasPrice: 100000000000,
     // the highest gasPrice a request may set and a stale transaction is boosted to, as a multiple of the node's gasPrice;
@@ -85,7 +86,7 @@
     // default gasPrice (0.06 gwei) keep being accepted when the node's gasPrice falls; it never lifts the maximum above 50 times
     // the node's gasPrice, so if the node's gasPrice falls below 1/50 of the floor, requests priced at the floor are rejected
     maxRequestGasPriceFloor: 60000000,
-    estimateGasFactor: 1.2,
+    estimateGasFactor: 1.2, // headroom on gas estimates: the server's own transactions, and the dry run and gas limit of relayed transactions
     initialBlockToScan: 1, // the first block to scan for events: at startup with startupStateSource "events", and for server activity when registrationBlockRate is set
     startupStateSource: "events", // how the server learns its registration state at startup: "events" replays the hub events since initialBlockToScan, "chain" reads it from the RelayHub
     maxBlockRange: 1000,   // the maximum amount of blocks to include while requesting events

@@ -93,6 +93,38 @@ describe('planBoost', function () {
     expect(planned?.value.eq(value)).to.be.true;
   });
 
+  it('should send the oldest transaction again at the lower price it is given, and only that one', function () {
+    const ownGasPrice = NEW_GAS_PRICE.mul(2);
+    const transactions = [
+      pendingTx(0, { gasPrice: ownGasPrice }),
+      pendingTx(1, { gasPrice: ownGasPrice }),
+    ];
+
+    const [oldest, later] = planBoost(
+      transactions,
+      BALANCE,
+      NEW_GAS_PRICE,
+      NEW_GAS_PRICE
+    );
+
+    expect(oldest?.gasPrice.eq(NEW_GAS_PRICE)).to.be.true;
+    // not underpriced, so it is not sent again
+    expect(later).to.be.undefined;
+  });
+
+  it('should not raise the oldest transaction to the lower price it is given', function () {
+    const transaction = pendingTx(0, { gasPrice: GAS_PRICE });
+
+    const [planned] = planBoost(
+      [transaction],
+      BALANCE,
+      NEW_GAS_PRICE,
+      NEW_GAS_PRICE.mul(2)
+    );
+
+    expect(planned?.gasPrice.eq(NEW_GAS_PRICE)).to.be.true;
+  });
+
   it('should resend a transfer with value zero when the balance only covers the fee', function () {
     const transaction = pendingTx(0, { value: utils.parseEther('0.0001') });
 

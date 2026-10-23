@@ -17,6 +17,7 @@ const CONFIG_BLOCKCHAIN = 'blockchain';
 const CONFIG_RELAY_HUB_ADDRESS = 'relayHubAddress';
 const CONFIG_RSK_URL = 'rskNodeUrl';
 const CONFIG_RSK_WRITE_URL = 'rskNodeWriteUrl';
+const CONFIG_RSK_WRITE_TIMEOUT = 'rskNodeWriteTimeoutMS';
 
 const getConfiguredRelayHubAddress = () =>
   config.get<string>(`${CONFIG_CONTRACTS}.${CONFIG_RELAY_HUB_ADDRESS}`);
@@ -25,6 +26,9 @@ export const getRelayHub = (
   relayHubAddress = getConfiguredRelayHubAddress(),
   provider = getProvider()
 ): RelayHub => RelayHub__factory.connect(relayHubAddress, provider);
+
+// To encode and decode RelayHub calls without a contract instance
+export const relayHubInterface = RelayHub__factory.createInterface();
 
 export function isSameAddress(address1: string, address2: string): boolean {
   return getAddress(address1) === getAddress(address2);
@@ -128,16 +132,19 @@ export class RedactingJsonRpcProvider extends providers.StaticJsonRpcProvider {
   }
 }
 
+// By URL and timeout: the read and the write provider may share a URL and
+// still differ in their timeout
 const providersByUrl = new Map<string, providers.Provider>();
 
-function getProviderForUrl(url: string): providers.Provider {
-  let provider = providersByUrl.get(url);
+function getProviderForUrl(url: string, timeout?: number): providers.Provider {
+  const key = `${timeout ?? ''} ${url}`;
+  let provider = providersByUrl.get(key);
   if (!provider) {
     // The chain id never changes for a running server, so we avoid the extra eth_chainId call per request
     provider = /^https?:/i.test(url)
-      ? new RedactingJsonRpcProvider(url)
+      ? new RedactingJsonRpcProvider({ url, timeout })
       : getDefaultProvider(url);
-    providersByUrl.set(url, provider);
+    providersByUrl.set(key, provider);
   }
 
   return provider;
@@ -154,7 +161,11 @@ export function getProvider(): providers.Provider {
 
 /**
  * Provider used for broadcasting signed transactions and reading the pending nonce of the server accounts.
- * It falls back to the read provider when `blockchain.rskNodeWriteUrl` is not set.
+ * It uses the URL of the read provider when `blockchain.rskNodeWriteUrl` is not set.
+ * Either way its calls fail as a timeout after `blockchain.rskNodeWriteTimeoutMS`,
+ * which keeps the transaction and its nonce: broadcasts run under the nonce
+ * mutex, so a call the node never answers would otherwise hold every relay
+ * for ethers' default of two minutes.
  */
 export function getWriteProvider(): providers.Provider {
   const writeUrlKey = `${CONFIG_BLOCKCHAIN}.${CONFIG_RSK_WRITE_URL}`;
@@ -162,7 +173,10 @@ export function getWriteProvider(): providers.Provider {
     ? config.get<string | undefined>(writeUrlKey)
     : undefined;
 
-  return writeUrl ? getProviderForUrl(writeUrl) : getProvider();
+  return getProviderForUrl(
+    writeUrl || config.get<string>(`${CONFIG_BLOCKCHAIN}.${CONFIG_RSK_URL}`),
+    config.get<number>(`${CONFIG_BLOCKCHAIN}.${CONFIG_RSK_WRITE_TIMEOUT}`)
+  );
 }
 
 /**

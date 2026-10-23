@@ -99,6 +99,39 @@ describe('ServerConfigParams tests', function () {
       );
     });
 
+    it('Should fail if estimateGasFactor is lower than 1', function () {
+      config.util.extendDeep(config, {
+        app: { disableSponsoredTx: false },
+        blockchain: { estimateGasFactor: 0.9 },
+      });
+
+      expect(() => verifyServerConfiguration()).to.throw(
+        /"blockchain.estimateGasFactor" must be greater than or equal to 1/
+      );
+    });
+
+    it('Should fail if rskNodeWriteTimeoutMS is not a positive number of milliseconds', function () {
+      config.util.extendDeep(config, {
+        app: { disableSponsoredTx: false },
+        blockchain: { rskNodeWriteTimeoutMS: 0 },
+      });
+
+      expect(() => verifyServerConfiguration()).to.throw(
+        /"blockchain.rskNodeWriteTimeoutMS" must be greater than or equal to 1/
+      );
+    });
+
+    it('Should fail if retryGasPriceFactor does not raise the gas price', function () {
+      config.util.extendDeep(config, {
+        app: { disableSponsoredTx: false },
+        blockchain: { retryGasPriceFactor: 1 },
+      });
+
+      expect(() => verifyServerConfiguration()).to.throw(
+        /"blockchain.retryGasPriceFactor" must be greater than 1/
+      );
+    });
+
     it('Should pass if it is sponsored, even if none fee is configured', function () {
       config.util.extendDeep(config, { app: { disableSponsoredTx: false } });
 
