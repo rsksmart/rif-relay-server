@@ -35,6 +35,7 @@ import {
 } from 'ethers';
 import ow from 'ow';
 import {
+  clientErrorMessage,
   deployTransactionRequestShape,
   getLatestEventData,
   getProvider,
@@ -57,7 +58,6 @@ import {
   estimateRelayMaxPossibleGas,
   isDeployRequest,
   isDeployTransaction,
-  maxPossibleGasVerification,
   setProvider,
   standardMaxPossibleGasEstimation,
   estimateRelayMaxPossibleGasNoSignature,
@@ -127,10 +127,12 @@ const ACTIVITY_EVENTS: ManagerEvent[] = [
   'TransactionRelayedButRevertedByRecipient',
 ];
 
-// The retries and increments of a dry run that runs out of gas, the same as
-// maxPossibleGasVerification uses for the 'Not enough gas left' error
-const OUT_OF_GAS_DRY_RUN_RETRIES = 4;
-const OUT_OF_GAS_DRY_RUN_FACTOR = 0.25;
+// A dry run that runs out of gas is tried again with more, up to this many
+// times, each time with the first gas limit raised by the factor doubled
+const DRY_RUN_RETRIES = 4;
+const DRY_RUN_GAS_FACTOR = 0.25;
+// The error of a dry run that runs out of gas before the destination call
+const OUT_OF_GAS_ERROR = 'Not enough gas left';
 
 export class RelayServer extends EventEmitter {
   private _lastScannedBlock = 0;
@@ -500,39 +502,50 @@ export class RelayServer extends EventEmitter {
     log.debug('RelayServer - attempting to relay transaction');
 
     const isDeploy = isDeployRequest(envelopingRequest.relayRequest);
-    let gasLimitAttempt = gasLimit;
+    const provider = getProvider();
+    // The dry run of the client's maxPossibleGasVerification, with one more
+    // out-of-gas signal: on Rootstock a call that runs out of gas can return
+    // no data instead of the 'Not enough gas left' error, and both are tried
+    // again with more gas before the result is judged
+    let maxPossibleGas = gasLimit;
     for (let retry = 0; ; retry++) {
-      const { maxPossibleGas, transactionResult } =
-        await maxPossibleGasVerification(
-          transaction,
-          gasPrice,
-          gasLimitAttempt,
-          this.workerAddress
+      const isLastAttempt = retry === DRY_RUN_RETRIES;
+      let transactionResult = '0x';
+      let ranOutOfGas = false;
+      try {
+        log.debug(`Dry run with gasLimit: ${maxPossibleGas.toString()}`);
+        transactionResult = await provider.call(
+          {
+            ...transaction,
+            from: this.workerAddress,
+            gasPrice,
+            gasLimit: maxPossibleGas,
+          },
+          'pending'
         );
+      } catch (error) {
+        if (
+          isLastAttempt ||
+          !(error instanceof Error && error.message.includes(OUT_OF_GAS_ERROR))
+        ) {
+          throw error;
+        }
+        ranOutOfGas = true;
+      }
       // deployCall returns nothing, so its result can't be checked
-      if (isDeploy) {
+      if (isDeploy && !ranOutOfGas) {
         return maxPossibleGas;
       }
-      // On Rootstock a call that runs out of gas returns no data instead of
-      // the error maxPossibleGasVerification retries on, so it is retried
-      // here with the same increments before the result is judged
-      if (
-        !isDataEmpty(transactionResult) ||
-        retry === OUT_OF_GAS_DRY_RUN_RETRIES
-      ) {
+      // on the last attempt an empty result is judged as it is, which fails
+      if ((!ranOutOfGas && !isDataEmpty(transactionResult)) || isLastAttempt) {
         validateRelayCallResult(transactionResult);
 
         return maxPossibleGas;
       }
-      // maxPossibleGas is the limit the call was last tried with, which
-      // maxPossibleGasVerification may have raised already
-      const scheduled = applyFactor(
+      maxPossibleGas = applyFactor(
         gasLimit,
-        1 + OUT_OF_GAS_DRY_RUN_FACTOR * 2 ** retry
+        1 + DRY_RUN_GAS_FACTOR * 2 ** retry
       );
-      gasLimitAttempt = scheduled.gt(maxPossibleGas)
-        ? scheduled
-        : applyFactor(maxPossibleGas, 1 + OUT_OF_GAS_DRY_RUN_FACTOR);
     }
   }
 
@@ -960,7 +973,7 @@ latestBlock timestamp   | ${latestBlock.timestamp}
       // the server still starts, without holding them
       log.error(
         'Could not read the stored relay transactions to hold their requests again:',
-        error instanceof Error ? error.message : error
+        clientErrorMessage(error)
       );
 
       return;
@@ -977,7 +990,7 @@ latestBlock timestamp   | ${latestBlock.timestamp}
       } catch (error) {
         log.warn(
           `Could not read the request of stored relay transaction ${txId}, not holding it:`,
-          error instanceof Error ? error.message : error
+          clientErrorMessage(error)
         );
       }
     }
@@ -1020,7 +1033,7 @@ latestBlock timestamp   | ${latestBlock.timestamp}
       // that can't be read must not stop the rest of the round
       log.warn(
         'Could not read the confirmed nonce of the worker to release the requests in flight:',
-        error instanceof Error ? error.message : error
+        clientErrorMessage(error)
       );
     }
   }

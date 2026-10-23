@@ -17,6 +17,7 @@ const CONFIG_BLOCKCHAIN = 'blockchain';
 const CONFIG_RELAY_HUB_ADDRESS = 'relayHubAddress';
 const CONFIG_RSK_URL = 'rskNodeUrl';
 const CONFIG_RSK_WRITE_URL = 'rskNodeWriteUrl';
+const CONFIG_RSK_WRITE_TIMEOUT = 'rskNodeWriteTimeoutMS';
 
 const getConfiguredRelayHubAddress = () =>
   config.get<string>(`${CONFIG_CONTRACTS}.${CONFIG_RELAY_HUB_ADDRESS}`);
@@ -133,12 +134,12 @@ export class RedactingJsonRpcProvider extends providers.StaticJsonRpcProvider {
 
 const providersByUrl = new Map<string, providers.Provider>();
 
-function getProviderForUrl(url: string): providers.Provider {
+function getProviderForUrl(url: string, timeout?: number): providers.Provider {
   let provider = providersByUrl.get(url);
   if (!provider) {
     // The chain id never changes for a running server, so we avoid the extra eth_chainId call per request
     provider = /^https?:/i.test(url)
-      ? new RedactingJsonRpcProvider(url)
+      ? new RedactingJsonRpcProvider({ url, timeout })
       : getDefaultProvider(url);
     providersByUrl.set(url, provider);
   }
@@ -158,6 +159,10 @@ export function getProvider(): providers.Provider {
 /**
  * Provider used for broadcasting signed transactions and reading the pending nonce of the server accounts.
  * It falls back to the read provider when `blockchain.rskNodeWriteUrl` is not set.
+ * Its calls fail as a timeout after `blockchain.rskNodeWriteTimeoutMS`, which
+ * keeps the transaction and its nonce: broadcasts run under the nonce mutex,
+ * so a call the node never answers would otherwise hold every relay for
+ * ethers' default of two minutes.
  */
 export function getWriteProvider(): providers.Provider {
   const writeUrlKey = `${CONFIG_BLOCKCHAIN}.${CONFIG_RSK_WRITE_URL}`;
@@ -165,7 +170,12 @@ export function getWriteProvider(): providers.Provider {
     ? config.get<string | undefined>(writeUrlKey)
     : undefined;
 
-  return writeUrl ? getProviderForUrl(writeUrl) : getProvider();
+  return writeUrl
+    ? getProviderForUrl(
+        writeUrl,
+        config.get<number>(`${CONFIG_BLOCKCHAIN}.${CONFIG_RSK_WRITE_TIMEOUT}`)
+      )
+    : getProvider();
 }
 
 /**

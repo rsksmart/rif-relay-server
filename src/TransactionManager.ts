@@ -249,19 +249,19 @@ data         | 0x${transaction.data ?? ''}
       } catch (error) {
         // A JSON-RPC error can also come from a gateway in front of the node,
         // e.g. an upstream timeout after it forwarded the transaction, so it
-        // is a refusal only if the node doesn't have the transaction
+        // is a refusal only once the node is known not to have the transaction
         if (
           isRefusedByNode(error) &&
-          !(await this._getFromWriteNode(signedTransaction.txHash))
+          (await this._getFromWriteNode(signedTransaction.txHash)) === null
         ) {
           await this._rollBackRefusedBroadcast(storedTx, error);
           throw error;
         }
-        // The node may have accepted it, so the nonce stays taken; if it did
-        // not, the boost broadcasts the transaction again
+        // The node may have accepted it, or could not be asked, so the nonce
+        // stays taken; if it did not, the boost broadcasts the transaction again
         log.warn(
           `Broadcast of transaction ${storedTx.txId} failed, but the node may have it, keeping it:`,
-          error instanceof Error ? error.message : error
+          clientErrorMessage(error)
         );
         throw new KeptTransactionError({ ...signedTransaction, nonce }, error);
       }
@@ -295,7 +295,7 @@ data         | 0x${transaction.data ?? ''}
       `Transaction ${storedTx.txId} with nonce ${
         storedTx.nonce ?? 'unnonce'
       } from ${storedTx.from} was refused by the node, giving its nonce back:`,
-      error instanceof Error ? error.message : error
+      clientErrorMessage(error)
     );
     this.nonces[storedTx.from]--;
     await this.txStoreManager.removeTx(storedTx);
@@ -384,27 +384,35 @@ data         | 0x${transaction.data ?? ''}
     } catch (error) {
       const isSentAgainUnchanged =
         signedTransaction.txHash.toLowerCase() === tx.txId.toLowerCase();
-      if (
-        isSentAgainUnchanged &&
-        isRefusedByNode(error) &&
-        (await this._isPendingOnNode(signedTransaction.txHash))
-      ) {
+      const isPending =
+        isSentAgainUnchanged && isRefusedByNode(error)
+          ? await this._isPendingOnNode(signedTransaction.txHash)
+          : false;
+      if (isPending !== false) {
         // The node refuses a transaction it already has in its pool, e.g. one
         // at a price that can't be raised; it was sent, so the boost goes on
         // with the next one and the attempt makes it wait for the timeout. A
         // transaction the node has mined is not taken as sent: the store is
         // behind, and the later transactions would be planned against a
-        // balance that already paid for it, so the refusal stops the boost
-        log.debug(
-          `Transaction ${tx.txId} sent again unchanged is already pending on the node`
-        );
+        // balance that already paid for it, so the refusal stops the boost.
+        // When the node can't be asked, nothing is known to be wrong with
+        // the transaction, so it is taken as sent rather than failing the boost
+        if (isPending === 'unknown') {
+          log.warn(
+            `Transaction ${tx.txId} sent again unchanged was refused, and the node could not be asked whether it has it; taking it as sent`
+          );
+        } else {
+          log.debug(
+            `Transaction ${tx.txId} sent again unchanged is already pending on the node`
+          );
+        }
 
         return signedTransaction;
       }
       if (isRefusedByNode(error)) {
         log.error(
           `Boosted transaction ${signedTransaction.txHash} was refused by the node, keeping ${tx.txId}:`,
-          error instanceof Error ? error.message : error
+          clientErrorMessage(error)
         );
         // Keep tracking the transaction as it was last broadcast, so the next
         // boost starts from a gas price the node has seen, but keep this
@@ -426,7 +434,7 @@ data         | 0x${transaction.data ?? ''}
         // clears it once the nonce is confirmed under the other hash
         log.warn(
           `Broadcast of boosted transaction ${signedTransaction.txHash} failed without an answer from the node, keeping it in place of ${tx.txId}:`,
-          error instanceof Error ? error.message : error
+          clientErrorMessage(error)
         );
       }
       throw error;
@@ -442,27 +450,33 @@ data         | 0x${transaction.data ?? ''}
 
   /**
    * The transaction as the write node, the one transactions are broadcast to,
-   * has it, pending or mined, or null if it doesn't. A failed lookup counts
-   * as not having it.
+   * has it, pending or mined; null if it doesn't have it; 'unknown' if it
+   * could not be asked, which never counts as not having it.
    */
-  async _getFromWriteNode(txHash: string): Promise<TransactionResponse | null> {
+  async _getFromWriteNode(
+    txHash: string
+  ): Promise<TransactionResponse | null | 'unknown'> {
     try {
       return await getWriteProvider().getTransaction(txHash);
     } catch (error) {
       log.warn(
         `Could not look up transaction ${txHash} on the write node:`,
-        error instanceof Error ? error.message : error
+        clientErrorMessage(error)
       );
 
-      return null;
+      return 'unknown';
     }
   }
 
   /**
-   * Whether the write node has the transaction in its pool, not yet mined.
+   * Whether the write node has the transaction in its pool, not yet mined, or
+   * 'unknown' if it could not be asked.
    */
-  async _isPendingOnNode(txHash: string): Promise<boolean> {
+  async _isPendingOnNode(txHash: string): Promise<boolean | 'unknown'> {
     const transaction = await this._getFromWriteNode(txHash);
+    if (transaction === 'unknown') {
+      return transaction;
+    }
 
     return transaction != null && transaction.blockNumber == null;
   }
@@ -492,10 +506,16 @@ data         | 0x${transaction.data ?? ''}
     isMaxGasPriceReached: boolean;
   } {
     let isMaxGasPriceReached = false;
-    let newGasPrice = applyFactor(
+    const raisedGasPrice = applyFactor(
       oldGasPrice ?? 0,
       this.config.blockchain.retryGasPriceFactor
     );
+    // A transaction priced below the node's current minimum is refused however
+    // often its price is raised by the factor, since a refused boost keeps the
+    // old price; the node's price is the floor so the boost catches up with it
+    let newGasPrice = raisedGasPrice.lt(nodeGasPrice)
+      ? nodeGasPrice
+      : raisedGasPrice;
 
     const maxGasPrice = this._getMaxBoostGasPrice(nodeGasPrice);
 
@@ -641,29 +661,30 @@ data         | 0x${transaction.data ?? ''}
     signer: string,
     currentBlockHeight: number
   ): Promise<Map<string, SignedTransactionDetails>> {
-    // The boost runs under the nonce mutex, from reading the store to its last
-    // broadcast, so it never replaces a transaction whose first broadcast is
-    // still in flight: if the node then refused that broadcast, its nonce would
-    // be given back while the store kept the boost under the same nonce
-    const releaseMutex = await this.nonceMutex.acquire();
-    try {
-      return await this._boostUnderpricedPendingTransactionsForSigner(
-        signer,
-        currentBlockHeight
-      );
-    } finally {
-      releaseMutex();
-    }
+    // The store is read under the nonce mutex, which sendTransaction holds
+    // until its broadcast is answered, so the boost never replaces a
+    // transaction whose first broadcast is still in flight: if the node then
+    // refused that broadcast, its nonce would be given back while the store
+    // kept the boost under the same nonce. The mutex is released before the
+    // boost's own network calls, so a slow node doesn't hold every relay
+    const sortedTxs = await this.nonceMutex.runExclusive(() =>
+      this.txStoreManager.getAllBySigner(signer)
+    );
+
+    return await this._boostUnderpricedPendingTransactionsForSigner(
+      signer,
+      sortedTxs,
+      currentBlockHeight
+    );
   }
 
   async _boostUnderpricedPendingTransactionsForSigner(
     signer: string,
+    sortedTxs: StoredTransaction[],
     currentBlockHeight: number
   ): Promise<Map<string, SignedTransactionDetails>> {
     const boostedTransactions = new Map<string, SignedTransactionDetails>();
 
-    // Load unconfirmed transactions from store again
-    const sortedTxs = await this.txStoreManager.getAllBySigner(signer);
     if (sortedTxs.length === 0) {
       return boostedTransactions;
     }
@@ -686,7 +707,7 @@ data         | 0x${transaction.data ?? ''}
       // boost waits for the next block instead of failing the whole round
       log.warn(
         `${signer} : could not read the mined nonce from both nodes, not boosting:`,
-        error instanceof Error ? error.message : error
+        clientErrorMessage(error)
       );
 
       return boostedTransactions;

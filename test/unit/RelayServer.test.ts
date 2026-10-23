@@ -710,6 +710,58 @@ describe('RelayServer tests', function () {
       ).to.eventually.eql(BigNumber.from(GAS_LIMIT * 1.25));
     });
 
+    it('should retry with more gas a relay call that fails with "Not enough gas left"', async function () {
+      const success = RelayHub__factory.createInterface().encodeFunctionResult(
+        'relayCall',
+        [true]
+      );
+      // the error of a dry run that runs out of gas before the destination call
+      (provider.call as SinonStub).callsFake(
+        (transaction: { gasLimit: BigNumber }) =>
+          BigNumber.from(transaction.gasLimit).gte(GAS_LIMIT * 1.5)
+            ? Promise.resolve(success)
+            : Promise.reject(
+                new Error('execution reverted: Not enough gas left')
+              )
+      );
+
+      await expect(
+        relayServer.maxPossibleGasWithViewCall(
+          {},
+          createEnvelopingRequest(),
+          BigNumber.from(GAS_LIMIT)
+        )
+      ).to.eventually.eql(BigNumber.from(GAS_LIMIT * 1.5));
+    });
+
+    it('should fail with the error of a relay call that runs out of gas with every gas limit', async function () {
+      (provider.call as SinonStub).rejects(
+        new Error('execution reverted: Not enough gas left')
+      );
+
+      await expect(
+        relayServer.maxPossibleGasWithViewCall(
+          {},
+          createEnvelopingRequest(),
+          BigNumber.from(GAS_LIMIT)
+        )
+      ).to.be.rejectedWith('Not enough gas left');
+      expect((provider.call as SinonStub).callCount).to.equal(5);
+    });
+
+    it('should fail at once with any other error of the dry run', async function () {
+      (provider.call as SinonStub).rejects(new Error('execution reverted'));
+
+      await expect(
+        relayServer.maxPossibleGasWithViewCall(
+          {},
+          createEnvelopingRequest(),
+          BigNumber.from(GAS_LIMIT)
+        )
+      ).to.be.rejectedWith('execution reverted');
+      expect((provider.call as SinonStub).callCount).to.equal(1);
+    });
+
     it('should reject a relay call whose destination call fails', async function () {
       transactionResult =
         RelayHub__factory.createInterface().encodeFunctionResult('relayCall', [

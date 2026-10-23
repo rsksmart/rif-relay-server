@@ -37,6 +37,7 @@ type ContractsConfig = {
 type BlockchainConfig = {
   rskNodeUrl: string;
   rskNodeWriteUrl?: string;
+  rskNodeWriteTimeoutMS: number;
   gasPriceFactor: number;
   registrationBlockRate: number;
   alertedBlockDelay: number;

@@ -79,6 +79,7 @@ const blockchainSchema = Joi.object({
     .uri({ scheme: ['http', 'https'] })
     .allow('')
     .optional(),
+  rskNodeWriteTimeoutMS: Joi.number().integer().min(1).required(),
   gasPriceFactor: Joi.number().required(),
   registrationBlockRate: Joi.number().min(0).required(),
   alertedBlockDelay: Joi.number().min(0).required(),
@@ -114,7 +115,7 @@ const blockchainSchema = Joi.object({
   pendingTransactionTimeoutBlocks: Joi.number().min(0).required(),
   successfulRoundsForReady: Joi.number().min(0).required(),
   confirmationsNeeded: Joi.number().min(0).required(),
-  retryGasPriceFactor: Joi.number().min(0).required(),
+  retryGasPriceFactor: Joi.number().greater(1).required(),
   maxGasPrice: Joi.number().min(0).unsafe().custom(isBigNumberish).required(),
   maxRequestGasPriceFactor: Joi.number()
     .min(1)

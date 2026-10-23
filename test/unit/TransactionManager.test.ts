@@ -209,19 +209,21 @@ describe('TransactionManager tests', function () {
       expect(txStoreManager.removeTx).not.to.have.been.called;
     });
 
-    it('should give the nonce back when the node refuses a transaction it cannot be asked about', async function () {
+    it('should keep a transaction the node refused when it cannot be asked whether it has it', async function () {
+      // the refusal may come from a gateway that forwarded the transaction,
+      // and the outage that fails the lookup can't tell; giving the nonce back
+      // would reuse one the node may hold
       broadcast.rejects(nodeRefusal('gas price above cap'));
       writeProvider.getTransaction.rejects(lostResponse());
 
-      await expect(sendRelayTransaction()).to.be.rejectedWith(
-        'processing response error'
+      const error: unknown = await sendRelayTransaction().catch(
+        (e: unknown) => e
       );
 
-      expect(transactionManager.nonces[WORKER_ADDRESS]).to.equal(NONCE);
+      expect(error).to.be.instanceOf(KeptTransactionError);
+      expect(transactionManager.nonces[WORKER_ADDRESS]).to.equal(NONCE + 1);
       // eslint-disable-next-line @typescript-eslint/unbound-method -- a sinon stub, not a method call
-      expect(txStoreManager.removeTx).to.have.been.calledOnceWith(
-        sinon.match({ txId: TX_HASH, nonce: NONCE })
-      );
+      expect(txStoreManager.removeTx).not.to.have.been.called;
     });
 
     it('should keep the nonce and the transaction when the response to the broadcast is lost', async function () {
@@ -444,6 +446,31 @@ describe('TransactionManager tests', function () {
       );
     });
 
+    it('should take a transaction sent again unchanged as sent when the node cannot be asked whether it has it', async function () {
+      const storedTx = {
+        ...createStoredTx(BigNumber.from(100000000)),
+        txId: TX_HASH,
+      };
+      broadcast.rejects(nodeRefusal('transaction already known'));
+      writeProvider.getTransaction.rejects(lostResponse());
+
+      // nothing is known to be wrong with it, so the round goes on
+      await expect(
+        transactionManager.resendTransaction(
+          storedTx,
+          10,
+          BigNumber.from(100000000),
+          true
+        )
+      ).to.be.fulfilled;
+
+      // eslint-disable-next-line @typescript-eslint/unbound-method -- a sinon stub, not a method call
+      expect(txStoreManager.putTx).to.have.been.calledOnceWith(
+        sinon.match({ txId: TX_HASH, attempts: 2, boostBlockNumber: 10 }),
+        true
+      );
+    });
+
     it('should not take a transaction sent again unchanged as sent when the node has mined it', async function () {
       const storedTx = {
         ...createStoredTx(BigNumber.from(100000000)),
@@ -604,6 +631,19 @@ describe('TransactionManager tests', function () {
         );
 
       expect(newGasPrice.toString()).to.equal('12000000');
+      expect(isMaxGasPriceReached).to.be.false;
+    });
+
+    it('should raise the gasPrice at least to the node gasPrice', function () {
+      // the node's minimum rose past the old price raised by the factor, so
+      // the factor alone would be refused on every boost
+      const { newGasPrice, isMaxGasPriceReached } =
+        transactionManager._resolveNewGasPrice(
+          BigNumber.from(NODE_GAS_PRICE).div(2),
+          BigNumber.from(NODE_GAS_PRICE)
+        );
+
+      expect(newGasPrice.toString()).to.equal(NODE_GAS_PRICE);
       expect(isMaxGasPriceReached).to.be.false;
     });
 
