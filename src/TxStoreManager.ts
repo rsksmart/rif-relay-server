@@ -1,4 +1,4 @@
-import AsyncNedb from 'nedb-async';
+import Datastore from '@seald-io/nedb';
 import log from 'loglevel';
 import ow from 'ow';
 import { isSameAddress } from './Utils';
@@ -19,17 +19,17 @@ const parseBigNumberValues = (tx: StoredTransaction) => ({
 export const TXSTORE_FILENAME = 'txstore.db';
 
 export class TxStoreManager {
-  private readonly _txstore: AsyncNedb<StoredTransaction>;
+  private readonly _txstore: Datastore<StoredTransaction>;
 
   constructor({ workdir = '/tmp/test/', inMemory = false }) {
-    this._txstore = new AsyncNedb({
+    this._txstore = new Datastore({
       filename: inMemory ? undefined : `${workdir}/${TXSTORE_FILENAME}`,
       autoload: true,
       timestampData: true,
     });
-    void this._txstore.asyncEnsureIndex({ fieldName: 'txId', unique: true });
+    void this._txstore.ensureIndexAsync({ fieldName: 'txId', unique: true });
 
-    void this._txstore.asyncEnsureIndex({
+    void this._txstore.ensureIndexAsync({
       fieldName: 'nonceSigner',
       unique: true,
     });
@@ -54,14 +54,14 @@ export class TxStoreManager {
       nonceSigner,
     };
 
-    const existing: StoredTransaction = await this._txstore.asyncFindOne({
+    const existing: StoredTransaction = await this._txstore.findOneAsync({
       nonceSigner: tx1.nonceSigner,
     });
 
     if (existing && updateExisting) {
-      await this._txstore.asyncUpdate({ txId: existing.txId }, { $set: tx1 });
+      await this._txstore.updateAsync({ txId: existing.txId }, { $set: tx1 });
     } else {
-      await this._txstore.asyncInsert(tx1);
+      await this._txstore.insertAsync(tx1);
     }
   }
 
@@ -76,7 +76,7 @@ export class TxStoreManager {
     ow(signer, ow.string);
 
     return parseBigNumberValues(
-      await this._txstore.asyncFindOne({
+      await this._txstore.findOneAsync({
         nonceSigner: {
           signer: signer.toLowerCase(),
           nonce,
@@ -92,7 +92,7 @@ export class TxStoreManager {
     ow(txId, ow.string);
 
     return parseBigNumberValues(
-      await this._txstore.asyncFindOne({ txId: txId.toLowerCase() })
+      await this._txstore.findOneAsync({ txId: txId.toLowerCase() })
     );
   }
 
@@ -101,7 +101,7 @@ export class TxStoreManager {
     nonce: number
   ): Promise<StoredTransaction[]> {
     return (
-      await this._txstore.asyncFind({
+      await this._txstore.findAsync({
         $and: [
           { 'nonceSigner.nonce': { $lte: nonce } },
           { 'nonceSigner.signer': signer.toLowerCase() },
@@ -114,7 +114,7 @@ export class TxStoreManager {
     ow(nonce, ow.number);
     ow(signer, ow.string);
 
-    return await this._txstore.asyncRemove(
+    return await this._txstore.removeAsync(
       {
         $and: [
           { 'nonceSigner.nonce': { $lte: nonce } },
@@ -131,16 +131,16 @@ export class TxStoreManager {
   async removeTx(tx: StoredTransaction): Promise<unknown> {
     ow(tx.txId, ow.string);
 
-    return await this._txstore.asyncRemove({ txId: tx.txId });
+    return await this._txstore.removeAsync({ txId: tx.txId }, {});
   }
 
   async clearAll(): Promise<void> {
-    await this._txstore.asyncRemove({}, { multi: true });
+    await this._txstore.removeAsync({}, { multi: true });
   }
 
   async getAllBySigner(signer: string): Promise<StoredTransaction[]> {
     return (
-      await this._txstore.asyncFind<StoredTransaction>({
+      await this._txstore.findAsync({
         'nonceSigner.signer': signer.toLowerCase(),
       })
     )
@@ -149,7 +149,7 @@ export class TxStoreManager {
   }
 
   async getAll(): Promise<StoredTransaction[]> {
-    return (await this._txstore.asyncFind<StoredTransaction>({}))
+    return (await this._txstore.findAsync({}))
       .sort((tx1, tx2) => this._sortTransactionByNonce(tx1, tx2))
       .map(parseBigNumberValues);
   }
