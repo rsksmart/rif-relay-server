@@ -19,10 +19,11 @@
   contracts: {
     relayHubAddress: "0xD2EFC2B1e5296235779A79B69e7511764E2FC8cd",
     trustedVerifiers: [
-      "0xd84D65CA5cFaBeA721683D3ce5eA7F72992C30E1", // LendaswapDeployVerifier 10-15-2026
-      "0xC92BF8720A6126c7f000353e184B4fE2E0a51f4e", // LendaswapRelayVerifier 10-15-2026
-      "0xBB894e893Be2B0c9CB32E76fA066e4B876E30690", // MinimalLendaswapDeployVerifier 10-15-2026
-      "0x063D342a6f8Ce5c9B01774bCA6cE1c9Ee76A41be", // MinimalLendaswapRelayVerifier 10-15-2026
+      // rif-relay-contracts v2.2.1-beta.0, deployed 10-23-2026; HTLCNative is the only allowed destination
+      "0x3D52678C7329C75590D35b8415F83c6EDF35BCF8", // LendaswapDeployVerifier (factory 0x85D9C99b8d2fB2f1cc5d54d4e15E3F39e66852B3)
+      "0x485C241B07868CE8174e52EFFFe135bCD4E2ADE3", // LendaswapRelayVerifier (factory 0x85D9C99b8d2fB2f1cc5d54d4e15E3F39e66852B3)
+      "0x95cA494363c2EafFbB321bEF2B872978C583ea05", // MinimalLendaswapDeployVerifier (factory 0x20439219901784A03D45e3a357ecbF05D8486cEE)
+      "0xF62729882501fbDF06b98fC63455b0366724B30A", // MinimalLendaswapRelayVerifier (factory 0x20439219901784A03D45e3a357ecbF05D8486cEE)
     ],
   }
 }
