@@ -1,0 +1,29 @@
+{
+  app: {
+    url: "https://mainnet.relay.rifcomputing.net",
+    port: 8090,
+    devMode: false,
+    logLevel: 0,
+    workdir: "/srv/app/environment",
+    disableSponsoredTx: true,
+    gasFeePercentage: "0.02",
+  },
+  blockchain: {
+    // the hosted JSON-RPC endpoint must be provided through the RSK_NODE_URL environment variable;
+    // the empty value makes the config validation fail instead of silently using the default node
+    rskNodeUrl: "",
+    startupStateSource: "chain",
+    initialBlockToScan: 9361480,
+    maxBlockRange: 1999,
+  },
+  contracts: {
+    relayHubAddress: "0xb277EF52c98E72E1F9afD4B36201d0b56368FEc8",
+    trustedVerifiers: [
+      // rif-relay-contracts v2.2.1-beta.0, deployed 10-27-2026; HTLCNative 0x18123A31261a76c74C82ED2F8346002CaA78Ab39 is the only allowed destination
+      "0x6F181C741a9869B42d58A7c7A7e4efD4CeC57819", // LendaswapDeployVerifier (factory 0x25c87343380eEa565B6c664A8fD13b9B57C106cB)
+      "0x4b2b65677CA652C0bADf00ffc52503C10e64411B", // LendaswapRelayVerifier (factory 0x25c87343380eEa565B6c664A8fD13b9B57C106cB)
+      "0xF3A05BFCeE457034a33B6ab00c698AA50947df89", // MinimalLendaswapDeployVerifier (factory 0x7dc6249d9f3f3755f614cf171a618272BCC823f5)
+      "0x902608297643c0d29940B9a551f7F80A8C957CB8", // MinimalLendaswapRelayVerifier (factory 0x7dc6249d9f3f3755f614cf171a618272BCC823f5)
+    ],
+  }
+}
